@@ -9,6 +9,9 @@ include_directories(${Boost_INCLUDE_DIRS})
 set(LIBS ${LIBS} Boost::system Boost::filesystem)
 
 
-set(SRC kvd.cpp)
+set(SRC
+    raft/raft.cpp
+    raft/node.cpp
+    kvd.cpp)
 add_executable(kvd ${SRC})
 target_link_libraries(kvd ${LIBS})

@@ -1,5 +1,4 @@
-#ifndef KVD_KVD_LOG_H
-#define KVD_KVD_LOG_H
+#pragma once
 
 #include <string.h>
 #include <stdio.h>
@@ -11,5 +10,3 @@
 #define LOG_DEBUG(format, ...)
 #endif
 
-
-#endif //KVD_KVD_LOG_H

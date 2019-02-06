@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 11)
 add_definitions(-Wall)
 add_definitions(-DDEBUG)
 
+
+include_directories(${CMAKE_SOURCE_DIR}/kvd)
+
 add_subdirectory(kvd)
 
 
