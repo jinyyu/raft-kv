@@ -14,18 +14,19 @@ public:
     explicit ClientSession(boost::asio::io_service& io_serivce, std::weak_ptr<AsioPeer> peer)
         : socket_(io_serivce),
           endpoint_(peer.lock()->endpoint_),
-          peer_(std::move(peer))
+          peer_(std::move(peer)),
+          connected_(false)
     {
+        LOG_INFO("new client session");
     }
 
     ~ClientSession()
     {
-        LOG_DEBUG("remove session");
+        LOG_DEBUG("remove closed");
     }
 
     void send(uint8_t transport_type, const uint8_t* data, uint32_t len)
     {
-        bool remain = buffer_.remain();
         uint32_t remaining = buffer_.remaining();
 
         TransportMeta meta;
@@ -36,7 +37,7 @@ public:
         buffer_.put(data, len);
         assert(remaining + sizeof(TransportMeta) + len == buffer_.remaining());
 
-        if (remaining == 0) {
+        if (connected_ && remaining == 0) {
             start_write();
         }
     }
@@ -58,13 +59,18 @@ public:
                 self->on_disconnected();
                 return;
             }
+            self->connected_ = true;
+            LOG_INFO("connected success");
+
+            if (self->buffer_.remain()) {
+                self->start_write();
+            }
         });
     }
 
     void start_write()
     {
         if (!buffer_.remain()) {
-            LOG_ERROR("not data to send");
             return;
         }
 
@@ -77,11 +83,9 @@ public:
                 self->on_disconnected();
                 return;
             }
-            LOG_ERROR("------------------------------------send bytes%d", bytes);
             self->buffer_.skip_bytes(bytes);
             self->start_write();
         };
-        LOG_ERROR("SEND data len = %d", remaining);
         boost::asio::async_write(socket_, buffer, handler);
     }
 
@@ -90,6 +94,7 @@ private:
     boost::asio::ip::tcp::endpoint endpoint_;
     std::weak_ptr<AsioPeer> peer_;
     ByteBuffer buffer_;
+    bool connected_;
 };
 
 AsioPeer::AsioPeer(boost::asio::io_service& io_service, uint64_t peer, const std::string& peer_str)
@@ -148,15 +153,19 @@ void AsioPeer::do_send_data(uint8_t type, const uint8_t* data, uint32_t len)
 {
     if (!session_) {
         session_ = std::make_shared<ClientSession>(io_service_, shared_from_this());
+        session_->send(type, data, len);
         session_->start_connect();
     }
-    session_->send(type, data, len);
+    else {
+        session_->send(type, data, len);
+    }
+
 }
 
 void AsioPeer::start_timer()
 {
     auto self = shared_from_this();
-    timer_.expires_from_now(boost::posix_time::seconds(3));
+    timer_.expires_from_now(boost::posix_time::seconds(1));
     timer_.async_wait([self](const boost::system::error_code& err) {
         if (err) {
             LOG_ERROR("timer waiter error %s", err.message().c_str());
@@ -166,10 +175,12 @@ void AsioPeer::start_timer()
 
         self->start_timer();
     });
-    for (int i = 99; i < 101; ++i) {
-        auto str = std::to_string(i);
-        do_send_data(TransportTypeDebug, (const uint8_t*) str.data(), str.size());
-    }
+
+    static std::atomic<int> tick;
+    DebugMessage dbg;
+    dbg.a = tick++;
+    dbg.b = tick++;
+    do_send_data(TransportTypeDebug, (const uint8_t*) &dbg, sizeof(dbg));
 
 }
 

@@ -14,4 +14,12 @@ struct TransportMeta
 };
 #pragma pack()
 
+#pragma pack(1)
+struct DebugMessage
+{
+    uint32_t a;
+    uint32_t b;
+};
+#pragma pack()
+
 }

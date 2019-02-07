@@ -23,8 +23,6 @@ void ByteBuffer::put(const uint8_t *data, uint32_t len)
     }
     memcpy(buff_.data() + writer_, data, len);
     writer_ += len;
-
-    LOG_ERROR("put %d, reader = %d, writer = %d", len, reader_, writer_);
 }
 
 
@@ -36,7 +34,6 @@ uint32_t ByteBuffer::remaining() const
 
 void ByteBuffer::skip_bytes(uint32_t bytes)
 {
-    LOG_ERROR("skip %d, reader = %d, writer = %d", bytes, reader_, writer_);
     assert(remaining() >= bytes);
     reader_ += bytes;
     may_shrink_to_fit();
@@ -44,11 +41,10 @@ void ByteBuffer::skip_bytes(uint32_t bytes)
 
 void ByteBuffer::may_shrink_to_fit()
 {
-    /*
-    if (!remain()) {
-        reader_ = writer_ = 0;
+    if (reader_ == writer_) {
+        reader_= 0;
+        writer_ = 0;
     }
-     */
 }
 
 void ByteBuffer::reset()

@@ -20,6 +20,9 @@ public:
     void start_read_meta()
     {
         auto self = shared_from_this();
+        assert(sizeof(meta_) == 5);
+        meta_.type = 0;
+        meta_.len = 0;
         auto buffer = boost::asio::buffer(&meta_, sizeof(meta_));
         auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
             if (error || bytes == 0) {
@@ -57,7 +60,6 @@ public:
                 LOG_DEBUG("invalid data len %lu, %u", bytes, len);
                 return;
             }
-            LOG_ERROR("------------------%d", len);
             self->decode_message(len);
         };
         boost::asio::async_read(socket, buffer, boost::asio::transfer_exactly(len), handler);
@@ -67,8 +69,10 @@ public:
     {
         switch (meta_.type) {
         case TransportTypeDebug: {
-
-            LOG_DEBUG("debug msg:%s", std::string((const char*)buffer_.data(), len).c_str());
+            assert(len == sizeof(DebugMessage));
+            DebugMessage* dbg = (DebugMessage*)buffer_.data();
+            assert(dbg->a + 1 == dbg->b);
+            LOG_DEBUG("tick ok");
             break;
         }
         default: {
@@ -77,7 +81,7 @@ public:
         }
         }
 
-        start_read_message();
+        start_read_meta();
     }
 
     boost::asio::ip::tcp::socket socket;
