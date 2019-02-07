@@ -56,29 +56,29 @@ public:
                 self->on_disconnected();
                 return;
             }
-            self->start_write();
         });
     }
 
     void start_write()
     {
         if (!buffer_.remain()) {
-            LOG_DEBUG("send finished");
             return;
         }
 
         auto self = shared_from_this();
-        auto buffer = boost::asio::buffer(buffer_.reader(), buffer_.remain());
-        auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
+        uint32_t remaining = buffer_.remaining();
+        auto buffer = boost::asio::buffer(buffer_.reader(), remaining);
+
+        auto handler = [self, remaining](const boost::system::error_code& error, std::size_t bytes) {
             if (error || bytes == 0) {
                 LOG_DEBUG("send error %s", error.message().c_str());
                 self->on_disconnected();
                 return;
             }
 
+            assert(remaining == bytes);
             self->buffer_.skip_bytes(bytes);
             self->start_write();
-
         };
         boost::asio::async_write(socket_, buffer, handler);
     }
@@ -112,7 +112,7 @@ AsioPeer::~AsioPeer()
 
 void AsioPeer::start()
 {
-    do_send_data(TransportTypeDebug, (const uint8_t*)"debug", 5);
+    do_send_data(TransportTypeDebug, (const uint8_t*) "debug", 5);
 }
 
 void AsioPeer::send(proto::MessagePtr msg)

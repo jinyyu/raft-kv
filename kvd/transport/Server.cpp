@@ -2,7 +2,7 @@
 #include <boost/algorithm/string.hpp>
 #include <kvd/common/log.h>
 #include <kvd/common/ByteBuffer.h>
-
+#include <kvd/transport/proto.h>
 namespace kvd
 {
 
@@ -12,22 +12,77 @@ class ServerSession: public std::enable_shared_from_this<ServerSession>
 public:
     explicit ServerSession(boost::asio::io_service& io_service, std::weak_ptr<AsioServer> server)
         : socket(io_service),
-          server_ptr(std::move(server))
+          server_(std::move(server))
     {
 
     }
 
-    void start()
+    void start_read_meta()
     {
-        LOG_DEBUG("new session ");
-        auto server = server_ptr.lock();
-        if (server) {
-            LOG_DEBUG("LOCK OK");
+        auto self = shared_from_this();
+        auto buffer = boost::asio::buffer(&meta_, sizeof(meta_));
+        auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
+            if (error || bytes == 0) {
+                LOG_DEBUG("read error %s", error.message().c_str());
+                return;
+            }
+
+            if (bytes != sizeof(meta_)) {
+                LOG_DEBUG("invalid data len %lu", bytes);
+                return;
+            }
+            self->start_read_message();
+        };
+
+        boost::asio::async_read(socket, buffer, boost::asio::transfer_exactly(sizeof(meta_)), handler);
+    }
+
+    void start_read_message()
+    {
+        auto self = shared_from_this();
+        uint32_t len = ntohl(meta_.len);
+        if (buffer_.capacity() < len) {
+            buffer_.resize(len);
         }
+
+        auto buffer = boost::asio::buffer(buffer_.data(), len);
+        auto handler = [self, len](const boost::system::error_code& error, std::size_t bytes) {
+            assert(len == ntohl(self->meta_.len));
+            if (error || bytes == 0) {
+                LOG_DEBUG("read error %s", error.message().c_str());
+                return;
+            }
+
+            if (bytes != len) {
+                LOG_DEBUG("invalid data len %lu, %u", bytes, len);
+                return;
+            }
+            self->decode_message(len);
+        };
+        boost::asio::async_read(socket, buffer, boost::asio::transfer_exactly(len), handler);
+    }
+
+    void decode_message(uint32_t len)
+    {
+        switch (meta_.type) {
+        case TransportTypeDebug: {
+            LOG_DEBUG("debug msg:%s", std::string((const char*)buffer_.data(), len).c_str());
+            break;
+        }
+        default: {
+            LOG_DEBUG("unknown msg type %d, len = %d", meta_.type, ntohl(meta_.len));
+            return;
+        }
+        }
+
+        start_read_message();
     }
 
     boost::asio::ip::tcp::socket socket;
-    std::weak_ptr<AsioServer> server_ptr;
+private:
+    std::weak_ptr<AsioServer> server_;
+    TransportMeta meta_;
+    std::vector<uint8_t> buffer_;
 };
 
 AsioServer::AsioServer(boost::asio::io_service& io_service, const std::string& host)
@@ -66,7 +121,7 @@ void AsioServer::start()
         }
 
         this->start();
-        session->start();
+        session->start_read_meta();
     });
 }
 
