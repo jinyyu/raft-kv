@@ -35,7 +35,7 @@ TEST(test_msgpack, test_msgpack)
     ASSERT_TRUE(success);
 
     ASSERT_TRUE(rvec.size() == 1);
-    MyClass& out = rvec[0];
+    MyClass &out = rvec[0];
     ASSERT_TRUE(out.str == "abc");
     ASSERT_TRUE(out.vec.size() == 2);
     ASSERT_TRUE(out.vec[0] == 1);
@@ -65,7 +65,7 @@ TEST(test_msgpack, test_error)
 
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

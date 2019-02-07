@@ -11,9 +11,9 @@ namespace kvd
 class RaftNode
 {
 public:
-    static void main(uint64_t id, const std::string& cluster, uint16_t port);
+    static void main(uint64_t id, const std::string &cluster, uint16_t port);
 
-    explicit RaftNode(uint64_t id, const std::string& cluster, uint16_t port);
+    explicit RaftNode(uint64_t id, const std::string &cluster, uint16_t port);
 
     ~RaftNode();
 

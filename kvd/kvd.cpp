@@ -4,10 +4,10 @@
 #include "kvd/log.h"
 #include "kvd/RaftNode.h"
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     uint64_t id = 0;
-    const char* cluster = NULL;
+    const char *cluster = NULL;
     uint16_t port = 0;
 
     GOptionEntry entries[] =
@@ -18,8 +18,8 @@ int main(int argc, char* argv[])
             {NULL}
         };
 
-    GError* error = NULL;
-    GOptionContext* context = g_option_context_new("usage");
+    GError *error = NULL;
+    GOptionContext *context = g_option_context_new("usage");
     g_option_context_add_main_entries(context, entries, NULL);
     if (!g_option_context_parse(context, &argc, &argv, &error)) {
         fprintf(stderr, "option parsing failed: %s\n", error->message);
@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
     }
 
     if (id == 0 || !cluster || port == 0) {
-        char* help = g_option_context_get_help(context, true, NULL);
+        char *help = g_option_context_get_help(context, true, NULL);
         fprintf(stderr, help);
         free(help);
         exit(EXIT_FAILURE);

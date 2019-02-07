@@ -8,7 +8,7 @@ TEST(test_buffer, test_buffer)
 {
     ByteBuffer buff;
 
-    buff.put((const uint8_t*)"abc", 3);
+    buff.put((const uint8_t *) "abc", 3);
     ASSERT_TRUE(buff.remain());
     ASSERT_TRUE(buff.remaining() == 3);
 
@@ -24,7 +24,7 @@ TEST(test_buffer, test_buffer)
     fprintf(stderr, "%d\n", buff.capacity());
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

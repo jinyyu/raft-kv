@@ -12,7 +12,7 @@ class ByteBuffer
 public:
     explicit ByteBuffer();
 
-    void put(const uint8_t* data, uint32_t len)
+    void put(const uint8_t *data, uint32_t len)
     {
         uint32_t left = static_cast<uint32_t>(buff_.size()) - writer_;
         if (left < len) {
@@ -36,7 +36,7 @@ public:
         return static_cast<uint32_t>(buff_.capacity());
     }
 
-    const uint8_t* reader() const
+    const uint8_t *reader() const
     {
         return buff_.data() + reader_;
     }

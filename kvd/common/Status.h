@@ -12,25 +12,25 @@ public:
         : status_(nullptr)
     {}
 
-    Status(const Status& s);
+    Status(const Status &s);
 
-    Status& operator=(const Status& s);
+    Status &operator=(const Status &s);
 
     ~Status();
 
     static Status ok()
     { return Status(); }
 
-    static Status not_found(const char* msg)
+    static Status not_found(const char *msg)
     { return Status(NotFound, msg); }
 
-    static Status not_supported(const char* msg)
+    static Status not_supported(const char *msg)
     { return Status(NotSupported, msg); }
 
-    static Status invalid_argument(const char* msg)
+    static Status invalid_argument(const char *msg)
     { return Status(InvalidArgument, msg); }
 
-    static Status io_error(const char* msg)
+    static Status io_error(const char *msg)
     { return Status(IOError, msg); }
 
     bool is_ok() const
@@ -61,9 +61,9 @@ private:
         IOError = 4,
     };
 
-    inline static char* copy(const Status& s);
+    inline static char *copy(const Status &s);
 
-    Status(Code code, const char* msg);
+    Status(Code code, const char *msg);
 
     Code code() const
     {
@@ -74,7 +74,7 @@ private:
     //state_[0..3] == length of message
     //state_[4]    == code
     //state_[5..]  == message
-    char* status_;
+    char *status_;
 };
 
 }
