@@ -1,5 +1,6 @@
 
 set(SRC
+    common/log.h
     common/Slice.h
     common/Status.cpp
     common/ByteBuffer.cpp
@@ -8,11 +9,11 @@ set(SRC
     raft/Node.cpp
     transport/Transporter.h
     transport/AsioTransport.cpp
-    RaftNode.cpp
+    KvdServer.cpp
     )
-add_library(kvd ${SRC})
-target_link_libraries(kvd ${LIBS})
+add_library(kvd++ ${SRC})
+target_link_libraries(kvd++ ${LIBS})
 
 
-add_executable(kvd-node kvd.cpp)
-target_link_libraries(kvd-node ${LIBS} kvd)
+add_executable(kvd kvd.cpp)
+target_link_libraries(kvd ${LIBS} kvd++)

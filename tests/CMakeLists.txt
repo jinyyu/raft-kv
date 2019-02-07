@@ -2,7 +2,7 @@
 
 set(LIBS
     ${LIBS}
-    kvd)
+    kvd++)
 
 
 add_executable(msgpack test_msgpack.cpp)

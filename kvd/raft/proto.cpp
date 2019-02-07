@@ -1,6 +1,6 @@
 #include "kvd/raft/proto.h"
 #include <boost/assert.hpp>
-#include "kvd/log.h"
+#include "kvd/common/log.h"
 
 namespace kvd
 {

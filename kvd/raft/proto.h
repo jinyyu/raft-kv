@@ -87,6 +87,7 @@ struct Message
     std::vector<uint8_t> context;
     MSGPACK_DEFINE (type, to, from, term, log_term, index, entries, commit, snapshot, reject, reject_hint, context);
 };
+typedef std::shared_ptr<Message> MessagePtr;
 
 }
 }
