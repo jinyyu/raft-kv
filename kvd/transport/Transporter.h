@@ -21,7 +21,7 @@ public:
     // to an existing peer in the transport.
     // If the id cannot be found in the transport, the message
     // will be ignored.
-    virtual void send(std::vector<proto::Message> msgs) = 0;
+    virtual void send(std::vector<proto::MessagePtr> msgs) = 0;
 
     virtual void add_peer(uint64_t id, const std::string& peer) = 0;
 };

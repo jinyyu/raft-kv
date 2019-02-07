@@ -4,6 +4,7 @@
 #include <thread>
 #include <mutex>
 #include <unordered_map>
+#include <kvd/transport/Peer.h>
 
 namespace kvd
 {
@@ -20,7 +21,7 @@ public:
 
     virtual void add_peer(uint64_t id, const std::string& peer);
 
-    virtual void send(std::vector<proto::Message> msgs);
+    virtual void send(std::vector<proto::MessagePtr> msgs);
 
     virtual void stop();
 
@@ -32,7 +33,7 @@ private:
     boost::asio::io_service io_service_;
 
     std::mutex mutex_;
-    std::unordered_map<uint64_t, std::string> peers_;
+    std::unordered_map<uint64_t, PeerPtr> peers_;
 };
 
 }

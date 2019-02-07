@@ -70,6 +70,7 @@ struct Snapshot
     SnapshotMetadata metadata;
     MSGPACK_DEFINE (data, metadata);
 };
+typedef std::shared_ptr<Snapshot> SnapshotPtr;
 
 struct Message
 {

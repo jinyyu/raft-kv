@@ -8,17 +8,14 @@ static uint64_t g_id = 0;
 static const char *g_cluster = NULL;
 static uint16_t g_port = 0;
 
-
 int main(int argc, char *argv[])
 {
-    GOptionEntry entries[] =
-        {
-            {"id", 'i', 0, G_OPTION_ARG_INT64, &g_id, "node id", NULL},
-            {"cluster", 'c', 0, G_OPTION_ARG_STRING, &g_cluster, "comma separated cluster peers", NULL},
-            {"port", 'p', 0, G_OPTION_ARG_INT, &g_port, "key-value server port", NULL},
-
-            {NULL}
-        };
+    GOptionEntry entries[] = {
+        {"id", 'i', 0, G_OPTION_ARG_INT64, &g_id, "node id", NULL},
+        {"cluster", 'c', 0, G_OPTION_ARG_STRING, &g_cluster, "comma separated cluster peers", NULL},
+        {"port", 'p', 0, G_OPTION_ARG_INT, &g_port, "key-value server port", NULL},
+        {NULL}
+    };
 
     GError *error = NULL;
     GOptionContext *context = g_option_context_new("usage");
