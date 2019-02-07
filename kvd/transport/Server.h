@@ -5,6 +5,9 @@
 namespace kvd
 {
 
+class ServerSession;
+typedef std::shared_ptr<ServerSession> ServerSessionPtr;
+
 class Server
 {
 public:
@@ -29,6 +32,8 @@ public:
     virtual void stop();
 
 private:
+    void handle_accept(ServerSessionPtr session);
+
     boost::asio::io_service& io_service_;
     boost::asio::ip::tcp::acceptor acceptor_;
 };

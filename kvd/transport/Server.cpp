@@ -1,9 +1,29 @@
 #include <kvd/transport/Server.h>
 #include <boost/algorithm/string.hpp>
 #include <kvd/common/log.h>
+#include <kvd/common/ByteBuffer.h>
 
 namespace kvd
 {
+
+
+class ServerSession: public std::enable_shared_from_this<ServerSession>
+{
+public:
+    explicit ServerSession(boost::asio::io_service& io_service)
+        : socket(io_service)
+    {
+
+    }
+
+    void start()
+    {
+        LOG_DEBUG("new session ");
+    }
+
+
+    boost::asio::ip::tcp::socket socket;
+};
 
 AsioServer::AsioServer(boost::asio::io_service& io_service, const std::string& host)
     : io_service_(io_service),
@@ -31,15 +51,28 @@ AsioServer::~AsioServer()
 
 }
 
-
 void AsioServer::start()
 {
+    ServerSessionPtr session(new ServerSession(io_service_));
+    acceptor_.async_accept(session->socket, [this, session](const boost::system::error_code& error) {
+        if (error) {
+            LOG_DEBUG("accept error %s", error.message().c_str());
+            return;
+        }
 
+        this->start();
+        session->start();
+    });
 }
 
 void AsioServer::stop()
 {
 
+}
+
+void AsioServer::handle_accept(ServerSessionPtr session)
+{
+    LOG_DEBUG("new session");
 }
 
 }
