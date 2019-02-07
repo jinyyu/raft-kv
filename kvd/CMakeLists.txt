@@ -1,7 +1,11 @@
 
 set(SRC
-    raft/raft.cpp
-    raft/node.cpp)
+    common/Status.cpp
+    common/ByteBuffer.cpp
+    raft/Raft.cpp
+    raft/Node.cpp
+    RaftNode.cpp
+    )
 add_library(kvd ${SRC})
 target_link_libraries(kvd ${LIBS})
 
