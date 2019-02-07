@@ -9,6 +9,7 @@ set(SRC
     raft/Node.cpp
     transport/Transporter.h
     transport/AsioTransport.cpp
+    transport/Peer.cpp
     KvdServer.cpp
     )
 add_library(kvd++ ${SRC})

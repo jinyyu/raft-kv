@@ -2,10 +2,11 @@
 #include <kvd/transport/Transporter.h>
 #include <boost/asio/io_service.hpp>
 #include <thread>
+#include <mutex>
+#include <unordered_map>
 
 namespace kvd
 {
-
 
 class AsioTransport: public Transporter
 {
@@ -17,6 +18,10 @@ public:
 
     virtual void start();
 
+    virtual void add_peer(uint64_t id, const std::string& peer);
+
+    virtual void send(std::vector<proto::Message> msgs);
+
     virtual void stop();
 
 private:
@@ -25,6 +30,9 @@ private:
 
     std::thread io_thread_;
     boost::asio::io_service io_service_;
+
+    std::mutex mutex_;
+    std::unordered_map<uint64_t, std::string> peers_;
 };
 
 }

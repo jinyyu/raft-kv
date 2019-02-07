@@ -15,6 +15,15 @@ public:
     virtual void start() = 0;
 
     virtual void stop() = 0;
+
+    // sends out the given messages to the remote peers.
+    // Each message has a To field, which is an id that maps
+    // to an existing peer in the transport.
+    // If the id cannot be found in the transport, the message
+    // will be ignored.
+    virtual void send(std::vector<proto::Message> msgs) = 0;
+
+    virtual void add_peer(uint64_t id, const std::string& peer) = 0;
 };
 
 typedef std::shared_ptr<Transporter> TransporterPtr;

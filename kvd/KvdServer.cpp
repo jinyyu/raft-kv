@@ -19,22 +19,22 @@ KvdServer::KvdServer(uint64_t id, const std::string &cluster, uint16_t port)
 KvdServer::~KvdServer()
 {
     LOG_DEBUG("stopped");
+    if (transport_) {
+        transport_->stop();
+        transport_ = nullptr;
+    }
 }
-
 
 void KvdServer::schedule()
 {
 
 }
 
-
-
 Status KvdServer::process(proto::MessagePtr msg)
 {
     LOG_DEBUG("no impl yet");
     return Status::ok();
 }
-
 
 bool KvdServer::is_id_removed(uint64_t id)
 {
@@ -52,7 +52,6 @@ void KvdServer::report_snapshot(uint64_t id, SnapshotStatus status)
     LOG_DEBUG("no impl yet");
 }
 
-
 static KvdServerPtr g_node = nullptr;
 
 void on_signal(int)
@@ -66,21 +65,33 @@ void KvdServer::main(uint64_t id, const std::string &cluster, uint16_t port)
 {
     g_node = std::make_shared<KvdServer>(id, cluster, port);
 
-    AsioTransport* transport = new AsioTransport(g_node, g_node->id_);
+    AsioTransport *transport = new AsioTransport(g_node, g_node->id_);
 
-
-    TransporterPtr ptr((Transporter*)transport);
+    TransporterPtr ptr((Transporter *) transport);
     ptr->start();
     g_node->transport_ = ptr;
 
+    for (uint64_t i = 0; i < g_node->peers_.size(); ++i) {
+        uint64_t peer = i + 1;
+        if (peer == g_node->id_) {
+            continue;
+        }
+        ptr->add_peer(peer, g_node->peers_[i]);
+    }
     g_node->schedule();
+    sleep(3);
 }
 
 void KvdServer::stop()
 {
     LOG_DEBUG("stopping");
-    io_service_.stop();
-}
+    if (transport_) {
+        transport_->stop();
+        transport_ = nullptr;
+    }
 
+    io_service_.stop();
+
+}
 
 }

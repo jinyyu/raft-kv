@@ -4,17 +4,19 @@
 #include "kvd/common/log.h"
 #include "kvd/KvdServer.h"
 
+static uint64_t g_id = 0;
+static const char *g_cluster = NULL;
+static uint16_t g_port = 0;
+
+
 int main(int argc, char *argv[])
 {
-    uint64_t id = 0;
-    const char *cluster = NULL;
-    uint16_t port = 0;
-
     GOptionEntry entries[] =
         {
-            {"id", 'i', 0, G_OPTION_ARG_INT64, &id, "cluster", NULL},
-            {"cluster", 'c', 0, G_OPTION_ARG_STRING, &cluster, "comma separated cluster peers", NULL},
-            {"port", 'p', 0, G_OPTION_ARG_INT, &port, "key-value server port", NULL},
+            {"id", 'i', 0, G_OPTION_ARG_INT64, &g_id, "node id", NULL},
+            {"cluster", 'c', 0, G_OPTION_ARG_STRING, &g_cluster, "comma separated cluster peers", NULL},
+            {"port", 'p', 0, G_OPTION_ARG_INT, &g_port, "key-value server port", NULL},
+
             {NULL}
         };
 
@@ -25,14 +27,15 @@ int main(int argc, char *argv[])
         fprintf(stderr, "option parsing failed: %s\n", error->message);
         exit(EXIT_FAILURE);
     }
+    fprintf(stderr, "id:%lu, port:%d, cluster:%s\n", g_id, g_port, g_cluster);
 
-    if (id == 0 || !cluster || port == 0) {
+    if (g_id == 0 || g_port == 0) {
         char *help = g_option_context_get_help(context, true, NULL);
         fprintf(stderr, help);
         free(help);
         exit(EXIT_FAILURE);
     }
 
-    kvd::KvdServer::main(id, cluster, port);
+    kvd::KvdServer::main(g_id, g_cluster, g_port);
     g_option_context_free(context);
 }
