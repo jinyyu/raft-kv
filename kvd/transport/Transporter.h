@@ -12,7 +12,7 @@ class Transporter
 public:
     virtual ~Transporter() = default;
 
-    virtual void start() = 0;
+    virtual void start(const std::string& host) = 0;
 
     virtual void stop() = 0;
 

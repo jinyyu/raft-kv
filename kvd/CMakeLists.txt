@@ -10,7 +10,8 @@ set(SRC
     transport/Transporter.h
     transport/AsioTransport.cpp
     transport/Peer.h
-    transport/AsioPeer.cpp
+    transport/Server.cpp
+    transport/Peer.cpp
     KvdServer.cpp
     )
 add_library(kvd++ ${SRC})

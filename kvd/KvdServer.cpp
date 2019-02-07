@@ -68,7 +68,8 @@ void KvdServer::main(uint64_t id, const std::string &cluster, uint16_t port)
     AsioTransport *transport = new AsioTransport(g_node, g_node->id_);
 
     TransporterPtr ptr((Transporter *) transport);
-    ptr->start();
+    std::string& host = g_node->peers_[id - 1];
+    ptr->start(host);
     g_node->transport_ = ptr;
 
     for (uint64_t i = 0; i < g_node->peers_.size(); ++i) {
@@ -79,7 +80,7 @@ void KvdServer::main(uint64_t id, const std::string &cluster, uint16_t port)
         ptr->add_peer(peer, g_node->peers_[i]);
     }
     g_node->schedule();
-    sleep(3);
+    sleep(100);
 }
 
 void KvdServer::stop()

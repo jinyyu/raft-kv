@@ -1,10 +1,10 @@
 #include "kvd/transport/AsioTransport.h"
 #include "kvd/common/log.h"
-#include "kvd/transport/AsioPeer.h"
+#include <boost/algorithm/string.hpp>
+
 
 namespace kvd
 {
-
 
 AsioTransport::AsioTransport(std::weak_ptr<RaftServer> raft, uint64_t id)
     : raft_(std::move(raft)),
@@ -22,8 +22,14 @@ AsioTransport::~AsioTransport()
 
 }
 
-void AsioTransport::start()
+void AsioTransport::start(const std::string& host)
 {
+    Server* server = new AsioServer(io_service_, host);
+    server->start();
+    ServerPtr p(server);
+    server_ = p;
+    server_->start();
+
     io_thread_ = std::thread([this]() {
         this->io_service_.run();
     });

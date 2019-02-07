@@ -5,6 +5,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <kvd/transport/Peer.h>
+#include <kvd/transport/Server.h>
 
 namespace kvd
 {
@@ -17,15 +18,16 @@ public:
 
     ~AsioTransport();
 
-    virtual void start();
+    virtual void start(const std::string& host);
 
     virtual void add_peer(uint64_t id, const std::string& peer);
 
     virtual void send(std::vector<proto::MessagePtr> msgs);
 
     virtual void stop();
-
 private:
+
+
     std::weak_ptr<RaftServer> raft_;
     uint64_t id_;
 
@@ -34,6 +36,8 @@ private:
 
     std::mutex mutex_;
     std::unordered_map<uint64_t, PeerPtr> peers_;
+
+    ServerPtr server_;
 };
 
 }

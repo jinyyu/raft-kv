@@ -1,8 +1,7 @@
-#include "kvd/transport/AsioPeer.h"
+#include "kvd/transport/Peer.h"
 #include "kvd/common/log.h"
 namespace kvd
 {
-
 
 AsioPeer::AsioPeer(boost::asio::io_service& io_service, uint64_t peer, const std::string& peer_str)
     : io_service_(io_service)
