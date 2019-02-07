@@ -58,12 +58,14 @@ public:
     virtual void stop();
 private:
     void do_send_data(uint8_t type, const uint8_t* data, uint32_t len);
+    void start_timer();
 
     boost::asio::io_service& io_service_;
 
     friend class ClientSession;
     ClientSessionPtr session_;
     boost::asio::ip::tcp::endpoint endpoint_;
+    boost::asio::deadline_timer timer_;
 };
 
 }

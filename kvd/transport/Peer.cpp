@@ -91,7 +91,8 @@ private:
 };
 
 AsioPeer::AsioPeer(boost::asio::io_service& io_service, uint64_t peer, const std::string& peer_str)
-    : io_service_(io_service)
+    : io_service_(io_service),
+      timer_(io_service)
 {
     std::vector<std::string> strs;
     boost::split(strs, peer_str, boost::is_any_of(":"));
@@ -112,7 +113,7 @@ AsioPeer::~AsioPeer()
 
 void AsioPeer::start()
 {
-    do_send_data(TransportTypeDebug, (const uint8_t*) "debug", 5);
+    start_timer();
 }
 
 void AsioPeer::send(proto::MessagePtr msg)
@@ -148,6 +149,22 @@ void AsioPeer::do_send_data(uint8_t type, const uint8_t* data, uint32_t len)
         session_->start_connect();
     }
     session_->send(type, data, len);
+}
+
+void AsioPeer::start_timer()
+{
+    auto self = shared_from_this();
+    timer_.expires_from_now(boost::posix_time::seconds(3));
+    timer_.async_wait([self](const boost::system::error_code& err) {
+        if (err) {
+            LOG_ERROR("timer waiter error %s", err.message().c_str());
+            return;
+        }
+
+
+        self->start_timer();
+    });
+    do_send_data(TransportTypeDebug, (const uint8_t*) "debug", 5);
 }
 
 }

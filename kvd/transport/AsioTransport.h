@@ -26,8 +26,6 @@ public:
 
     virtual void stop();
 private:
-
-
     std::weak_ptr<RaftServer> raft_;
     uint64_t id_;
 
