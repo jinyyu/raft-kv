@@ -171,8 +171,6 @@ void AsioPeer::start_timer()
             LOG_ERROR("timer waiter error %s", err.message().c_str());
             return;
         }
-
-
         self->start_timer();
     });
 

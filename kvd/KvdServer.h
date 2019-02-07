@@ -9,7 +9,7 @@
 namespace kvd
 {
 
-class KvdServer: public RaftServer
+class KvdServer: public RaftServer, public std::enable_shared_from_this<KvdServer>
 {
 public:
     static void main(uint64_t id, const std::string &cluster, uint16_t port);
@@ -25,9 +25,11 @@ public:
     virtual void report_unreachable(uint64_t id);
     virtual void report_snapshot(uint64_t id, SnapshotStatus status);
 private:
+    void start_timer();
     void schedule();
 
     boost::asio::io_service io_service_;
+    boost::asio::deadline_timer timer_;
     uint64_t id_;
     std::vector<std::string> peers_;
 

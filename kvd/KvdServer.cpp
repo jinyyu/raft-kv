@@ -6,8 +6,9 @@
 namespace kvd
 {
 
-KvdServer::KvdServer(uint64_t id, const std::string &cluster, uint16_t port)
-    : id_(id)
+KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
+    : timer_(io_service_),
+      id_(id)
 {
     boost::split(peers_, cluster, boost::is_any_of(","));
     if (peers_.empty()) {
@@ -25,9 +26,23 @@ KvdServer::~KvdServer()
     }
 }
 
+void KvdServer::start_timer()
+{
+    auto self = shared_from_this();
+    timer_.expires_from_now(boost::posix_time::seconds(1));
+    timer_.async_wait([self](const boost::system::error_code& err) {
+        if (err) {
+            LOG_ERROR("timer waiter error %s", err.message().c_str());
+            return;
+        }
+        self->start_timer();
+    });
+}
+
 void KvdServer::schedule()
 {
-
+    start_timer();
+    io_service_.run();
 }
 
 Status KvdServer::process(proto::MessagePtr msg)
@@ -56,18 +71,21 @@ static KvdServerPtr g_node = nullptr;
 
 void on_signal(int)
 {
+    LOG_INFO("catch signal");
     if (g_node) {
         g_node->stop();
     }
 }
 
-void KvdServer::main(uint64_t id, const std::string &cluster, uint16_t port)
+void KvdServer::main(uint64_t id, const std::string& cluster, uint16_t port)
 {
+    ::signal(SIGINT, on_signal);
+    ::signal(SIGHUP, on_signal);
     g_node = std::make_shared<KvdServer>(id, cluster, port);
 
-    AsioTransport *transport = new AsioTransport(g_node, g_node->id_);
+    AsioTransport* transport = new AsioTransport(g_node, g_node->id_);
 
-    TransporterPtr ptr((Transporter *) transport);
+    TransporterPtr ptr((Transporter*) transport);
     std::string& host = g_node->peers_[id - 1];
     ptr->start(host);
     g_node->transport_ = ptr;
@@ -80,7 +98,6 @@ void KvdServer::main(uint64_t id, const std::string &cluster, uint16_t port)
         ptr->add_peer(peer, g_node->peers_[i]);
     }
     g_node->schedule();
-    sleep(100);
 }
 
 void KvdServer::stop()
@@ -92,7 +109,6 @@ void KvdServer::stop()
     }
 
     io_service_.stop();
-
 }
 
 }
