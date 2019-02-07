@@ -1,4 +1,36 @@
-//
-// Created by ljy on 2/7/19.
-//
+#include "kvd/transport/AsioTransport.h"
+#include "kvd/common/log.h"
 
+namespace kvd
+{
+
+
+AsioTransport::AsioTransport(std::weak_ptr<RaftServer> raft, uint64_t id)
+    : raft_(std::move(raft)),
+      id_(id)
+{
+
+}
+
+AsioTransport::~AsioTransport()
+{
+    if (io_thread_.joinable()) {
+        io_thread_.join();
+        LOG_DEBUG("asio transport stopped");
+    }
+
+}
+
+void AsioTransport::start()
+{
+    io_thread_ = std::thread([this]() {
+        this->io_service_.run();
+    });
+}
+
+void AsioTransport::stop()
+{
+    io_service_.stop();
+}
+
+}

@@ -10,7 +10,7 @@ namespace kvd
 class Transporter
 {
 public:
-    virtual ~Transporter() = 0;
+    virtual ~Transporter() = default;
 
     virtual void start() = 0;
 
@@ -22,6 +22,8 @@ typedef std::shared_ptr<Transporter> TransporterPtr;
 class RaftServer
 {
 public:
+    virtual ~RaftServer() = default;
+
     virtual Status process(proto::MessagePtr msg) = 0;
 
     virtual bool is_id_removed(uint64_t id) = 0;

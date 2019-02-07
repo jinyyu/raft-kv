@@ -1,10 +1,10 @@
 #include "kvd/KvdServer.h"
+#include "kvd/transport/AsioTransport.h"
 #include "kvd/common/log.h"
 #include <boost/algorithm/string.hpp>
 
 namespace kvd
 {
-
 
 KvdServer::KvdServer(uint64_t id, const std::string &cluster, uint16_t port)
     : id_(id)
@@ -19,6 +19,12 @@ KvdServer::KvdServer(uint64_t id, const std::string &cluster, uint16_t port)
 KvdServer::~KvdServer()
 {
     LOG_DEBUG("stopped");
+}
+
+
+void KvdServer::schedule()
+{
+
 }
 
 
@@ -59,6 +65,14 @@ void on_signal(int)
 void KvdServer::main(uint64_t id, const std::string &cluster, uint16_t port)
 {
     g_node = std::make_shared<KvdServer>(id, cluster, port);
+
+    AsioTransport* transport = new AsioTransport(g_node, g_node->id_);
+
+
+    TransporterPtr ptr((Transporter*)transport);
+    ptr->start();
+    g_node->transport_ = ptr;
+
     g_node->schedule();
 }
 

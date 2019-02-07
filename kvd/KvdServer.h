@@ -25,14 +25,13 @@ public:
     virtual void report_unreachable(uint64_t id);
     virtual void report_snapshot(uint64_t id, SnapshotStatus status);
 private:
-    void schedule()
-    {
-        io_service_.run();
-    }
+    void schedule();
 
     boost::asio::io_service io_service_;
     uint64_t id_;
     std::vector<std::string> peers_;
+
+    TransporterPtr transport_;
 };
 
 typedef std::shared_ptr<KvdServer> KvdServerPtr;
