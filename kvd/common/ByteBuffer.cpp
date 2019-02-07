@@ -4,6 +4,15 @@
 
 namespace kvd
 {
+static uint32_t MIN_BUFFERING = 4096;
+
+ByteBuffer::ByteBuffer()
+    : reader_(0),
+      writer_(0),
+      buff_(MIN_BUFFERING)
+{
+
+}
 
 uint32_t ByteBuffer::remaining() const
 {
@@ -27,6 +36,13 @@ void ByteBuffer::may_shrink_to_fit()
         reader_ = 0;
         writer_ = remaining;
     }
+}
+
+void ByteBuffer::reset()
+{
+    reader_ = writer_ = 0;
+    buff_.resize(MIN_BUFFERING);
+    buff_.shrink_to_fit();
 }
 
 }

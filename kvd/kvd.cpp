@@ -2,6 +2,7 @@
 #include <glib.h>
 #include <stdint.h>
 #include "kvd/log.h"
+#include "kvd/RaftNode.h"
 
 int main(int argc, char* argv[])
 {
@@ -32,8 +33,6 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
+    kvd::RaftNode::main(id, cluster, port);
     g_option_context_free(context);
-
-    LOG_DEBUG("hihi");
-
 }

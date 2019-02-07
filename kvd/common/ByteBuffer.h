@@ -10,12 +10,7 @@ namespace kvd
 class ByteBuffer
 {
 public:
-    explicit ByteBuffer()
-        : reader_(0),
-          writer_(0)
-    {
-
-    }
+    explicit ByteBuffer();
 
     void put(const uint8_t* data, uint32_t len)
     {
@@ -45,6 +40,8 @@ public:
     {
         return buff_.data() + reader_;
     }
+
+    void reset();
 private:
     void may_shrink_to_fit();
 
