@@ -20,7 +20,7 @@ public:
 };
 typedef std::shared_ptr<Server> ServerPtr;
 
-class AsioServer: public Server
+class AsioServer: public Server, public std::enable_shared_from_this<AsioServer>
 {
 public:
     explicit AsioServer(boost::asio::io_service& io_service, const std::string& host);
@@ -32,7 +32,7 @@ public:
     virtual void stop();
 
 private:
-    void handle_accept(ServerSessionPtr session);
+    friend class ServerSession;
 
     boost::asio::io_service& io_service_;
     boost::asio::ip::tcp::acceptor acceptor_;

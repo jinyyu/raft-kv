@@ -29,12 +29,8 @@ void ByteBuffer::skip_bytes(uint32_t bytes)
 
 void ByteBuffer::may_shrink_to_fit()
 {
-    uint32_t remaining = this->remaining();
-
-    if (reader_ > remaining * 4) {
-        memcpy(buff_.data(), buff_.data(), remaining);
-        reader_ = 0;
-        writer_ = remaining;
+    if (!remain()) {
+        reader_ = writer_ = 0;
     }
 }
 

@@ -7,6 +7,7 @@ set(SRC
     raft/proto.cpp
     raft/Raft.cpp
     raft/Node.cpp
+    transport/proto.h
     transport/Transporter.h
     transport/AsioTransport.cpp
     transport/Peer.h

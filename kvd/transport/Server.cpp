@@ -10,8 +10,9 @@ namespace kvd
 class ServerSession: public std::enable_shared_from_this<ServerSession>
 {
 public:
-    explicit ServerSession(boost::asio::io_service& io_service)
-        : socket(io_service)
+    explicit ServerSession(boost::asio::io_service& io_service, std::weak_ptr<AsioServer> server)
+        : socket(io_service),
+          server_ptr(std::move(server))
     {
 
     }
@@ -19,10 +20,14 @@ public:
     void start()
     {
         LOG_DEBUG("new session ");
+        auto server = server_ptr.lock();
+        if (server) {
+            LOG_DEBUG("LOCK OK");
+        }
     }
 
-
     boost::asio::ip::tcp::socket socket;
+    std::weak_ptr<AsioServer> server_ptr;
 };
 
 AsioServer::AsioServer(boost::asio::io_service& io_service, const std::string& host)
@@ -53,7 +58,7 @@ AsioServer::~AsioServer()
 
 void AsioServer::start()
 {
-    ServerSessionPtr session(new ServerSession(io_service_));
+    ServerSessionPtr session(new ServerSession(io_service_, shared_from_this()));
     acceptor_.async_accept(session->socket, [this, session](const boost::system::error_code& error) {
         if (error) {
             LOG_DEBUG("accept error %s", error.message().c_str());
@@ -68,11 +73,6 @@ void AsioServer::start()
 void AsioServer::stop()
 {
 
-}
-
-void AsioServer::handle_accept(ServerSessionPtr session)
-{
-    LOG_DEBUG("new session");
 }
 
 }

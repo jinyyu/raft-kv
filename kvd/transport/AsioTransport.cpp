@@ -24,10 +24,8 @@ AsioTransport::~AsioTransport()
 
 void AsioTransport::start(const std::string& host)
 {
-    Server* server = new AsioServer(io_service_, host);
-    server->start();
-    ServerPtr p(server);
-    server_ = p;
+    std::shared_ptr<AsioServer> server(new AsioServer(io_service_, host));
+    server_ = server;
     server_->start();
 
     io_thread_ = std::thread([this]() {
@@ -46,8 +44,8 @@ void AsioTransport::add_peer(uint64_t id, const std::string& peer)
         return;
     }
 
-    AsioPeer* asio_peer = new AsioPeer(io_service_, id, peer);
-    PeerPtr p((Peer*) asio_peer);
+    std::shared_ptr<AsioPeer> asio_peer(new AsioPeer(io_service_, id, peer));
+    PeerPtr p = asio_peer;
     p->start();
     peers_[id] = p;
 }

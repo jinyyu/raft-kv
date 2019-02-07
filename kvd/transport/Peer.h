@@ -35,8 +35,10 @@ public:
 };
 typedef std::shared_ptr<Peer> PeerPtr;
 
+class ClientSession;
+typedef std::shared_ptr<ClientSession> ClientSessionPtr;
 
-class AsioPeer: public Peer
+class AsioPeer: public Peer, public std::enable_shared_from_this<AsioPeer>
 {
 public:
     explicit AsioPeer(boost::asio::io_service& io_service, uint64_t peer, const std::string& peer_str);
@@ -55,7 +57,13 @@ public:
 
     virtual void stop();
 private:
+    void do_send_data(uint8_t type, const uint8_t* data, uint32_t len);
+
     boost::asio::io_service& io_service_;
+
+    friend class ClientSession;
+    ClientSessionPtr session_;
+    boost::asio::ip::tcp::endpoint endpoint_;
 };
 
 }
