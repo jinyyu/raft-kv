@@ -57,6 +57,7 @@ public:
                 LOG_DEBUG("invalid data len %lu, %u", bytes, len);
                 return;
             }
+            LOG_ERROR("------------------%d", len);
             self->decode_message(len);
         };
         boost::asio::async_read(socket, buffer, boost::asio::transfer_exactly(len), handler);
@@ -66,6 +67,7 @@ public:
     {
         switch (meta_.type) {
         case TransportTypeDebug: {
+
             LOG_DEBUG("debug msg:%s", std::string((const char*)buffer_.data(), len).c_str());
             break;
         }

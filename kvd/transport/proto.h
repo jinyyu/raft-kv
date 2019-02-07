@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-const uint8_t TransportTypeDebug = 0;
+const uint8_t TransportTypeDebug = 5;
 
 namespace kvd
 {

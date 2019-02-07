@@ -26,6 +26,7 @@ public:
     void send(uint8_t transport_type, const uint8_t* data, uint32_t len)
     {
         bool remain = buffer_.remain();
+        uint32_t remaining = buffer_.remaining();
 
         TransportMeta meta;
         meta.type = transport_type;
@@ -33,8 +34,9 @@ public:
         assert(sizeof(TransportMeta) == 5);
         buffer_.put((const uint8_t*) &meta, sizeof(TransportMeta));
         buffer_.put(data, len);
+        assert(remaining + sizeof(TransportMeta) + len == buffer_.remaining());
 
-        if (!remain) {
+        if (remaining == 0) {
             start_write();
         }
     }
@@ -62,24 +64,24 @@ public:
     void start_write()
     {
         if (!buffer_.remain()) {
+            LOG_ERROR("not data to send");
             return;
         }
 
         auto self = shared_from_this();
         uint32_t remaining = buffer_.remaining();
         auto buffer = boost::asio::buffer(buffer_.reader(), remaining);
-
-        auto handler = [self, remaining](const boost::system::error_code& error, std::size_t bytes) {
+        auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
             if (error || bytes == 0) {
                 LOG_DEBUG("send error %s", error.message().c_str());
                 self->on_disconnected();
                 return;
             }
-
-            assert(remaining == bytes);
+            LOG_ERROR("------------------------------------send bytes%d", bytes);
             self->buffer_.skip_bytes(bytes);
             self->start_write();
         };
+        LOG_ERROR("SEND data len = %d", remaining);
         boost::asio::async_write(socket_, buffer, handler);
     }
 
@@ -164,7 +166,11 @@ void AsioPeer::start_timer()
 
         self->start_timer();
     });
-    do_send_data(TransportTypeDebug, (const uint8_t*) "debug", 5);
+    for (int i = 99; i < 101; ++i) {
+        auto str = std::to_string(i);
+        do_send_data(TransportTypeDebug, (const uint8_t*) str.data(), str.size());
+    }
+
 }
 
 }
