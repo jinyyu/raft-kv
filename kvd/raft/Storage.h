@@ -84,14 +84,31 @@ public:
     // append the new entries to storage.
     Status append(std::vector<proto::EntryPtr> entries);
 
+    // create_snapshot makes a snapshot which can be retrieved with Snapshot() and
+    // can be used to reconstruct the state at that point.
+    // If any configuration changes have been made since the last compaction,
+    // the result of the last ApplyConfChange must be passed in.
+    Status create_snapshot(uint64_t index,
+                           proto::ConfStatePtr cs,
+                           std::vector<uint8_t> data,
+                           proto::SnapshotPtr& snapshot);
+
     // ApplySnapshot overwrites the contents of this Storage object with
     // those of the given snapshot.
     Status apply_snapshot(proto::SnapshotPtr snapshot);
 
+    // test use
     std::vector<proto::EntryPtr>& ref_entries()
     {
         return entries_;
     }
+
+    //test use
+    proto::SnapshotPtr& ref_snapshot()
+    {
+        return snapshot_;
+    }
+
 private:
     Status last_index_impl(uint64_t& index);
     Status first_index_impl(uint64_t& index);

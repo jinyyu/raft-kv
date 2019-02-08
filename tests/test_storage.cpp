@@ -399,6 +399,84 @@ TEST(storage, append)
     }
 }
 
+static bool snapshot_cmp(const proto::Snapshot& left, const proto::Snapshot& right)
+{
+    if (left.data != right.data) {
+        return false;
+    }
+
+    if (left.metadata.index != right.metadata.index) {
+        return false;
+    }
+
+    if (left.metadata.term != right.metadata.term) {
+        return false;
+    }
+
+    if (left.metadata.conf_state.nodes != right.metadata.conf_state.nodes) {
+        return false;
+    }
+
+    if (left.metadata.conf_state.learners != right.metadata.conf_state.learners) {
+        return false;
+    }
+
+    return true;
+}
+
+TEST(storage, create)
+{
+    proto::ConfStatePtr cs(new proto::ConfState());
+    cs->nodes.push_back(1);
+    cs->learners.push_back(2);
+
+    std::vector<uint8_t> data;
+    data.push_back('d');
+    data.push_back('a');
+    data.push_back('t');
+    data.push_back('a');
+
+    {
+        MemoryStorage m;
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        proto::SnapshotPtr snapshot(new proto::Snapshot());
+        snapshot->data = data;
+        snapshot->metadata.term = 4;
+        snapshot->metadata.index = 4;
+
+        proto::SnapshotPtr snap;
+        auto s = m.create_snapshot(4, cs, data, snap);
+        ASSERT_TRUE(s.is_ok());
+
+        ASSERT_TRUE(snapshot_cmp(*snap, *snapshot));
+
+    }
+
+    {
+        MemoryStorage m;
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        proto::SnapshotPtr snapshot(new proto::Snapshot());
+        snapshot->data = data;
+        snapshot->metadata.term = 5;
+        snapshot->metadata.index = 5;
+
+        proto::SnapshotPtr snap;
+        auto s = m.create_snapshot(5, cs, data, snap);
+        ASSERT_TRUE(s.is_ok());
+
+        ASSERT_TRUE(snapshot_cmp(*snap, *snapshot));
+
+    }
+}
+
 TEST(storage, apply)
 {
     proto::ConfState cs;
@@ -524,7 +602,8 @@ TEST(storage, entry)
         uint32_t high = 7;
 
         std::vector<proto::EntryPtr> entries;
-        uint64_t max_size = m.ref_entries()[1]->serialize_size() + m.ref_entries()[2]->serialize_size() + m.ref_entries()[3]->serialize_size() /2;
+        uint64_t max_size = m.ref_entries()[1]->serialize_size() + m.ref_entries()[2]->serialize_size()
+            + m.ref_entries()[3]->serialize_size() / 2;
 
         auto s = m.entries(low, high, max_size, entries);
         std::vector<proto::EntryPtr> out_entries;
@@ -540,7 +619,8 @@ TEST(storage, entry)
         uint32_t high = 7;
 
         std::vector<proto::EntryPtr> entries;
-        uint64_t max_size = m.ref_entries()[1]->serialize_size() + m.ref_entries()[2]->serialize_size() + m.ref_entries()[3]->serialize_size();
+        uint64_t max_size = m.ref_entries()[1]->serialize_size() + m.ref_entries()[2]->serialize_size()
+            + m.ref_entries()[3]->serialize_size();
 
         auto s = m.entries(low, high, max_size, entries);
         std::vector<proto::EntryPtr> out_entries;

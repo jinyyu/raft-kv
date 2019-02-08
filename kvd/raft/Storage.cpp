@@ -150,6 +150,36 @@ Status MemoryStorage::append(std::vector<proto::EntryPtr> entries)
     return Status::ok();
 }
 
+Status MemoryStorage::create_snapshot(uint64_t index,
+                                      proto::ConfStatePtr cs,
+                                      std::vector<uint8_t> data,
+                                      proto::SnapshotPtr& snapshot)
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+
+    if (index <= snapshot_->metadata.index) {
+        snapshot = snapshot_;
+        return Status::invalid_argument("requested index is older than the existing snapshot");
+    }
+
+    uint64_t offset = entries_[0]->index;
+    uint64_t last = 0;
+    last_index_impl(last);
+    if (index > last) {
+        LOG_ERROR("snapshot %lu is out of bound lastindex(%lu)", index, last);
+        exit(0);
+    }
+
+    snapshot_->metadata.index = index;
+    snapshot_->metadata.term = entries_[index - offset]->term;
+    if (cs) {
+        snapshot_->metadata.conf_state = *cs;
+    }
+    snapshot_->data = std::move(data);
+    return Status::ok();
+
+}
+
 Status MemoryStorage::apply_snapshot(proto::SnapshotPtr snapshot)
 {
     assert(snapshot);
