@@ -15,7 +15,7 @@ public:
     // initial_state returns the saved HardState and ConfState information.
     virtual Status initial_state(proto::HardState& hard_state, proto::ConfState& conf_state) = 0;
 
-    // entries returns a slice of log entries in the range [lo,hi).
+    // entries returns a slice of log entries in the range [low,high).
     // MaxSize limits the total size of the log entries returned, but
     // Entries returns at least one entry if any.
     virtual Status entries(uint32_t low,

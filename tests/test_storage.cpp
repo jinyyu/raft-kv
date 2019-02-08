@@ -429,6 +429,129 @@ TEST(storage, apply)
     ASSERT_FALSE(status.is_ok());
 }
 
+TEST(storage, entry)
+{
+    MemoryStorage m;
+    m.ref_entries().clear();
+    m.ref_entries().push_back(newMemoryStorage(3, 3));
+    m.ref_entries().push_back(newMemoryStorage(4, 4));
+    m.ref_entries().push_back(newMemoryStorage(5, 5));
+    m.ref_entries().push_back(newMemoryStorage(6, 6));
+
+    {
+        uint32_t low = 2;
+        uint32_t high = 6;
+
+        std::vector<proto::EntryPtr> entries;
+        auto s = m.entries(low, high, std::numeric_limits<uint64_t>::max(), entries);
+        ASSERT_TRUE(entries.size() == 0);
+        ASSERT_TRUE(!s.is_ok());
+    }
+
+    {
+        uint32_t low = 3;
+        uint32_t high = 4;
+
+        std::vector<proto::EntryPtr> entries;
+        auto s = m.entries(low, high, std::numeric_limits<uint64_t>::max(), entries);
+        ASSERT_TRUE(entries.size() == 0);
+        ASSERT_TRUE(!s.is_ok());
+    }
+
+
+    {
+        uint32_t low = 4;
+        uint32_t high = 5;
+
+        std::vector<proto::EntryPtr> entries;
+
+        auto s = m.entries(low, high, std::numeric_limits<uint64_t>::max(), entries);
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(4, 4));
+
+        ASSERT_TRUE(entry_cmp(entries, out_entries));
+        ASSERT_TRUE(s.is_ok());
+    }
+
+    {
+        uint32_t low = 4;
+        uint32_t high = 6;
+
+        std::vector<proto::EntryPtr> entries;
+
+        auto s = m.entries(low, high, std::numeric_limits<uint64_t>::max(), entries);
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(4, 4));
+        out_entries.push_back(newMemoryStorage(5, 5));
+
+        ASSERT_TRUE(entry_cmp(entries, out_entries));
+        ASSERT_TRUE(s.is_ok());
+    }
+
+    {
+        uint32_t low = 4;
+        uint32_t high = 7;
+
+        std::vector<proto::EntryPtr> entries;
+
+        auto s = m.entries(low, high, std::numeric_limits<uint64_t>::max(), entries);
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(4, 4));
+        out_entries.push_back(newMemoryStorage(5, 5));
+        out_entries.push_back(newMemoryStorage(6, 6));
+        ASSERT_TRUE(entry_cmp(entries, out_entries));
+        ASSERT_TRUE(s.is_ok());
+    }
+
+
+    {
+        // even if maxsize is zero, the first entry should be returned
+        uint32_t low = 4;
+        uint32_t high = 7;
+
+        std::vector<proto::EntryPtr> entries;
+
+        auto s = m.entries(low, high, 0, entries);
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(4, 4));
+        ASSERT_TRUE(entry_cmp(entries, out_entries));
+        ASSERT_TRUE(s.is_ok());
+    }
+
+    {
+        // limit to 2
+        uint32_t low = 4;
+        uint32_t high = 7;
+
+        std::vector<proto::EntryPtr> entries;
+        uint64_t max_size = m.ref_entries()[1]->serialize_size() + m.ref_entries()[2]->serialize_size() + m.ref_entries()[3]->serialize_size() /2;
+
+        auto s = m.entries(low, high, max_size, entries);
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(4, 4));
+        out_entries.push_back(newMemoryStorage(5, 5));
+        ASSERT_TRUE(entry_cmp(entries, out_entries));
+        ASSERT_TRUE(s.is_ok());
+    }
+
+    {
+        // limit to 2
+        uint32_t low = 4;
+        uint32_t high = 7;
+
+        std::vector<proto::EntryPtr> entries;
+        uint64_t max_size = m.ref_entries()[1]->serialize_size() + m.ref_entries()[2]->serialize_size() + m.ref_entries()[3]->serialize_size();
+
+        auto s = m.entries(low, high, max_size, entries);
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(4, 4));
+        out_entries.push_back(newMemoryStorage(5, 5));
+        out_entries.push_back(newMemoryStorage(6, 6));
+        ASSERT_TRUE(entry_cmp(entries, out_entries));
+        ASSERT_TRUE(s.is_ok());
+    }
+}
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);

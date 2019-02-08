@@ -1,6 +1,6 @@
 #include "kvd/raft/Storage.h"
-#include <kvd/common/log.h>
-
+#include "kvd/common/log.h"
+#include "kvd/raft/util.h"
 namespace kvd
 {
 
@@ -19,6 +19,30 @@ Status MemoryStorage::entries(uint32_t low,
                               uint64_t max_size,
                               std::vector<proto::EntryPtr>& entries)
 {
+    assert(low < high);
+    std::lock_guard<std::mutex> guard(mutex_);
+
+    uint64_t offset = entries_[0]->index;
+    if (low <= offset) {
+        return Status::invalid_argument("requested index is unavailable due to compaction");
+    }
+    uint64_t last = 0;
+    this->last_index_impl(last);
+
+    if (high > last + 1) {
+        LOG_ERROR("entries' hi(%d) is out of bound lastindex(%lu)", high, last);
+        exit(0);
+    }
+    // only contains dummy entries.
+    if (entries_.size() == 1) {
+        return Status::invalid_argument("requested entry at index is unavailable");
+    }
+
+
+    for (uint64_t i = low - offset; i < high - offset; ++i) {
+        entries.push_back(entries_[i]);
+    }
+    entry_limit_size(max_size, entries);
     return Status::ok();
 }
 

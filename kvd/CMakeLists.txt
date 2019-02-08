@@ -11,6 +11,7 @@ set(SRC
     raft/Node.cpp
     raft/RaftLog.cpp
     raft/Unstable.cpp
+    raft/util.cpp
     transport/proto.h
     transport/Transporter.h
     transport/AsioTransport.cpp
