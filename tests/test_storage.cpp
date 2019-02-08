@@ -11,6 +11,24 @@ proto::EntryPtr newMemoryStorage(uint64_t term, uint64_t index)
     return ptr;
 }
 
+bool entry_cmp(const std::vector<proto::EntryPtr>& left, const std::vector<proto::EntryPtr>& right)
+{
+    if (left.size() != right.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < left.size(); ++i) {
+        if (left[i]->index != right[i]->index) {
+            return false;
+        }
+
+        if (left[i]->term != right[i]->term) {
+            return false;
+        }
+    }
+    return true;
+}
+
 TEST(storage, term)
 {
     {
@@ -100,7 +118,6 @@ TEST(storage, term)
         ASSERT_TRUE(term == wterm);
     }
 }
-
 
 TEST(storage, first_index)
 {
@@ -229,6 +246,156 @@ TEST(storage, compact)
         ASSERT_TRUE(m.ref_entries()[0]->index == windex);
         ASSERT_TRUE(m.ref_entries()[0]->term == wterm);
         ASSERT_TRUE(m.ref_entries().size() == wlen);
+    }
+}
+
+TEST(storage, append)
+{
+    MemoryStorage m;
+
+    {
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        std::vector<proto::EntryPtr> add_entries;
+        add_entries.push_back(newMemoryStorage(1, 1));
+        add_entries.push_back(newMemoryStorage(2, 2));
+
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(3, 3));
+        out_entries.push_back(newMemoryStorage(4, 4));
+        out_entries.push_back(newMemoryStorage(5, 5));
+
+        m.append(std::move(add_entries));
+
+        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+    }
+
+    {
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        std::vector<proto::EntryPtr> add_entries;
+        add_entries.push_back(newMemoryStorage(3, 3));
+        add_entries.push_back(newMemoryStorage(4, 4));
+        add_entries.push_back(newMemoryStorage(5, 5));
+
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(3, 3));
+        out_entries.push_back(newMemoryStorage(4, 4));
+        out_entries.push_back(newMemoryStorage(5, 5));
+
+        m.append(std::move(add_entries));
+
+        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+    }
+
+    {
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        std::vector<proto::EntryPtr> add_entries;
+        add_entries.push_back(newMemoryStorage(3, 3));
+        add_entries.push_back(newMemoryStorage(6, 4));
+        add_entries.push_back(newMemoryStorage(6, 5));
+
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(3, 3));
+        out_entries.push_back(newMemoryStorage(6, 4));
+        out_entries.push_back(newMemoryStorage(6, 5));
+
+        m.append(std::move(add_entries));
+
+        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+    }
+    {
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        std::vector<proto::EntryPtr> add_entries;
+        add_entries.push_back(newMemoryStorage(3, 3));
+        add_entries.push_back(newMemoryStorage(4, 4));
+        add_entries.push_back(newMemoryStorage(5, 5));
+        add_entries.push_back(newMemoryStorage(5, 6));
+
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(3, 3));
+        out_entries.push_back(newMemoryStorage(4, 4));
+        out_entries.push_back(newMemoryStorage(5, 5));
+        out_entries.push_back(newMemoryStorage(5, 6));
+
+        m.append(std::move(add_entries));
+
+        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+    }
+
+    // truncate incoming entries, truncate the existing entries and append
+    {
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        std::vector<proto::EntryPtr> add_entries;
+        add_entries.push_back(newMemoryStorage(3, 2));
+        add_entries.push_back(newMemoryStorage(3, 3));
+        add_entries.push_back(newMemoryStorage(5, 4));
+
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(3, 3));
+        out_entries.push_back(newMemoryStorage(5, 4));
+
+        m.append(std::move(add_entries));
+
+        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+    }
+
+    // truncate the existing entries and append
+    {
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        std::vector<proto::EntryPtr> add_entries;
+        add_entries.push_back(newMemoryStorage(5, 4));
+
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(3, 3));
+        out_entries.push_back(newMemoryStorage(5, 4));
+
+        m.append(std::move(add_entries));
+
+        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+    }
+
+    // direct append
+    {
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        std::vector<proto::EntryPtr> add_entries;
+        add_entries.push_back(newMemoryStorage(5, 6));
+
+        std::vector<proto::EntryPtr> out_entries;
+        out_entries.push_back(newMemoryStorage(3, 3));
+        out_entries.push_back(newMemoryStorage(4, 4));
+        out_entries.push_back(newMemoryStorage(5, 5));
+        out_entries.push_back(newMemoryStorage(5, 6));
+
+        m.append(std::move(add_entries));
+
+        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
     }
 
 }

@@ -55,7 +55,8 @@ Status MemoryStorage::first_index(uint64_t& index)
 
 Status MemoryStorage::snapshot(proto::SnapshotPtr& snapshot)
 {
-    LOG_ERROR("not impl yet");
+    std::lock_guard<std::mutex> guard(mutex_);
+    snapshot = snapshot_;
     return Status::ok();
 }
 
