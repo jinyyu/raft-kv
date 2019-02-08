@@ -20,36 +20,23 @@ public:
 
     // maybeFirstIndex returns the index of the first possible entry in entries
     // if it has a snapshot.
-    void maybe_first_index(uint64_t& index, bool& maybe)
-    {
-        if (snapshot_) {
-            maybe = true;
-            index = snapshot_->metadata.index + 1;
-        }
-        else {
-            maybe = false;
-            index = 0;
-        }
-    }
+    void maybe_first_index(uint64_t& index, bool& maybe);
 
     // maybeLastIndex returns the last index if it has at least one
     // unstable entry or snapshot.
-    void maybe_last_index(uint64_t& index, bool& maybe)
-    {
-        if (!entries_.empty()) {
-            maybe = true;
-            index = offset_ + entries_.size() - 1;
-            return;
-        }
-        if (snapshot_) {
-            maybe = true;
-            index = snapshot_->metadata.index;
-            return;
-        }
-        index = 0;
-        maybe = false;
-    }
+    void maybe_last_index(uint64_t& index, bool& maybe);
 
+    // maybeTerm returns the term of the entry at index i, if there
+    // is any.
+    void maybe_term(uint64_t index, uint64_t& term, bool& maybe);
+
+    void stable_to(uint64_t index, uint64_t term);
+
+    void stable_snap_to(uint64_t index);
+
+    void restore(proto::SnapshotPtr snapshot);
+
+    void truncate_and_append(std::vector<proto::EntryPtr> entries);
 
 
 private:
