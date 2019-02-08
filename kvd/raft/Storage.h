@@ -81,8 +81,12 @@ public:
     // greater than raftLog.applied.
     Status compact(uint64_t compact_index);
 
-
+    // append the new entries to storage.
     Status append(std::vector<proto::EntryPtr> entries);
+
+    // ApplySnapshot overwrites the contents of this Storage object with
+    // those of the given snapshot.
+    Status apply_snapshot(proto::SnapshotPtr snapshot);
 
     std::vector<proto::EntryPtr>& ref_entries()
     {

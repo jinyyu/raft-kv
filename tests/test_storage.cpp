@@ -397,7 +397,36 @@ TEST(storage, append)
 
         ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
     }
+}
 
+TEST(storage, apply)
+{
+    proto::ConfState cs;
+    cs.nodes.push_back(1);
+    cs.nodes.push_back(2);
+    cs.nodes.push_back(3);
+
+    std::vector<uint8_t> data;
+    data.push_back('d');
+    data.push_back('a');
+    data.push_back('t');
+    data.push_back('a');
+
+    MemoryStorage m;
+
+    proto::SnapshotPtr snapshot(new proto::Snapshot());
+    snapshot->metadata.index = 4;
+    snapshot->metadata.term = 4;
+    snapshot->metadata.conf_state = cs;
+    auto status = m.apply_snapshot(std::move(snapshot));
+    ASSERT_TRUE(status.is_ok());
+
+    snapshot = std::make_shared<proto::Snapshot>();
+    snapshot->metadata.index = 3;
+    snapshot->metadata.term = 3;
+    snapshot->metadata.conf_state = cs;
+    status = m.apply_snapshot(std::move(snapshot));
+    ASSERT_FALSE(status.is_ok());
 }
 
 int main(int argc, char* argv[])

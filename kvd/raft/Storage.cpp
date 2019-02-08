@@ -7,7 +7,6 @@ namespace kvd
 
 Status MemoryStorage::initial_state(proto::HardState& hard_state, proto::ConfState& conf_state)
 {
-    LOG_ERROR("not impl yet");
     hard_state = hard_state_;
 
     // copy
@@ -125,6 +124,29 @@ Status MemoryStorage::append(std::vector<proto::EntryPtr> entries)
         LOG_ERROR("missing log entry [last: %lu, append at: %lu", last_idx, entries[0]->index);
         exit(0);
     }
+    return Status::ok();
+}
+
+Status MemoryStorage::apply_snapshot(proto::SnapshotPtr snapshot)
+{
+    assert(snapshot);
+
+    std::lock_guard<std::mutex> guard(mutex_);
+
+    uint64_t index = snapshot_->metadata.index;
+    uint64_t snap_index = snapshot->metadata.index;
+
+    if (index >= snap_index) {
+        return Status::invalid_argument("requested index is older than the existing snapshot");
+    }
+
+    snapshot_ = std::move(snapshot);
+
+    entries_.resize(1);
+    proto::EntryPtr entry(new proto::Entry());
+    entry->term = snapshot_->metadata.term;
+    entry->index = snapshot_->metadata.index;
+    entries_[0] = std::move(entry);
     return Status::ok();
 }
 
