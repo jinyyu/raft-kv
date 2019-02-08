@@ -42,6 +42,14 @@ const char* entry_type_to_string(EntryType type);
 
 struct Entry
 {
+    explicit Entry()
+        : type(EntryNormal),
+          term(0),
+          index(0)
+    {
+
+    }
+
     EntryType type;
     uint64_t term;
     uint64_t index;
@@ -60,6 +68,11 @@ typedef std::shared_ptr<ConfState> ConfStatePtr;
 
 struct SnapshotMetadata
 {
+    explicit SnapshotMetadata()
+        : index(0),
+          term(0)
+    {
+    }
     ConfState conf_state;
     uint64_t index;
     uint64_t term;
@@ -76,13 +89,27 @@ typedef std::shared_ptr<Snapshot> SnapshotPtr;
 
 struct Message
 {
+    explicit Message()
+        : type(MsgHup),
+          to(0),
+          from(0),
+          term(0),
+          log_term(0),
+          index(0),
+          commit(0),
+          reject(false),
+          reject_hint(0)
+    {
+
+    }
+
     MessageType type;
     uint64_t to;
     uint64_t from;
     uint64_t term;
     uint64_t log_term;
     uint64_t index;
-    Entry entries;
+    std::vector<Entry> entries;
     uint64_t commit;
     Snapshot snapshot;
     bool reject;
@@ -94,6 +121,14 @@ typedef std::shared_ptr<Message> MessagePtr;
 
 struct HardState
 {
+    explicit HardState()
+        : term(0),
+          vote(0),
+          commit(0)
+    {
+
+    }
+
     uint64_t term;
     uint64_t vote;
     uint64_t commit;

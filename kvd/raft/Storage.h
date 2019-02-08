@@ -2,6 +2,7 @@
 #include <kvd/common/Status.h>
 #include <kvd/raft/proto.h>
 #include <memory>
+#include <mutex>
 
 namespace kvd
 {
@@ -47,10 +48,19 @@ typedef std::shared_ptr<Storage> StoragePtr;
 
 // MemoryStorage implements the Storage interface backed by an
 // in-memory array.
-class MemoryStorage : public Storage
+class MemoryStorage: public Storage
 {
-
 public:
+
+    // creates an empty MemoryStorage
+    explicit MemoryStorage()
+        : snapshot_(new proto::Snapshot())
+    {
+        // When starting from scratch populate the list with a dummy entry at term zero.
+        proto::EntryPtr entry(new proto::Entry());
+        entries_.emplace_back(std::move(entry));
+    }
+
     virtual Status initial_state(proto::HardState& hard_state, proto::ConfState& conf_state);
 
     virtual Status entries(uint32_t low,
@@ -65,11 +75,29 @@ public:
     virtual Status first_index(uint64_t& index);
 
     virtual Status snapshot(proto::SnapshotPtr& snapshot);
+
+    // compact discards all log entries prior to compact_index.
+    // It is the application's responsibility to not attempt to compact an index
+    // greater than raftLog.applied.
+    Status compact(uint64_t compact_index);
+
+
+    Status append(std::vector<proto::EntryPtr> entries);
+
+    std::vector<proto::EntryPtr>& ref_entries()
+    {
+        return entries_;
+    }
 private:
+    Status last_index_impl(uint64_t& index);
+    Status first_index_impl(uint64_t& index);
+
+    std::mutex mutex_;
     proto::HardState hard_state_;
     proto::SnapshotPtr snapshot_;
     // entries_[i] has raft log position i+snapshot.Metadata.Index
     std::vector<proto::EntryPtr> entries_;
+
 };
 
 }

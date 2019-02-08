@@ -8,7 +8,6 @@ add_definitions(-DDEBUG)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(dependencies
                   glib-2.0>=2.10 REQUIRED

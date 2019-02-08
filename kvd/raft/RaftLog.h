@@ -5,7 +5,8 @@
 namespace kvd
 {
 
-class RaftLog {
+class RaftLog
+{
 public:
 
 private:
@@ -18,12 +19,11 @@ private:
 
     // committed is the highest log position that is known to be in
     // stable storage on a quorum of nodes.
-    uint64_t committed ;
+    uint64_t committed;
     // applied is the highest log position that the application has
     // been instructed to apply to its state machine.
     // Invariant: applied <= committed
     uint64_t applied_t;
-
 
     // max_next_ents_size is the maximum number aggregate byte size of the messages
     // returned from calls to nextEnts.
