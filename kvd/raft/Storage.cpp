@@ -26,7 +26,18 @@ Status MemoryStorage::entries(uint32_t low,
 
 Status MemoryStorage::term(uint64_t i, uint64_t& term)
 {
-    LOG_ERROR("not impl yet");
+    std::lock_guard<std::mutex> guard(mutex_);
+
+    uint64_t offset = entries_[0]->index;
+
+    if (i < offset) {
+        return Status::invalid_argument("requested index is unavailable due to compaction");
+    }
+
+    if (i - offset >= entries_.size()) {
+        return Status::invalid_argument("requested entry at index is unavailable");
+    }
+    term = entries_[i - offset]->term;
     return Status::ok();
 }
 
@@ -101,11 +112,13 @@ Status MemoryStorage::append(std::vector<proto::EntryPtr> entries)
 
     if (entries_.size() > offset) {
         //MemoryStorage [first, offset] 被保留, offset 之后的丢弃
-        entries_.erase(entries_.begin()+ offset, entries_.end());
+        entries_.erase(entries_.begin() + offset, entries_.end());
         entries_.insert(entries_.end(), entries.begin(), entries.end());
-    } else if (entries_.size() == offset) {
+    }
+    else if (entries_.size() == offset) {
         entries_.insert(entries_.end(), entries.begin(), entries.end());
-    } else {
+    }
+    else {
         uint64_t last_idx;
         last_index_impl(last_idx);
         LOG_ERROR("missing log entry [last: %lu, append at: %lu", last_idx, entries[0]->index);

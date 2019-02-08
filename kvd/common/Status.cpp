@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <iostream>
+#include <jemalloc/jemalloc.h>
 
 namespace kvd
 {

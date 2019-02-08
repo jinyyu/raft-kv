@@ -11,6 +11,97 @@ proto::EntryPtr newMemoryStorage(uint64_t term, uint64_t index)
     return ptr;
 }
 
+TEST(storage, term)
+{
+    {
+        uint64_t i = 2;
+        Status status = Status::invalid_argument("requested index is unavailable due to compaction");
+        uint64_t wterm = 0;
+
+        MemoryStorage m;
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        uint64_t term = 0;
+        Status s = m.term(i, term);
+        ASSERT_TRUE(s.to_string() == status.to_string());
+        ASSERT_TRUE(term == wterm);
+    }
+
+    {
+        uint64_t i = 3;
+        Status status = Status::ok();
+        uint64_t wterm = 3;
+
+        MemoryStorage m;
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        uint64_t term;
+        Status s = m.term(i, term);
+        ASSERT_TRUE(s.to_string() == status.to_string());
+        ASSERT_TRUE(term == wterm);
+    }
+
+    {
+        uint64_t i = 4;
+        Status status;
+        uint64_t wterm = 4;
+
+        MemoryStorage m;
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        uint64_t term;
+        Status s = m.term(i, term);
+        ASSERT_TRUE(s.to_string() == status.to_string());
+        ASSERT_TRUE(term == wterm);
+    }
+
+
+    {
+        uint64_t i = 5;
+        Status status;
+        uint64_t wterm = 5;
+
+        MemoryStorage m;
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        uint64_t term;
+        Status s = m.term(i, term);
+        ASSERT_TRUE(s.to_string() == status.to_string());
+        ASSERT_TRUE(term == wterm);
+    }
+
+
+    {
+        uint64_t i = 6;
+        Status status = Status::invalid_argument("requested entry at index is unavailable");
+        uint64_t wterm = 0;
+
+        MemoryStorage m;
+        m.ref_entries().clear();
+        m.ref_entries().push_back(newMemoryStorage(3, 3));
+        m.ref_entries().push_back(newMemoryStorage(4, 4));
+        m.ref_entries().push_back(newMemoryStorage(5, 5));
+
+        uint64_t term = 0;
+        Status s = m.term(i, term);
+        ASSERT_TRUE(s.to_string() == status.to_string());
+        ASSERT_TRUE(term == wterm);
+    }
+}
+
+
 TEST(storage, first_index)
 {
     MemoryStorage m;
@@ -58,7 +149,6 @@ TEST(storage, last_index)
 
 TEST(storage, compact)
 {
-
     {
         uint64_t i = 2;
         Status status = Status::invalid_argument("requested index is unavailable due to compaction");
