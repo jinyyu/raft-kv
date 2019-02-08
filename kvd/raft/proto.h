@@ -50,6 +50,8 @@ struct Entry
 
     }
 
+    uint32_t serialize_size() const;
+
     EntryType type;
     uint64_t term;
     uint64_t index;

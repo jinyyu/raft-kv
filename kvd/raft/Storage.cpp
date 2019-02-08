@@ -19,7 +19,6 @@ Status MemoryStorage::entries(uint32_t low,
                               uint64_t max_size,
                               std::vector<proto::EntryPtr>& entries)
 {
-    LOG_ERROR("not impl yet");
     return Status::ok();
 }
 
