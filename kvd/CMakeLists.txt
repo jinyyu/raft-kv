@@ -9,6 +9,8 @@ set(SRC
     raft/Raft.cpp
     raft/Storage.cpp
     raft/Node.cpp
+    raft/RaftLog.cpp
+    raft/Unstable.cpp
     transport/proto.h
     transport/Transporter.h
     transport/AsioTransport.cpp

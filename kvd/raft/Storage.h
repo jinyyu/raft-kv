@@ -68,8 +68,8 @@ public:
 private:
     proto::HardState hard_state_;
     proto::SnapshotPtr snapshot_;
-    // ents[i] has raft log position i+snapshot.Metadata.Index
-    std::vector<proto::EntryPtr> ents_;
+    // entries_[i] has raft log position i+snapshot.Metadata.Index
+    std::vector<proto::EntryPtr> entries_;
 };
 
 }
