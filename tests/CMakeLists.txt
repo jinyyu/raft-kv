@@ -15,3 +15,6 @@ target_link_libraries(proto ${LIBS})
 
 add_executable(storage test_storage.cpp)
 target_link_libraries(storage ${LIBS})
+
+add_executable(unstable test_unstable.cpp)
+target_link_libraries(unstable ${LIBS})

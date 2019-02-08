@@ -97,13 +97,11 @@ public:
     // those of the given snapshot.
     Status apply_snapshot(proto::SnapshotPtr snapshot);
 
-    // test use
+    // getter && setter
     std::vector<proto::EntryPtr>& ref_entries()
     {
         return entries_;
     }
-
-    //test use
     proto::SnapshotPtr& ref_snapshot()
     {
         return snapshot_;

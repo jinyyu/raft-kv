@@ -4,71 +4,66 @@
 namespace kvd
 {
 
-void Unstable::maybe_first_index(uint64_t& index, bool& maybe)
+void Unstable::maybe_first_index(uint64_t& index, bool& ok)
 {
     if (snapshot_) {
-        maybe = true;
+        ok = true;
         index = snapshot_->metadata.index + 1;
     }
     else {
-        maybe = false;
+        ok = false;
         index = 0;
     }
 }
 
-void Unstable::maybe_last_index(uint64_t& index, bool& maybe)
+void Unstable::maybe_last_index(uint64_t& index, bool& ok)
 {
     if (!entries_.empty()) {
-        maybe = true;
+        ok = true;
         index = offset_ + entries_.size() - 1;
         return;
     }
     if (snapshot_) {
-        maybe = true;
+        ok = true;
         index = snapshot_->metadata.index;
         return;
     }
     index = 0;
-    maybe = false;
+    ok = false;
 }
 
-void Unstable::maybe_term(uint64_t index, uint64_t& term, bool& maybe)
+void Unstable::maybe_term(uint64_t index, uint64_t& term, bool& ok)
 {
+    term = 0;
+    ok = false;
+
     if (index < offset_) {
         if (!snapshot_) {
-            term = 0;
-            maybe = false;
             return;
         }
         if (snapshot_->metadata.index == index) {
             term = snapshot_->metadata.term;
-            maybe = true;
+            ok = true;
             return;
         }
-        term = 0;
-        maybe = false;
         return;
     }
 
     uint64_t last = 0;
-    bool ok = false;
-    maybe_last_index(last, ok);
-    if (!ok) {
-        term = 0;
-        maybe = false;
+    bool last_ok = false;
+    maybe_last_index(last, last_ok);
+    if (!last_ok) {
         return;
     }
     if (index > last) {
-        term = 0;
-        maybe = false;
         return;
 
     }
-    maybe = true;
+    ok = true;
     term = entries_[index - offset_]->term;
 }
 
-void Unstable::stable_to(uint64_t index, uint64_t term)
+void Unstable::stable_to(uint64_t index)
 {
     uint64_t gt = 0;
     bool ok = false;

@@ -20,17 +20,17 @@ public:
 
     // maybeFirstIndex returns the index of the first possible entry in entries
     // if it has a snapshot.
-    void maybe_first_index(uint64_t& index, bool& maybe);
+    void maybe_first_index(uint64_t& index, bool& ok);
 
     // maybeLastIndex returns the last index if it has at least one
     // unstable entry or snapshot.
-    void maybe_last_index(uint64_t& index, bool& maybe);
+    void maybe_last_index(uint64_t& index, bool& ok);
 
     // maybeTerm returns the term of the entry at index i, if there
     // is any.
-    void maybe_term(uint64_t index, uint64_t& term, bool& maybe);
+    void maybe_term(uint64_t index, uint64_t& term, bool& ok);
 
-    void stable_to(uint64_t index, uint64_t term);
+    void stable_to(uint64_t index);
 
     void stable_snap_to(uint64_t index);
 
@@ -38,6 +38,16 @@ public:
 
     void truncate_and_append(std::vector<proto::EntryPtr> entries);
 
+
+    // getter && setter
+    proto::SnapshotPtr& ref_snapshot()
+    {
+        return snapshot_;
+    }
+    std::vector<proto::EntryPtr>& ref_entries()
+    {
+        return entries_;
+    }
 
 private:
     // the incoming unstable snapshot, if any.
