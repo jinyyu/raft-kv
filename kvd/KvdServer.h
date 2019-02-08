@@ -12,9 +12,9 @@ namespace kvd
 class KvdServer: public RaftServer, public std::enable_shared_from_this<KvdServer>
 {
 public:
-    static void main(uint64_t id, const std::string &cluster, uint16_t port);
+    static void main(uint64_t id, const std::string& cluster, uint16_t port);
 
-    explicit KvdServer(uint64_t id, const std::string &cluster, uint16_t port);
+    explicit KvdServer(uint64_t id, const std::string& cluster, uint16_t port);
 
     virtual ~KvdServer();
 

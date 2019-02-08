@@ -70,7 +70,7 @@ public:
         switch (meta_.type) {
         case TransportTypeDebug: {
             assert(len == sizeof(DebugMessage));
-            DebugMessage* dbg = (DebugMessage*)buffer_.data();
+            DebugMessage* dbg = (DebugMessage*) buffer_.data();
             assert(dbg->a + 1 == dbg->b);
             LOG_DEBUG("tick ok");
             break;

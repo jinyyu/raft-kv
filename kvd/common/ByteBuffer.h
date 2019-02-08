@@ -13,7 +13,7 @@ class ByteBuffer
 public:
     explicit ByteBuffer();
 
-    void put(const uint8_t *data, uint32_t len);
+    void put(const uint8_t* data, uint32_t len);
 
     void skip_bytes(uint32_t bytes);
 
@@ -29,14 +29,14 @@ public:
         return static_cast<uint32_t>(buff_.capacity());
     }
 
-    const uint8_t *reader() const
+    const uint8_t* reader() const
     {
         return buff_.data() + reader_;
     }
 
     Slice slice() const
     {
-        return Slice((const char*)reader(), remaining());
+        return Slice((const char*) reader(), remaining());
     }
 
     void reset();

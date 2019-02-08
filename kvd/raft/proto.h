@@ -31,14 +31,14 @@ const MessageType MsgReadIndexResp = 16;
 const MessageType MsgPreVote = 17;
 const MessageType MsgPreVoteResp = 18;
 
-const char *msg_type_to_string(MessageType type);
+const char* msg_type_to_string(MessageType type);
 
 typedef uint8_t EntryType;
 
 const EntryType EntryNormal = 0;
 const EntryType EntryConfChange = 1;
 
-const char *entry_type_to_string(EntryType type);
+const char* entry_type_to_string(EntryType type);
 
 struct Entry
 {

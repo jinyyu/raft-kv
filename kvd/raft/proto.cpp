@@ -7,7 +7,7 @@ namespace kvd
 namespace proto
 {
 
-const char *msg_type_to_string(MessageType type)
+const char* msg_type_to_string(MessageType type)
 {
     switch (type) {
     case MsgHup: {
@@ -75,7 +75,7 @@ const char *msg_type_to_string(MessageType type)
     }
 }
 
-const char *entry_type_to_string(EntryType type)
+const char* entry_type_to_string(EntryType type)
 {
     switch (type) {
     case EntryNormal: {

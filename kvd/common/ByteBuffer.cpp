@@ -15,7 +15,7 @@ ByteBuffer::ByteBuffer()
 
 }
 
-void ByteBuffer::put(const uint8_t *data, uint32_t len)
+void ByteBuffer::put(const uint8_t* data, uint32_t len)
 {
     uint32_t left = static_cast<uint32_t>(buff_.size()) - writer_;
     if (left < len) {
@@ -24,7 +24,6 @@ void ByteBuffer::put(const uint8_t *data, uint32_t len)
     memcpy(buff_.data() + writer_, data, len);
     writer_ += len;
 }
-
 
 uint32_t ByteBuffer::remaining() const
 {
@@ -42,7 +41,7 @@ void ByteBuffer::skip_bytes(uint32_t bytes)
 void ByteBuffer::may_shrink_to_fit()
 {
     if (reader_ == writer_) {
-        reader_= 0;
+        reader_ = 0;
         writer_ = 0;
     }
 }
