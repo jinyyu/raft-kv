@@ -5,7 +5,9 @@ set(SRC
     common/Status.cpp
     common/ByteBuffer.cpp
     raft/proto.cpp
+    raft/Config.cpp
     raft/Raft.cpp
+    raft/Storage.cpp
     raft/Node.cpp
     transport/proto.h
     transport/Transporter.h

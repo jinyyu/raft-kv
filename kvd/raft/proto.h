@@ -48,6 +48,7 @@ struct Entry
     std::vector<uint8_t> data;
     MSGPACK_DEFINE (type, term, index, data);
 };
+typedef std::shared_ptr<Entry> EntryPtr;
 
 struct ConfState
 {
@@ -55,6 +56,7 @@ struct ConfState
     std::vector<uint64_t> learners;
     MSGPACK_DEFINE (nodes, learners);
 };
+typedef std::shared_ptr<ConfState> ConfStatePtr;
 
 struct SnapshotMetadata
 {
@@ -89,6 +91,13 @@ struct Message
     MSGPACK_DEFINE (type, to, from, term, log_term, index, entries, commit, snapshot, reject, reject_hint, context);
 };
 typedef std::shared_ptr<Message> MessagePtr;
+
+struct HardState
+{
+    uint64_t term;
+    uint64_t vote;
+    uint64_t commit;
+};
 
 }
 }
