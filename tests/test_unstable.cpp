@@ -463,7 +463,140 @@ TEST(unstable, stable)
         ASSERT_TRUE(unstable.offset() == 5);
         ASSERT_TRUE(unstable.ref_entries().size() == 1);
     }
+}
 
+bool entry_cmp(const std::vector<proto::EntryPtr>& left, const std::vector<proto::EntryPtr>& right)
+{
+    if (left.size() != right.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < left.size(); ++i) {
+        if (left[i]->index != right[i]->index) {
+            return false;
+        }
+
+        if (left[i]->term != right[i]->term) {
+            return false;
+        }
+    }
+    return true;
+}
+
+TEST(unstable, append)
+{
+    {
+        // append to the end
+        Unstable unstable(5);
+
+        unstable.ref_snapshot() = nullptr;
+        unstable.ref_entries().push_back(newEntry(5, 1));
+
+        std::vector<proto::EntryPtr> to_append;
+        to_append.push_back(newEntry(6, 1));
+        to_append.push_back(newEntry(7, 1));
+
+        std::vector<proto::EntryPtr> wentries;
+        wentries.push_back(newEntry(5, 1));
+        wentries.push_back(newEntry(6, 1));
+        wentries.push_back(newEntry(7, 1));
+
+        unstable.truncate_and_append(std::move(to_append));
+
+        ASSERT_TRUE(unstable.offset() == 5);
+        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+    }
+
+    {
+        // replace the unstable entries
+        Unstable unstable(5);
+
+        unstable.ref_snapshot() = nullptr;
+        unstable.ref_entries().push_back(newEntry(5, 1));
+
+        std::vector<proto::EntryPtr> to_append;
+        to_append.push_back(newEntry(5, 2));
+        to_append.push_back(newEntry(6, 2));
+
+        std::vector<proto::EntryPtr> wentries;
+        wentries.push_back(newEntry(5, 2));
+        wentries.push_back(newEntry(6, 2));
+
+        unstable.truncate_and_append(std::move(to_append));
+
+        ASSERT_TRUE(unstable.offset() == 5);
+        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+    }
+
+    {
+        // replace the unstable entries
+        Unstable unstable(5);
+
+        unstable.ref_snapshot() = nullptr;
+        unstable.ref_entries().push_back(newEntry(5, 1));
+
+        std::vector<proto::EntryPtr> to_append;
+        to_append.push_back(newEntry(4, 2));
+        to_append.push_back(newEntry(5, 2));
+        to_append.push_back(newEntry(6, 2));
+
+        std::vector<proto::EntryPtr> wentries;
+        wentries.push_back(newEntry(4, 2));
+        wentries.push_back(newEntry(5, 2));
+        wentries.push_back(newEntry(6, 2));
+
+        unstable.truncate_and_append(std::move(to_append));
+
+        ASSERT_TRUE(unstable.offset() == 4);
+        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+    }
+
+    {
+        // truncate the existing entries and append
+        Unstable unstable(5);
+
+        unstable.ref_snapshot() = nullptr;
+        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.ref_entries().push_back(newEntry(6, 1));
+        unstable.ref_entries().push_back(newEntry(7, 1));
+
+        std::vector<proto::EntryPtr> to_append;
+        to_append.push_back(newEntry(6, 2));
+
+        std::vector<proto::EntryPtr> wentries;
+        wentries.push_back(newEntry(5, 1));
+        wentries.push_back(newEntry(6, 2));
+
+        unstable.truncate_and_append(std::move(to_append));
+
+        ASSERT_TRUE(unstable.offset() == 5);
+        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+    }
+
+    {
+        // truncate the existing entries and append
+        Unstable unstable(5);
+
+        unstable.ref_snapshot() = nullptr;
+        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.ref_entries().push_back(newEntry(6, 1));
+        unstable.ref_entries().push_back(newEntry(7, 1));
+
+        std::vector<proto::EntryPtr> to_append;
+        to_append.push_back(newEntry(7, 2));
+        to_append.push_back(newEntry(8, 2));
+
+        std::vector<proto::EntryPtr> wentries;
+        wentries.push_back(newEntry(5, 1));
+        wentries.push_back(newEntry(6, 1));
+        wentries.push_back(newEntry(7, 2));
+        wentries.push_back(newEntry(8, 2));
+
+        unstable.truncate_and_append(std::move(to_append));
+
+        ASSERT_TRUE(unstable.offset() == 5);
+        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+    }
 }
 
 int main(int argc, char* argv[])
