@@ -61,5 +61,6 @@ private:
     std::vector<proto::EntryPtr> entries_;
     uint64_t offset_;
 };
+typedef std::shared_ptr<Unstable> UnstablePtr;
 
 }
