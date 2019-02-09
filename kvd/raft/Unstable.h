@@ -30,14 +30,13 @@ public:
     // is any.
     void maybe_term(uint64_t index, uint64_t& term, bool& ok);
 
-    void stable_to(uint64_t index);
+    void stable_to(uint64_t index, uint64_t term);
 
     void stable_snap_to(uint64_t index);
 
     void restore(proto::SnapshotPtr snapshot);
 
     void truncate_and_append(std::vector<proto::EntryPtr> entries);
-
 
     // getter && setter
     proto::SnapshotPtr& ref_snapshot()
@@ -47,6 +46,11 @@ public:
     std::vector<proto::EntryPtr>& ref_entries()
     {
         return entries_;
+    }
+
+    uint64_t offset() const
+    {
+        return offset_;
     }
 
 private:
