@@ -14,8 +14,8 @@ Status MemoryStorage::initial_state(proto::HardState& hard_state, proto::ConfSta
     return Status::ok();
 }
 
-Status MemoryStorage::entries(uint32_t low,
-                              uint32_t high,
+Status MemoryStorage::entries(uint64_t low,
+                              uint64_t high,
                               uint64_t max_size,
                               std::vector<proto::EntryPtr>& entries)
 {
@@ -30,7 +30,7 @@ Status MemoryStorage::entries(uint32_t low,
     this->last_index_impl(last);
 
     if (high > last + 1) {
-        LOG_ERROR("entries' hi(%d) is out of bound lastindex(%lu)", high, last);
+        LOG_ERROR("entries' hi(%lu) is out of bound lastindex(%lu)", high, last);
         exit(0);
     }
     // only contains dummy entries.

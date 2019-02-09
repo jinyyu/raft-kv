@@ -53,6 +53,8 @@ public:
         return offset_;
     }
 
+    void slice(uint64_t low, uint64_t high, std::vector<proto::EntryPtr>& entries);
+
 private:
     // the incoming unstable snapshot, if any.
     proto::SnapshotPtr snapshot_;

@@ -122,4 +122,16 @@ void Unstable::truncate_and_append(std::vector<proto::EntryPtr> entries)
     }
 }
 
+void Unstable::slice(uint64_t low, uint64_t high, std::vector<proto::EntryPtr>& entries)
+{
+    assert(high > low);
+    uint64_t upper = offset_ + entries_.size();
+    if (low < offset_ || high > upper) {
+        LOG_ERROR("unstable.slice[%lu,%lu) out of bound [%lu,%lu]", low, high, offset_, upper);
+        assert(false);
+    }
+
+    entries.insert(entries.begin(), entries_.begin() + low - offset_, entries_.begin() + high - offset_);
+}
+
 }

@@ -18,8 +18,8 @@ public:
     // entries returns a slice of log entries in the range [low,high).
     // MaxSize limits the total size of the log entries returned, but
     // Entries returns at least one entry if any.
-    virtual Status entries(uint32_t low,
-                           uint32_t high,
+    virtual Status entries(uint64_t low,
+                           uint64_t high,
                            uint64_t max_size,
                            std::vector<proto::EntryPtr>& entries) = 0;
 
@@ -63,8 +63,8 @@ public:
 
     virtual Status initial_state(proto::HardState& hard_state, proto::ConfState& conf_state);
 
-    virtual Status entries(uint32_t low,
-                           uint32_t high,
+    virtual Status entries(uint64_t low,
+                           uint64_t high,
                            uint64_t max_size,
                            std::vector<proto::EntryPtr>& entries);
 
