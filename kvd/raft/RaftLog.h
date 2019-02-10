@@ -156,5 +156,6 @@ private:
     // returned from calls to nextEnts.
     uint64_t max_next_ents_size_;
 };
+typedef std::shared_ptr<RaftLog> RaftLogPtr;
 
 }
