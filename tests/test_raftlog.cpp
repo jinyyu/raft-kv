@@ -31,6 +31,124 @@ bool entry_cmp(const std::vector<proto::EntryPtr>& left, const std::vector<proto
     return true;
 }
 
+TEST(raftlog, conflict)
+{
+    std::vector<proto::EntryPtr> previousEnts;
+    previousEnts.push_back(newEntry(1, 1));
+    previousEnts.push_back(newEntry(2, 2));
+    previousEnts.push_back(newEntry(3, 3));
+
+    struct Test
+    {
+        std::vector<proto::EntryPtr> ents;
+        uint64_t wconflict;
+    };
+
+    std::vector<Test> tests;
+
+    // no conflict, empty ent
+    {
+
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(1, 1));
+        ents.push_back(newEntry(2, 2));
+        tests.push_back(Test{.ents = ents, .wconflict = 0});
+    }
+
+
+    // no conflict
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(1, 1));
+        ents.push_back(newEntry(2, 2));
+        ents.push_back(newEntry(3, 3));
+        tests.push_back(Test{.ents = ents, .wconflict = 0});
+    }
+
+    // no conflict, but has new entries
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(1, 1));
+        ents.push_back(newEntry(2, 2));
+        ents.push_back(newEntry(3, 3));
+        ents.push_back(newEntry(4, 4));
+        tests.push_back(Test{.ents = ents, .wconflict = 4});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(2, 2));
+        ents.push_back(newEntry(3, 3));
+        ents.push_back(newEntry(4, 4));
+        ents.push_back(newEntry(5, 4));
+        tests.push_back(Test{.ents = ents, .wconflict = 4});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(3, 3));
+        ents.push_back(newEntry(4, 4));
+        ents.push_back(newEntry(5, 4));
+        tests.push_back(Test{.ents = ents, .wconflict = 4});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(4, 4));
+        ents.push_back(newEntry(5, 4));
+        tests.push_back(Test{.ents = ents, .wconflict = 4});
+    }
+
+
+    // conflicts with existing entries
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(1, 4));
+        ents.push_back(newEntry(2, 4));
+        tests.push_back(Test{.ents = ents, .wconflict = 1});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(1, 4));
+        ents.push_back(newEntry(2, 4));
+        tests.push_back(Test{.ents = ents, .wconflict = 1});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(2, 1));
+        ents.push_back(newEntry(3, 4));
+        ents.push_back(newEntry(4, 4));
+        tests.push_back(Test{.ents = ents, .wconflict = 2});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(3, 1));
+        ents.push_back(newEntry(4, 2));
+        ents.push_back(newEntry(5, 4));
+        ents.push_back(newEntry(6, 4));
+        tests.push_back(Test{.ents = ents, .wconflict = 3});
+    }
+
+
+
+    for (size_t i =0; i < tests.size(); ++i) {
+        auto& test = tests[i];
+        LOG_INFO("testing conflict %lu", i);
+
+        MemoryStoragePtr storage(new MemoryStorage());
+        RaftLog l(storage, std::numeric_limits<uint64_t>::max());
+
+        l.append(previousEnts);
+
+        uint64_t conflict = l.find_conflict(test.ents);
+
+        ASSERT_TRUE(conflict == test.wconflict);
+    }
+}
+
 TEST(raftlog, term)
 {
     uint64_t offset = 100;
