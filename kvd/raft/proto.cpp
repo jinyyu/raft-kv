@@ -155,5 +155,12 @@ uint32_t Entry::serialize_size() const
         + data_serialize_size(static_cast<uint32_t>(data.size()));
 }
 
+std::vector<uint8_t> ConfChange::serialize() const
+{
+    msgpack::sbuffer sbuf;
+    msgpack::pack(sbuf, *this);
+    return std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size());
+}
+
 }
 }

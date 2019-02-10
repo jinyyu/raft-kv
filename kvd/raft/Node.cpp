@@ -8,12 +8,63 @@ namespace kvd
 RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boost::asio::io_service& io_service)
     : io_service_(io_service)
 {
+    raft_ = std::make_shared<Raft>(conf);
+
+    uint64_t last_index = 0;
+    Status status = conf.storage->last_index(last_index);
+    if (!status.is_ok()) {
+        LOG_FATAL("%s", status.to_string().c_str());
+    }
+    if (last_index == 0) {
+        raft_->become_follower(1, last_index);
+
+        std::vector<proto::EntryPtr> entries;
+
+        for (size_t i = 0; i < peers.size(); ++i) {
+            auto& peer = peers[i];
+            proto::ConfChange cs = proto::ConfChange{
+                .id = 0,
+                .conf_change_type = proto::ConfChangeAddNode,
+                .node_id = peer.id,
+                .context = peer.context,
+            };
+
+            std::vector<uint8_t> data = cs.serialize();
+
+            proto::EntryPtr entry(new proto::Entry());
+            entry->type = proto::EntryConfChange;
+            entry->term = 1;
+            entry->index = i + 1;
+            entry->data = peer.context;
+            entries.push_back(entry);
+        }
+
+        raft_->raft_log()->append(entries);
+        raft_->raft_log()->committed() = entries.size();
+
+        for (auto& peer : peers) {
+            this->add_node(peer.id);
+        }
+    }
+
+    // Set the initial hard and soft states after performing all initialization.
+    soft_state_ = raft_->soft_state();
+    if (last_index == 0) {
+        prev_hard_state_ = proto::HardState();
+    } else {
+        prev_hard_state_ = raft_->hard_state();
+    }
 
 }
 
 RawNode::~RawNode()
 {
 
+}
+
+void RawNode::add_node(uint64_t id)
+{
+    LOG_DEBUG("no impl yet");
 }
 
 void RawNode::tick()

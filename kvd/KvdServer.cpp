@@ -18,8 +18,31 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     storage_ = std::make_shared<MemoryStorage>();
 
     Config c;
+    c.id = id;
+    c.election_tick = 10;
+    c.heartbeat_tick = 1;
+    c.storage = storage_;
+    c.applied = 0;
+    c.max_size_per_msg = 1024 * 1024;
+    c.max_committed_size_per_ready = 0;
+    c.max_uncommitted_entries_size = 1 << 30;
+    c.max_inflight_msgs = 256;
+    c.check_quorum = true;
+    c.pre_vote = true;
+    c.read_only_option = ReadOnlySafe;
+    c.disable_proposal_forwarding = false;
+
+    Status status = c.validate();
+
+    if (!status.is_ok()) {
+        LOG_FATAL("invalid configure %s", status.to_string().c_str());    }
+
+
     std::vector<PeerContext> peers;
-    node_ = std::make_shared<RawNode>(c, peers, io_service_);
+    for (size_t i = 0; i < peers_.size(); ++i) {
+        peers.push_back(PeerContext{.id = i + 1});
+    }
+    node_ = std::make_shared<RawNode>(c, std::move(peers), io_service_);
 }
 
 KvdServer::~KvdServer()

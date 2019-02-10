@@ -147,6 +147,9 @@ struct ConfChange
     uint8_t conf_change_type;
     uint64_t node_id;
     std::vector<uint8_t> context;
+    MSGPACK_DEFINE(id, conf_change_type, node_id, context);
+
+    std::vector<uint8_t> serialize() const;
 };
 
 }

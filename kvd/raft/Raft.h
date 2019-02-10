@@ -21,6 +21,12 @@ enum RaftState
 // The state is volatile and does not need to be persisted to the WAL.
 struct SoftState
 {
+    explicit SoftState(uint64_t lead, RaftState state)
+        : lead(lead), state(state)
+    {
+
+    }
+
     uint64_t lead;       // must use atomic operations to access; keep 64-bit aligned.
     RaftState state;
 };
@@ -28,6 +34,25 @@ typedef std::shared_ptr<SoftState> SoftStatePtr;
 
 class Raft
 {
+public:
+    explicit Raft(const Config& c);
+
+    ~Raft();
+
+    void tick();
+
+    void become_follower(uint64_t term, uint64_t lead);
+
+    RaftLogPtr& raft_log()
+    {
+        return raft_log_;
+    }
+
+    SoftStatePtr soft_state() const;
+    proto::HardState hard_state() const;
+
+
+private:
     uint64_t id_;
 
     uint64_t term_;
@@ -36,7 +61,7 @@ class Raft
     std::vector<ReadState> read_states_;
 
     // the log
-    RaftLogPtr raft_log;
+    RaftLogPtr raft_log_;
 
     uint64_t max_bsg_size_;
     uint64_t max_uncommitted_size_;
