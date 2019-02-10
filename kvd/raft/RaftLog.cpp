@@ -103,8 +103,7 @@ void RaftLog::next_entries(std::vector<proto::EntryPtr>& entries) const
     if (committed_ + 1 > off) {
         Status status = slice(off, committed_ + 1, max_next_ents_size_, entries);
         if (!status.is_ok()) {
-            LOG_ERROR("unexpected error when getting unapplied entries");
-            assert(false);
+            LOG_FATAL("unexpected error when getting unapplied entries");
         }
     }
 }
@@ -200,10 +199,9 @@ void RaftLog::commit_to(uint64_t to_commit)
     // never decrease commit
     if (committed_ < to_commit) {
         if (last_index() < to_commit) {
-            LOG_ERROR("tocommit(%lu) is out of range [lastIndex(%lu)]. Was the raft log corrupted, truncated, or lost?",
+            LOG_FATAL("tocommit(%lu) is out of range [lastIndex(%lu)]. Was the raft log corrupted, truncated, or lost?",
                       to_commit,
                       last_index());
-            assert(false);
         }
         committed_ = to_commit;
     }
@@ -297,7 +295,7 @@ Status RaftLog::must_check_out_of_bounds(uint64_t low, uint64_t high) const
 
     uint64_t length = last_index() + 1 - first;
     if (low < first || high > first + length) {
-        LOG_ERROR("slice[%lu,%lu) out of bound [%lu,%lu]", low, high, first, last_index());
+        LOG_FATAL("slice[%lu,%lu) out of bound [%lu,%lu]", low, high, first, last_index());
     }
     return Status::ok();
 

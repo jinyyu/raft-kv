@@ -30,8 +30,7 @@ Status MemoryStorage::entries(uint64_t low,
     this->last_index_impl(last);
 
     if (high > last + 1) {
-        LOG_ERROR("entries' hi(%lu) is out of bound lastindex(%lu)", high, last);
-        assert(false);
+        LOG_FATAL("entries' hi(%lu) is out of bound lastindex(%lu)", high, last);
     }
     // only contains dummy entries.
     if (entries_.size() == 1) {
@@ -95,8 +94,7 @@ Status MemoryStorage::compact(uint64_t compact_index)
     uint64_t last_idx;
     this->last_index_impl(last_idx);
     if (compact_index > last_idx) {
-        LOG_ERROR("compact %lu is out of bound lastindex(%lu)", compact_index, last_idx);
-        assert(false);
+        LOG_FATAL("compact %lu is out of bound lastindex(%lu)", compact_index, last_idx);
     }
 
     uint64_t i = compact_index - offset;
@@ -144,8 +142,7 @@ Status MemoryStorage::append(std::vector<proto::EntryPtr> entries)
     else {
         uint64_t last_idx;
         last_index_impl(last_idx);
-        LOG_ERROR("missing log entry [last: %lu, append at: %lu", last_idx, entries[0]->index);
-        assert(false);
+        LOG_FATAL("missing log entry [last: %lu, append at: %lu", last_idx, entries[0]->index);
     }
     return Status::ok();
 }
@@ -166,8 +163,7 @@ Status MemoryStorage::create_snapshot(uint64_t index,
     uint64_t last = 0;
     last_index_impl(last);
     if (index > last) {
-        LOG_ERROR("snapshot %lu is out of bound lastindex(%lu)", index, last);
-        assert(false);
+        LOG_FATAL("snapshot %lu is out of bound lastindex(%lu)", index, last);
     }
 
     snapshot_->metadata.index = index;
