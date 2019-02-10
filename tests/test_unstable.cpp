@@ -528,6 +528,7 @@ TEST(unstable, append)
         ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
     }
 
+
     {
         // replace the unstable entries
         Unstable unstable(5);
@@ -572,6 +573,7 @@ TEST(unstable, append)
         ASSERT_TRUE(unstable.offset() == 5);
         ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
     }
+
 
     {
         // truncate the existing entries and append

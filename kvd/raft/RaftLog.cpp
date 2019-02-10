@@ -69,13 +69,11 @@ uint64_t RaftLog::append(std::vector<proto::EntryPtr> entries)
 
     uint64_t after = entries[0]->index - 1;
     if (after < committed_) {
-        LOG_ERROR("after(%lu) is out of range [committed(%lu)]\", after, committed_", after, committed_);
-        assert(false);
+        LOG_FATAL("after(%lu) is out of range [committed(%lu)]\", after, committed_", after, committed_);
     }
 
     unstable_->truncate_and_append(std::move(entries));
     return last_index();
-
 }
 
 uint64_t RaftLog::find_conflict(const std::vector<proto::EntryPtr>& entries)

@@ -116,9 +116,12 @@ void Unstable::truncate_and_append(std::vector<proto::EntryPtr> entries)
     else {
         // truncate to after and copy entries_
         // then append
-        uint64_t n = after - offset_;
-        entries_.resize(n);
-        entries_.insert(entries_.end(), entries.begin(), entries.end());
+        LOG_INFO("truncate the unstable entries before index %lu", after);
+        std::vector<proto::EntryPtr> entries_slice;
+        this->slice(offset_, after, entries_slice);
+
+        entries_slice.insert(entries_slice.end(), entries.begin(), entries.end());
+        entries_ = std::move(entries_slice);
     }
 }
 
