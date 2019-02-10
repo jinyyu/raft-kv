@@ -919,7 +919,7 @@ TEST(raftlog, stabletosnap)
     }
     {
         std::vector<proto::EntryPtr> ents;
-        tests.push_back(Test{.stablei = snapi -1, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
+        tests.push_back(Test{.stablei = snapi - 1, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
     }
     {
         std::vector<proto::EntryPtr> ents;
@@ -932,7 +932,7 @@ TEST(raftlog, stabletosnap)
     }
     {
         std::vector<proto::EntryPtr> ents;
-        tests.push_back(Test{.stablei = snapi -1, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
+        tests.push_back(Test{.stablei = snapi - 1, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
     }
 
     {
@@ -948,7 +948,7 @@ TEST(raftlog, stabletosnap)
     {
         std::vector<proto::EntryPtr> ents;
         ents.push_back(newEntry(snapi + 1, snapt));
-        tests.push_back(Test{.stablei = snapi -1, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
+        tests.push_back(Test{.stablei = snapi - 1, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
     }
 
     {
@@ -964,7 +964,7 @@ TEST(raftlog, stabletosnap)
     {
         std::vector<proto::EntryPtr> ents;
         ents.push_back(newEntry(snapi + 1, snapt));
-        tests.push_back(Test{.stablei = snapi -1, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
+        tests.push_back(Test{.stablei = snapi - 1, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
     }
 
 
@@ -986,6 +986,37 @@ TEST(raftlog, stabletosnap)
 
     }
 }
+
+//TestCompaction ensures that the number of log entries is correct after compactions.
+TEST(raftlog, Compaction)
+{
+    struct Test
+    {
+        uint64_t lastIndex;
+        std::vector<uint64_t> compact;
+        std::vector<int> wleft;
+        bool wallow;
+    };
+
+    std::vector<Test> tests;
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        Test& test = tests[i];
+        std::vector<proto::EntryPtr> ents;
+    }
+
+    //TODO
+
+}
+
+TEST(raftlog, LogRestore)
+{
+    //todo
+
+}
+
+
+
 
 int main(int argc, char* argv[])
 {
