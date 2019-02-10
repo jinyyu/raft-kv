@@ -893,6 +893,96 @@ TEST(raftlog, stableto)
 
         ASSERT_TRUE(tt.wunstable == l.unstable()->offset());
 
+    }
+}
+
+TEST(raftlog, stabletosnap)
+{
+    uint64_t snapi = 5;
+    uint64_t snapt = 2;
+    struct Test
+    {
+        uint64_t stablei;
+        uint64_t stablet;
+        std::vector<proto::EntryPtr> newEnts;
+        uint64_t wunstable;
+    };
+
+    std::vector<Test> tests;
+    {
+        std::vector<proto::EntryPtr> ents;
+        tests.push_back(Test{.stablei = snapi + 1, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
+    }
+    {
+        std::vector<proto::EntryPtr> ents;
+        tests.push_back(Test{.stablei = snapi, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
+    }
+    {
+        std::vector<proto::EntryPtr> ents;
+        tests.push_back(Test{.stablei = snapi -1, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
+    }
+    {
+        std::vector<proto::EntryPtr> ents;
+        tests.push_back(Test{.stablei = snapi + 1, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        tests.push_back(Test{.stablei = snapi, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
+    }
+    {
+        std::vector<proto::EntryPtr> ents;
+        tests.push_back(Test{.stablei = snapi -1, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(snapi + 1, snapt));
+        tests.push_back(Test{.stablei = snapi + 1, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 2});
+    }
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(snapi + 1, snapt));
+        tests.push_back(Test{.stablei = snapi, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
+    }
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(snapi + 1, snapt));
+        tests.push_back(Test{.stablei = snapi -1, .stablet = snapt, .newEnts = ents, .wunstable = snapi + 1});
+    }
+
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(snapi + 1, snapt));
+        tests.push_back(Test{.stablei = snapi + 1, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
+    }
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(snapi + 1, snapt));
+        tests.push_back(Test{.stablei = snapi, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
+    }
+    {
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(snapi + 1, snapt));
+        tests.push_back(Test{.stablei = snapi -1, .stablet = snapt + 1, .newEnts = ents, .wunstable = snapi + 1});
+    }
+
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        MemoryStoragePtr storage(new MemoryStorage());
+        proto::SnapshotPtr snapshot(new proto::Snapshot());
+        snapshot->metadata.term = snapt;
+        snapshot->metadata.index = snapi;
+        storage->apply_snapshot(snapshot);
+
+        RaftLog l(storage, std::numeric_limits<uint64_t>::max());
+
+        Test& tt = tests[i];
+        l.append(tt.newEnts);
+
+        l.stable_to(tt.stablei, tt.stablet);
+
+        ASSERT_TRUE(tt.wunstable == l.unstable()->offset());
 
     }
 }
