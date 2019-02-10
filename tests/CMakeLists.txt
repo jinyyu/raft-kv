@@ -18,3 +18,6 @@ target_link_libraries(storage ${LIBS})
 
 add_executable(unstable test_unstable.cpp)
 target_link_libraries(unstable ${LIBS})
+
+add_executable(raftlog test_raftlog.cpp)
+target_link_libraries(raftlog ${LIBS})

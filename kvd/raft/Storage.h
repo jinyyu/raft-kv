@@ -116,7 +116,7 @@ private:
     proto::SnapshotPtr snapshot_;
     // entries_[i] has raft log position i+snapshot.Metadata.Index
     std::vector<proto::EntryPtr> entries_;
-
 };
+typedef std::shared_ptr<MemoryStorage> MemoryStoragePtr;
 
 }

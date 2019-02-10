@@ -18,15 +18,15 @@ public:
 
     }
 
-    // maybeFirstIndex returns the index of the first possible entry in entries
+    // maybe_first_index returns the index of the first possible entry in entries
     // if it has a snapshot.
     void maybe_first_index(uint64_t& index, bool& ok);
 
-    // maybeLastIndex returns the last index if it has at least one
+    // maybe_last_index returns the last index if it has at least one
     // unstable entry or snapshot.
     void maybe_last_index(uint64_t& index, bool& ok);
 
-    // maybeTerm returns the term of the entry at index i, if there
+    // maybe_term returns the term of the entry at index i, if there
     // is any.
     void maybe_term(uint64_t index, uint64_t& term, bool& ok);
 

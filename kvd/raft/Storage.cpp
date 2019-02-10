@@ -31,7 +31,7 @@ Status MemoryStorage::entries(uint64_t low,
 
     if (high > last + 1) {
         LOG_ERROR("entries' hi(%lu) is out of bound lastindex(%lu)", high, last);
-        exit(0);
+        assert(false);
     }
     // only contains dummy entries.
     if (entries_.size() == 1) {
@@ -96,7 +96,7 @@ Status MemoryStorage::compact(uint64_t compact_index)
     this->last_index_impl(last_idx);
     if (compact_index > last_idx) {
         LOG_ERROR("compact %lu is out of bound lastindex(%lu)", compact_index, last_idx);
-        exit(0);
+        assert(false);
     }
 
     uint64_t i = compact_index - offset;
@@ -145,7 +145,7 @@ Status MemoryStorage::append(std::vector<proto::EntryPtr> entries)
         uint64_t last_idx;
         last_index_impl(last_idx);
         LOG_ERROR("missing log entry [last: %lu, append at: %lu", last_idx, entries[0]->index);
-        exit(0);
+        assert(false);
     }
     return Status::ok();
 }
@@ -158,7 +158,7 @@ Status MemoryStorage::create_snapshot(uint64_t index,
     std::lock_guard<std::mutex> guard(mutex_);
 
     if (index <= snapshot_->metadata.index) {
-        snapshot = snapshot_;
+        snapshot = std::make_shared<proto::Snapshot>();
         return Status::invalid_argument("requested index is older than the existing snapshot");
     }
 
@@ -167,7 +167,7 @@ Status MemoryStorage::create_snapshot(uint64_t index,
     last_index_impl(last);
     if (index > last) {
         LOG_ERROR("snapshot %lu is out of bound lastindex(%lu)", index, last);
-        exit(0);
+        assert(false);
     }
 
     snapshot_->metadata.index = index;
@@ -176,6 +176,7 @@ Status MemoryStorage::create_snapshot(uint64_t index,
         snapshot_->metadata.conf_state = *cs;
     }
     snapshot_->data = std::move(data);
+    snapshot = snapshot_;
     return Status::ok();
 
 }

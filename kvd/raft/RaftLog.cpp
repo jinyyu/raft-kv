@@ -30,7 +30,7 @@ RaftLog::~RaftLog()
 void RaftLog::maybe_append(uint64_t index,
                            uint64_t log_term,
                            uint64_t committed,
-                           std::vector<proto::Entry> entries,
+                           std::vector<proto::EntryPtr> entries,
                            uint64_t& last_new_index,
                            bool& ok)
 {
@@ -61,49 +61,43 @@ void RaftLog::maybe_append(uint64_t index,
     }
 }
 
-uint64_t RaftLog::append(std::vector<proto::Entry> entries)
+uint64_t RaftLog::append(std::vector<proto::EntryPtr> entries)
 {
     if (entries.empty()) {
         return last_index();
     }
 
-    uint64_t after = entries[0].index - 1;
+    uint64_t after = entries[0]->index - 1;
     if (after < committed_) {
         LOG_ERROR("after(%lu) is out of range [committed(%lu)]\", after, committed_", after, committed_);
         assert(false);
     }
 
-    std::vector<proto::EntryPtr> ents;
-    for (auto it = entries.begin(); it != entries.end(); ++it) {
-        proto::EntryPtr entry(new proto::Entry(std::move(*it)));
-        ents.push_back(std::move(entry));
-    }
-
-    unstable_->truncate_and_append(std::move(ents));
+    unstable_->truncate_and_append(std::move(entries));
     return last_index();
 
 }
 
-uint64_t RaftLog::find_conflict(const std::vector<proto::Entry>& entries)
+uint64_t RaftLog::find_conflict(const std::vector<proto::EntryPtr>& entries)
 {
-    for (const proto::Entry& entry : entries) {
-        if (!match_term(entry.index, entry.term)) {
-            if (entry.index < last_index()) {
+    for (const proto::EntryPtr& entry : entries) {
+        if (!match_term(entry->index, entry->term)) {
+            if (entry->index < last_index()) {
                 uint64_t t;
-                Status status = this->term(entry.index, t);
+                Status status = this->term(entry->index, t);
                 LOG_INFO("found conflict at index %lu [existing term: %lu, conflicting term: %lu], %s",
-                         entry.index,
+                         entry->index,
                          t,
-                         entry.term,
+                         entry->term,
                          status.to_string().c_str());
             }
-            return entry.index;
+            return entry->index;
         }
     }
     return 0;
 }
 
-void RaftLog::next_entries(std::vector<proto::Entry>& entries) const
+void RaftLog::next_entries(std::vector<proto::EntryPtr>& entries) const
 {
     uint64_t off = std::max(applied_ + 1, first_index());
     if (committed_ + 1 > off) {
@@ -168,7 +162,7 @@ void RaftLog::applied_to(uint64_t index)
     applied_ = index;
 }
 
-Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vector<proto::Entry>& entries) const
+Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vector<proto::EntryPtr>& entries) const
 {
     Status status = must_check_out_of_bounds(low, high);
     if (!status.is_ok()) {
@@ -189,8 +183,8 @@ Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vecto
         // check if ents has reached the size limitation
         if (entry_ptr.size() < std::min(high, unstable_->offset()) - low) {
             for (auto it = entry_ptr.begin(); it != entry_ptr.end(); ++it) {
-                //copy
-                entries.push_back(**it);
+
+                entries.push_back(*it);
             }
             return Status::ok();
         }
@@ -204,7 +198,7 @@ Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vecto
 
     for (auto it = entry_ptr.begin(); it != entry_ptr.end(); ++it) {
         //copy
-        entries.push_back(**it);
+        entries.push_back(*it);
     }
     return Status::ok();
 }

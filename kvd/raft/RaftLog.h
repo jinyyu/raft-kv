@@ -5,6 +5,7 @@
 namespace kvd
 {
 
+
 class RaftLog
 {
 public:
@@ -30,11 +31,11 @@ public:
     void maybe_append(uint64_t index,
                       uint64_t log_term,
                       uint64_t committed,
-                      std::vector<proto::Entry> entries,
+                      std::vector<proto::EntryPtr> entries,
                       uint64_t& last_new_index,
                       bool& ok);
 
-    uint64_t append(std::vector<proto::Entry> entries);
+    uint64_t append(std::vector<proto::EntryPtr> entries);
 
     // find_conflict finds the index of the conflict.
     // It returns the first pair of conflicting entries between the existing
@@ -47,19 +48,19 @@ public:
     // a different term.
     // The first entry MUST have an index equal to the argument 'from'.
     // The index of the given entries MUST be continuously increasing.
-    uint64_t find_conflict(const std::vector<proto::Entry>& entries);
+    uint64_t find_conflict(const std::vector<proto::EntryPtr>& entries);
 
     // next_entries returns all the available entries for execution.
     // If applied is smaller than the index of snapshot, it returns all committed
     // entries after the index of snapshot.
-    void next_entries(std::vector<proto::Entry>& entries) const;
+    void next_entries(std::vector<proto::EntryPtr>& entries) const;
 
     // has_next_entries returns if there is any available entries for execution. This
     // is a fast check without heavy slice in next_entries.
     bool has_next_entries() const;
 
     // slice returns a slice of log entries from low through high-1, inclusive.
-    Status slice(uint64_t low, uint64_t high, uint64_t max_size, std::vector<proto::Entry>& entries) const;
+    Status slice(uint64_t low, uint64_t high, uint64_t max_size, std::vector<proto::EntryPtr>& entries) const;
 
 
     // is_up_to_date determines if the given (lastIndex,term) log is more up-to-date
@@ -71,7 +72,7 @@ public:
     bool is_up_to_date(uint64_t lasti, uint64_t term) const
     {
         uint64_t lt = last_term();
-        return term > lt || (term ==lt && lasti >= last_index());
+        return term > lt || (term == lt && lasti >= last_index());
     }
 
     const std::vector<proto::EntryPtr>& unstable_entries()
@@ -97,7 +98,7 @@ public:
         unstable_->stable_snap_to(index);
     }
 
-    Status entries(uint64_t index, uint64_t max_size, std::vector<proto::Entry>& entries) const
+    Status entries(uint64_t index, uint64_t max_size, std::vector<proto::EntryPtr>& entries) const
     {
         if (index > last_index()) {
             return Status::ok();
@@ -119,6 +120,10 @@ public:
 
     Status must_check_out_of_bounds(uint64_t low, uint64_t high) const;
 
+    UnstablePtr& unstable()
+    {
+        return unstable_;
+    }
 private:
     // storage contains all stable entries since the last snapshot.
     StoragePtr storage_;

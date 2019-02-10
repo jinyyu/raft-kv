@@ -399,25 +399,25 @@ TEST(storage, append)
     }
 }
 
-static bool snapshot_cmp(const proto::Snapshot& left, const proto::Snapshot& right)
+static bool snapshot_cmp(proto::SnapshotPtr left, proto::SnapshotPtr right)
 {
-    if (left.data != right.data) {
+    if (left->data != right->data) {
         return false;
     }
 
-    if (left.metadata.index != right.metadata.index) {
+    if (left->metadata.index != right->metadata.index) {
         return false;
     }
 
-    if (left.metadata.term != right.metadata.term) {
+    if (left->metadata.term != right->metadata.term) {
         return false;
     }
 
-    if (left.metadata.conf_state.nodes != right.metadata.conf_state.nodes) {
+    if (left->metadata.conf_state.nodes != right->metadata.conf_state.nodes) {
         return false;
     }
 
-    if (left.metadata.conf_state.learners != right.metadata.conf_state.learners) {
+    if (left->metadata.conf_state.learners != right->metadata.conf_state.learners) {
         return false;
     }
 
@@ -447,12 +447,13 @@ TEST(storage, create)
         snapshot->data = data;
         snapshot->metadata.term = 4;
         snapshot->metadata.index = 4;
+        snapshot->metadata.conf_state = *cs;
 
         proto::SnapshotPtr snap;
         auto s = m.create_snapshot(4, cs, data, snap);
         ASSERT_TRUE(s.is_ok());
 
-        ASSERT_TRUE(snapshot_cmp(*snap, *snapshot));
+        ASSERT_TRUE(snapshot_cmp(snap, snapshot));
 
     }
 
@@ -467,12 +468,13 @@ TEST(storage, create)
         snapshot->data = data;
         snapshot->metadata.term = 5;
         snapshot->metadata.index = 5;
+        snapshot->metadata.conf_state = *cs;
 
         proto::SnapshotPtr snap;
         auto s = m.create_snapshot(5, cs, data, snap);
         ASSERT_TRUE(s.is_ok());
 
-        ASSERT_TRUE(snapshot_cmp(*snap, *snapshot));
+        ASSERT_TRUE(snapshot_cmp(snap, snapshot));
 
     }
 }
