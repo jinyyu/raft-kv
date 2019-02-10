@@ -784,7 +784,7 @@ TEST(raftlog, UnstableEnts)
     };
 
     std::vector<Test> tests;
-    tests.push_back(Test{.unstable = 3, });
+    tests.push_back(Test{.unstable = 3,});
     tests.push_back(Test{.unstable = 1, previousEnts});
 
     for (size_t i = 0; i < tests.size(); ++i) {
@@ -860,6 +860,40 @@ TEST(raftlog, committo)
             l.commit_to(test.commit);
             ASSERT_TRUE(test.wcommit == l.committed());
         }
+    }
+}
+
+TEST(raftlog, stableto)
+{
+    struct Test
+    {
+        uint64_t stablei;
+        uint64_t stablet;
+        uint64_t wunstable;
+    };
+
+    std::vector<Test> tests;
+    tests.push_back(Test{.stablei = 1, .stablet = 1, .wunstable = 2});
+    tests.push_back(Test{.stablei = 2, .stablet = 2, .wunstable = 3});
+    tests.push_back(Test{.stablei = 2, .stablet = 1, .wunstable = 1}); // bad term
+    tests.push_back(Test{.stablei = 3, .stablet = 1, .wunstable = 1});  // bad index
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        MemoryStoragePtr storage(new MemoryStorage());
+        RaftLog l(storage, std::numeric_limits<uint64_t>::max());
+
+        std::vector<proto::EntryPtr> previousEnts;
+        previousEnts.push_back(newEntry(1, 1));
+        previousEnts.push_back(newEntry(2, 2));
+
+        l.append(previousEnts);
+
+        Test& tt = tests[i];
+        l.stable_to(tt.stablei, tt.stablet);
+
+        ASSERT_TRUE(tt.wunstable == l.unstable()->offset());
+
+
     }
 }
 
