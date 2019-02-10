@@ -6,7 +6,20 @@
 namespace kvd
 {
 
-typedef int ReadOnlyOption;
+enum ReadOnlyOption
+{
+    // ReadOnlySafe guarantees the linearizability of the read only request by
+    // communicating with the quorum. It is the default and suggested option.
+    ReadOnlySafe = 0,
+
+    // ReadOnlyLeaseBased ensures linearizability of the read only request by
+    // relying on the leader lease. It can be affected by clock drift.
+    // If the clock drift is unbounded, leader might keep the lease longer than it
+    // should (clock can move backward/pause without any bound). read_index is not safe
+    // in that case.
+    ReadOnlyLeaseBased = 1,
+};
+
 
 // Config contains the parameters to start a raft.
 struct Config
@@ -25,14 +38,14 @@ struct Config
     // entries from the leader node. It does not vote or promote itself.
     std::vector<uint64_t> learners;
 
-    // election_tick is the number of Node.Tick invocations that must pass between
+    // election_tick is the number of Node.tick invocations that must pass between
     // elections. That is, if a follower does not receive any message from the
     // leader of current term before ElectionTick has elapsed, it will become
     // candidate and start an election. ElectionTick must be greater than
     // HeartbeatTick. We suggest ElectionTick = 10 * HeartbeatTick to avoid
     // unnecessary leader switching.
     uint32_t election_tick;
-    // HeartbeatTick is the number of Node.Tick invocations that must pass between
+    // HeartbeatTick is the number of Node.tick invocations that must pass between
     // heartbeats. That is, a leader sends heartbeat messages to maintain its
     // leadership every HeartbeatTick ticks.
     uint32_t heartbeat_tick;
@@ -86,7 +99,7 @@ struct Config
     // ReadOnlyLeaseBased ensures linearizability of the read only request by
     // relying on the leader lease. It can be affected by clock drift.
     // If the clock drift is unbounded, leader might keep the lease longer than it
-    // should (clock can move backward/pause without any bound). ReadIndex is not safe
+    // should (clock can move backward/pause without any bound). read_index is not safe
     // in that case.
     // CheckQuorum MUST be enabled if ReadOnlyOption is ReadOnlyLeaseBased.
     ReadOnlyOption read_only_option;

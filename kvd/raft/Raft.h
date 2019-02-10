@@ -9,13 +9,22 @@
 namespace kvd
 {
 
-enum RaftStateType
+enum RaftState
 {
     Follower = 0,
     Candidate = 1,
     Leader = 2,
     PreCandidate = 3,
 };
+
+// SoftState provides state that is useful for logging and debugging.
+// The state is volatile and does not need to be persisted to the WAL.
+struct SoftState {
+    uint64_t lead;       // must use atomic operations to access; keep 64-bit aligned.
+    RaftState state;
+};
+typedef std::shared_ptr<SoftState> SoftStatePtr;
+
 
 class Raft {
     uint64_t id_;
@@ -35,7 +44,7 @@ class Raft {
     std::unordered_map<uint64_t, ProgressPtr> learner_prs_;
     std::vector<uint64_t> match_buf;
 
-    RaftStateType state_;
+    RaftState state_;
 
     // is_learner_ is true if the local raft node is a learner.
     bool is_learner_;
@@ -89,6 +98,7 @@ class Raft {
     std::function<void ()> tick_;
     std::function<void(proto::Message msg)> step_;
 };
+typedef std::shared_ptr<Raft> RaftPtr;
 
 
 }

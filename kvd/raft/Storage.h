@@ -87,7 +87,7 @@ public:
     // create_snapshot makes a snapshot which can be retrieved with Snapshot() and
     // can be used to reconstruct the state at that point.
     // If any configuration changes have been made since the last compaction,
-    // the result of the last ApplyConfChange must be passed in.
+    // the result of the last apply_conf_change must be passed in.
     Status create_snapshot(uint64_t index,
                            proto::ConfStatePtr cs,
                            std::vector<uint8_t> data,

@@ -136,5 +136,18 @@ struct HardState
     uint64_t commit;
 };
 
+const uint8_t ConfChangeAddNode = 0;
+const uint8_t ConfChangeRemoveNode = 1;
+const uint8_t ConfChangeUpdateNode = 2;
+const uint8_t ConfChangeAddLearnerNode = 3;
+
+struct ConfChange
+{
+    uint64_t id;
+    uint8_t conf_change_type;
+    uint64_t node_id;
+    std::vector<uint8_t> context;
+};
+
 }
 }

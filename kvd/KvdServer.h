@@ -5,6 +5,7 @@
 #include <boost/asio.hpp>
 #include <vector>
 #include <kvd/transport/Transporter.h>
+#include <kvd/raft/Node.h>
 
 namespace kvd
 {
@@ -34,8 +35,8 @@ private:
     std::vector<std::string> peers_;
 
     TransporterPtr transport_;
+    RawNodePtr node_;
 };
-
 typedef std::shared_ptr<KvdServer> KvdServerPtr;
 
 }
