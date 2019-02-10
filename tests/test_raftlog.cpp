@@ -133,8 +133,7 @@ TEST(raftlog, conflict)
     }
 
 
-
-    for (size_t i =0; i < tests.size(); ++i) {
+    for (size_t i = 0; i < tests.size(); ++i) {
         auto& test = tests[i];
         LOG_INFO("testing conflict %lu", i);
 
@@ -147,6 +146,53 @@ TEST(raftlog, conflict)
 
         ASSERT_TRUE(conflict == test.wconflict);
     }
+}
+
+TEST(raftlog, isuptodate)
+{
+    std::vector<proto::EntryPtr> previousEnts;
+    previousEnts.push_back(newEntry(1, 1));
+    previousEnts.push_back(newEntry(2, 2));
+    previousEnts.push_back(newEntry(3, 3));
+
+    MemoryStoragePtr storage(new MemoryStorage());
+
+    RaftLog l(storage, std::numeric_limits<uint64_t>::max());
+    l.append(previousEnts);
+
+    struct Test
+    {
+        uint64_t lastIndex;
+        uint64_t term;
+        bool wUpToDate;
+    };
+
+    std::vector<Test> tests;
+
+    // greater term, ignore lastIndex
+    tests.push_back(Test{.lastIndex = l.last_index() - 1, .term = 4, .wUpToDate = true});
+    tests.push_back(Test{.lastIndex = l.last_index(), .term = 4, .wUpToDate = true});
+    tests.push_back(Test{.lastIndex = l.last_index() + 1, .term = 4, .wUpToDate = true});
+
+    // smaller term, ignore lastIndex
+    tests.push_back(Test{.lastIndex = l.last_index() - 1, .term = 2, .wUpToDate = false});
+    tests.push_back(Test{.lastIndex = l.last_index(), .term = 2, .wUpToDate = false});
+    tests.push_back(Test{.lastIndex = l.last_index() + 1, .term = 2, .wUpToDate = false});
+
+    // equal term, equal or lager lastIndex wins
+    tests.push_back(Test{.lastIndex = l.last_index() - 1, .term = 3, .wUpToDate = false});
+    tests.push_back(Test{.lastIndex = l.last_index(), .term = 3, .wUpToDate = true});
+    tests.push_back(Test{.lastIndex = l.last_index() + 1, .term = 3, .wUpToDate = true});
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        LOG_INFO("testing isuptodate %lu", i);
+
+        Test& test = tests[i];
+        bool isUpToData = l.is_up_to_date(test.lastIndex, test.term);
+
+        ASSERT_TRUE(isUpToData == test.wUpToDate);
+    }
+
 }
 
 TEST(raftlog, term)
