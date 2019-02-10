@@ -681,7 +681,7 @@ TEST(raftlog, HasNextEnts)
     tests.push_back(Test{.applied = 0, .hasNext = true});
     tests.push_back(Test{.applied = 3, .hasNext = true});
     tests.push_back(Test{.applied = 4, .hasNext = true});
-    //tests.push_back(Test{.applied = 5, .hasNext = false});
+    tests.push_back(Test{.applied = 5, .hasNext = false});
 
     for (size_t i = 0; i < tests.size(); ++i) {
         LOG_INFO("testing %lu", i);
@@ -694,7 +694,7 @@ TEST(raftlog, HasNextEnts)
         l.maybe_commit(5, 1);
         l.applied_to(tests[i].applied);
 
-        ASSERT_TRUE(l.has_next_entries());
+        ASSERT_TRUE(l.has_next_entries() == tests[i].hasNext);
     }
 }
 
@@ -712,13 +712,51 @@ TEST(raftlog, NextEnts)
     struct Test
     {
         uint64_t applied;
-        bool hasNext;
+        std::vector<proto::EntryPtr> wents;
     };
 
     std::vector<Test> tests;
+    {
+        size_t low = 0;
+        size_t high = 2;
+        std::vector<proto::EntryPtr> wents;
+        for (size_t i = low; i < high; ++i) {
+            wents.push_back(entries[i]);
+        }
+
+        tests.push_back(Test{.applied = 0, .wents = wents});
+    }
+
+    {
+        size_t low = 0;
+        size_t high = 2;
+        std::vector<proto::EntryPtr> wents;
+        for (size_t i = low; i < high; ++i) {
+            wents.push_back(entries[i]);
+        }
+
+        tests.push_back(Test{.applied = 3, .wents = wents});
+    }
+
+    {
+        size_t low = 1;
+        size_t high = 2;
+        std::vector<proto::EntryPtr> wents;
+        for (size_t i = low; i < high; ++i) {
+            wents.push_back(entries[i]);
+        }
+
+        tests.push_back(Test{.applied = 4, .wents = wents});
+    }
+
+    {
+        std::vector<proto::EntryPtr> wents;
+        tests.push_back(Test{.applied = 5, .wents = wents});
+    }
+
 
     for (size_t i = 0; i < tests.size(); ++i) {
-        LOG_INFO("testing %lu", i);
+        LOG_INFO("testing NextEnts %lu", i);
         MemoryStoragePtr storage(new MemoryStorage());
         storage->apply_snapshot(snapshot);
 
@@ -730,7 +768,7 @@ TEST(raftlog, NextEnts)
 
         std::vector<proto::EntryPtr> list;
         l.next_entries(list);
-        ASSERT_TRUE(entry_cmp(list, entries));
+        ASSERT_TRUE(entry_cmp(list, tests[i].wents));
     }
 }
 
