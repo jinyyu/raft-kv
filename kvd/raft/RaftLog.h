@@ -81,7 +81,7 @@ public:
         return term > lt || (term == lt && lasti >= last_index());
     }
 
-    const std::vector<proto::EntryPtr>& unstable_entries()
+    std::vector<proto::EntryPtr>& unstable_entries()
     {
         return unstable_->ref_entries();
     }

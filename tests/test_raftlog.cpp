@@ -678,6 +678,10 @@ TEST(raftlog, HasNextEnts)
     };
 
     std::vector<Test> tests;
+    tests.push_back(Test{.applied = 0, .hasNext = true});
+    tests.push_back(Test{.applied = 3, .hasNext = true});
+    tests.push_back(Test{.applied = 4, .hasNext = true});
+    //tests.push_back(Test{.applied = 5, .hasNext = false});
 
     for (size_t i = 0; i < tests.size(); ++i) {
         LOG_INFO("testing %lu", i);
@@ -721,12 +725,62 @@ TEST(raftlog, NextEnts)
         RaftLog l(storage, RaftLog::unlimited());
 
         l.append(entries);
-        l.maybe_commit(5, 1);
+        ASSERT_TRUE(l.maybe_commit(5, 1));
         l.applied_to(tests[i].applied);
 
         std::vector<proto::EntryPtr> list;
         l.next_entries(list);
         ASSERT_TRUE(entry_cmp(list, entries));
+    }
+}
+
+TEST(raftlog, UnstableEnts)
+{
+    std::vector<proto::EntryPtr> previousEnts;
+    previousEnts.push_back(newEntry(1, 1));
+    previousEnts.push_back(newEntry(2, 2));
+
+    struct Test
+    {
+        uint64_t unstable;
+        std::vector<proto::EntryPtr> wentries;
+    };
+
+    std::vector<Test> tests;
+    //tests.push_back(Test{.unstable = 3, });
+    //tests.push_back(Test{.unstable = 1, previousEnts});
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        LOG_INFO("testing UnstableEnts %lu", i);
+        Test& test = tests[i];
+
+        MemoryStoragePtr storage(new MemoryStorage());
+        std::vector<proto::EntryPtr> entries;
+
+        for (uint64_t j = 0; j < test.unstable - 1; ++j) {
+            entries.push_back(previousEnts[j]);
+        }
+        storage->append(entries);
+
+        RaftLog l(storage, RaftLog::unlimited());
+
+        entries.clear();
+        for (uint64_t j = test.unstable - 1; j < previousEnts.size(); ++j) {
+            entries.push_back(previousEnts[j]);
+        }
+
+        l.append(entries);
+
+        std::vector<proto::EntryPtr> ents;
+        auto& out = l.unstable_entries();
+        auto len = out.size();
+        if (!out.empty()) {
+            l.stable_to(out[len - 1]->index, out[len - i]->term);
+        }
+        ASSERT_TRUE(entry_cmp(out, test.wentries));
+
+        auto w = previousEnts.back()->index;
+        ASSERT_TRUE(l.unstable()->offset() == w);
     }
 }
 
