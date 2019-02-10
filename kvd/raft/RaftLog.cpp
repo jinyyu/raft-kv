@@ -130,7 +130,9 @@ bool RaftLog::maybe_commit(uint64_t max_index, uint64_t term)
 
 void RaftLog::restore(proto::SnapshotPtr snapshot)
 {
-    LOG_INFO("log starts to restore snapshot [index: %lu, term: %lu]", snapshot->metadata.index, snapshot->metadata.term);
+    LOG_INFO("log starts to restore snapshot [index: %lu, term: %lu]",
+             snapshot->metadata.index,
+             snapshot->metadata.term);
     committed_ = snapshot->metadata.index;
     unstable_->restore(std::move(snapshot));
 }
@@ -172,20 +174,15 @@ Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vecto
         return Status::ok();
     }
 
-    std::vector<proto::EntryPtr> entry_ptr;
 
     if (low < unstable_->offset()) {
-        status = storage_->entries(low, std::min(high, unstable_->offset()), max_size, entry_ptr);
+        status = storage_->entries(low, std::min(high, unstable_->offset()), max_size, entries);
         if (!status.is_ok()) {
             return status;
         }
 
         // check if ents has reached the size limitation
-        if (entry_ptr.size() < std::min(high, unstable_->offset()) - low) {
-            for (auto it = entry_ptr.begin(); it != entry_ptr.end(); ++it) {
-
-                entries.push_back(*it);
-            }
+        if (entries.size() < std::min(high, unstable_->offset()) - low) {
             return Status::ok();
         }
 
@@ -194,12 +191,7 @@ Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vecto
         std::vector<proto::EntryPtr> unstable;
         unstable_->slice(std::max(low, unstable_->offset()), high, unstable);
     }
-    entry_limit_size(max_size, entry_ptr);
-
-    for (auto it = entry_ptr.begin(); it != entry_ptr.end(); ++it) {
-        //copy
-        entries.push_back(*it);
-    }
+    entry_limit_size(max_size, entries);
     return Status::ok();
 }
 

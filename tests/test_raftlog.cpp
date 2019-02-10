@@ -97,8 +97,7 @@ TEST(raftlog, append)
 
     for (size_t i = 0; i < tests.size(); ++i) {
         MemoryStoragePtr storage(new MemoryStorage());
-
-
+        storage->append(previousEnts);
 
         RaftLog l(storage, std::numeric_limits<uint64_t>::max());
         LOG_INFO("testing append %lu", i);
