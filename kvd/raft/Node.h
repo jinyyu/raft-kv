@@ -90,7 +90,7 @@ public:
 // RawNode is a thread-unsafe Node.
 // The methods of this struct correspond to the methods of Node and are described
 // more fully there.
-class RawNode : public Node
+class RawNode: public Node
 {
 public:
     explicit RawNode(const Config& conf, const std::vector<PeerContext>& peers, boost::asio::io_service& io_service);

@@ -207,7 +207,8 @@ void RaftLog::commit_to(uint64_t to_commit)
                       last_index());
         }
         committed_ = to_commit;
-    } else {
+    }
+    else {
         //ignore to_commit < committed_
     }
 }

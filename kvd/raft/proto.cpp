@@ -69,9 +69,7 @@ const char* msg_type_to_string(MessageType type)
         return "MsgPreVoteResp";
     }
     default: {
-        LOG_DEBUG("invalid msg type %d", type);
-        assert(false);
-        return "unknown";
+        LOG_FATAL("invalid msg type %d", type);
     }
     }
 }
@@ -85,9 +83,9 @@ const char* entry_type_to_string(EntryType type)
     case EntryConfChange: {
         return "EntryConfChange";
     }
-    default:LOG_DEBUG("invalid entry type %d", type);
-        assert(false);
-        return "unknown";
+    default: {
+        LOG_FATAL("invalid entry type %d", type);
+    }
     }
 }
 

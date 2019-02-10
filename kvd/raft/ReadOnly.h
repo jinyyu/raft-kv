@@ -27,7 +27,6 @@ struct ReadIndexStatus
 };
 typedef std::shared_ptr<ReadIndexStatus> ReadIndexStatusPtr;
 
-
 struct ReadOnly
 {
     ReadOnlyOption option;
