@@ -784,8 +784,8 @@ TEST(raftlog, UnstableEnts)
     };
 
     std::vector<Test> tests;
-    //tests.push_back(Test{.unstable = 3, });
-    //tests.push_back(Test{.unstable = 1, previousEnts});
+    tests.push_back(Test{.unstable = 3, });
+    tests.push_back(Test{.unstable = 1, previousEnts});
 
     for (size_t i = 0; i < tests.size(); ++i) {
         LOG_INFO("testing UnstableEnts %lu", i);
@@ -809,14 +809,14 @@ TEST(raftlog, UnstableEnts)
         l.append(entries);
 
         std::vector<proto::EntryPtr> ents;
-        auto& out = l.unstable_entries();
+        auto out = l.unstable_entries();
         auto len = out.size();
         if (!out.empty()) {
             l.stable_to(out[len - 1]->index, out[len - i]->term);
         }
         ASSERT_TRUE(entry_cmp(out, test.wentries));
 
-        auto w = previousEnts.back()->index;
+        auto w = previousEnts.back()->index + 1;
         ASSERT_TRUE(l.unstable()->offset() == w);
     }
 }
