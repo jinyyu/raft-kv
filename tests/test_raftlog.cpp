@@ -402,6 +402,50 @@ TEST(raftlog, maybeAppend)
     }
 }
 
+TEST(raftlog, committo)
+{
+    std::vector<proto::EntryPtr> previousEnts;
+    previousEnts.push_back(newEntry(1, 1));
+    previousEnts.push_back(newEntry(2, 2));
+    previousEnts.push_back(newEntry(3, 3));
+
+    struct Test
+    {
+        uint64_t commit;
+        uint64_t wcommit;
+        bool wpanic;
+    };
+
+    std::vector<Test> tests;
+
+    tests.push_back(Test{.commit = 3, .wcommit= 3, .wpanic= false});
+    tests.push_back(Test{.commit = 1, .wcommit= 2, .wpanic= false}); // never decrease
+    tests.push_back(Test{.commit = 4, .wcommit= 0, .wpanic= true}); // commit out of range -> panic
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        LOG_INFO("testing committo %lu", i);
+        Test& test = tests[i];
+
+        MemoryStoragePtr storage(new MemoryStorage());
+        RaftLog l(storage, std::numeric_limits<uint64_t>::max());
+
+        l.append(previousEnts);
+
+        l.committed() = 2;
+
+        if (test.wpanic) {
+            ASSERT_ANY_THROW(l.commit_to(test.commit));
+
+        }
+        else {
+            l.commit_to(test.commit);
+            ASSERT_TRUE(test.wcommit == l.committed());
+        }
+
+    }
+
+}
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);

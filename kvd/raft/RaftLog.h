@@ -26,7 +26,7 @@ public:
         return std::string(buffer, n);
     }
 
-    // maybe_append returns (0, false) if the entries cannot be appended. Otherwise,
+    // maybe_append returns (0, false) if the entries cannot be appended. O therwise,
     // it returns (last index of new entries, true).
     void maybe_append(uint64_t index,
                       uint64_t log_term,

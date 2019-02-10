@@ -37,6 +37,9 @@ void RaftLog::maybe_append(uint64_t index,
     if (match_term(index, log_term)) {
         uint64_t lastnewi = index + entries.size();
         uint64_t ci = find_conflict(entries);
+        if (ci == 0) {
+            //no conflict
+        }
         if (ci <= committed_) {
             LOG_FATAL("entry %lu conflict with committed entry [committed(%lu)]", ci, committed_);
         }
