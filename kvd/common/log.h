@@ -19,7 +19,6 @@
         { \
              char buffer[1024];  \
              snprintf(buffer, sizeof(buffer), "FATAL [%s:%d] " format "\n", strrchr(__FILE__, '/') + 1, __LINE__, ##__VA_ARGS__); \
-             fprintf(stderr, buffer); \
              throw std::runtime_error(buffer); \
         } while(0)
 

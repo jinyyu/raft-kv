@@ -186,7 +186,8 @@ Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vecto
     }
     if (high > unstable_->offset()) {
         std::vector<proto::EntryPtr> unstable;
-        unstable_->slice(std::max(low, unstable_->offset()), high, unstable);
+        unstable_->slice(std::max(low, unstable_->offset()), high, entries);
+        entries.insert(entries.end(), unstable.begin(), unstable.end());
     }
     entry_limit_size(max_size, entries);
     return Status::ok();

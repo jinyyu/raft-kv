@@ -133,7 +133,7 @@ void Unstable::slice(uint64_t low, uint64_t high, std::vector<proto::EntryPtr>& 
         LOG_FATAL("unstable.slice[%lu,%lu) out of bound [%lu,%lu]", low, high, offset_, upper);
     }
 
-    entries.insert(entries.begin(), entries_.begin() + low - offset_, entries_.begin() + high - offset_);
+    entries.insert(entries.end(), entries_.begin() + low - offset_, entries_.begin() + high - offset_);
 }
 
 }
