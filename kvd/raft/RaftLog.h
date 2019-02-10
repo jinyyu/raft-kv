@@ -13,6 +13,11 @@ public:
 
     ~RaftLog();
 
+    static uint64_t unlimited()
+    {
+        return std::numeric_limits<uint64_t>::max();
+    }
+
     std::string status_string() const
     {
         char buffer[64];

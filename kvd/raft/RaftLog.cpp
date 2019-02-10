@@ -40,10 +40,11 @@ void RaftLog::maybe_append(uint64_t index,
         if (ci == 0) {
             //no conflict
         }
-        if (ci <= committed_) {
+        else if (ci <= committed_) {
             LOG_FATAL("entry %lu conflict with committed entry [committed(%lu)]", ci, committed_);
         }
-        else if (ci > 0) {
+        else {
+            assert(ci > 0);
             uint64_t offset = index + 1;
             uint64_t n = ci - offset;
             entries.erase(entries.begin(), entries.begin() + n);
@@ -54,7 +55,6 @@ void RaftLog::maybe_append(uint64_t index,
 
         last_new_index = lastnewi;
         ok = true;
-
         return;
     }
     else {
@@ -207,6 +207,8 @@ void RaftLog::commit_to(uint64_t to_commit)
                       last_index());
         }
         committed_ = to_commit;
+    } else {
+        //ignore to_commit < committed_
     }
 }
 

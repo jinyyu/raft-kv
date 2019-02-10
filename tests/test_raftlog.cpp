@@ -354,6 +354,7 @@ TEST(raftlog, maybeAppend)
     std::vector<Test> tests;
 
     {
+        // not match: term is different
         Test t;
         t.logTerm = lastterm - 1;
         t.index = lastindex;
@@ -367,6 +368,200 @@ TEST(raftlog, maybeAppend)
         tests.push_back(t);
     }
 
+    {
+        // not match: index out of bound
+        Test t;
+        t.logTerm = lastterm;
+        t.index = lastindex + 1;
+        t.committed = lastindex;
+        t.ents.push_back(newEntry(lastindex + 2, 4));
+        t.wlasti = 0;
+        t.wappend = false;
+        t.wcommit = commit;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        // match with the last existing entry
+        Test t;
+        t.logTerm = lastterm;
+        t.index = lastindex;
+        t.committed = lastindex;
+        //t.ents.push_back(newEntry(lastindex + 2, 4));
+        t.wlasti = lastindex;
+        t.wappend = true;
+        t.wcommit = lastindex;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        // do not increase commit higher than lastnewi
+        Test t;
+        t.logTerm = lastterm;
+        t.index = lastindex;
+        t.committed = lastindex + 1;
+        //t.ents.push_back(newEntry(lastindex + 2, 4));
+        t.wlasti = lastindex;
+        t.wappend = true;
+        t.wcommit = lastindex;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        // commit up to the commit in the message
+        Test t;
+        t.logTerm = lastterm;
+        t.index = lastindex;
+        t.committed = lastindex - 1;
+        //t.ents.push_back(newEntry(lastindex + 2, 4));
+        t.wlasti = lastindex;
+        t.wappend = true;
+        t.wcommit = lastindex - 1;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        // commit do not decrease
+        Test t;
+        t.logTerm = lastterm;
+        t.index = lastindex;
+        t.committed = 0;
+        //t.ents.push_back(newEntry(lastindex + 2, 4));
+        t.wlasti = lastindex;
+        t.wappend = true;
+        t.wcommit = commit;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        // commit do not decrease
+        Test t;
+        t.logTerm = 0;
+        t.index = 0;
+        t.committed = lastindex;
+        //t.ents.push_back(newEntry(lastindex + 2, 4));
+        t.wlasti = 0;
+        t.wappend = true;
+        t.wcommit = commit;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        // commit do not decrease
+        Test t;
+        t.logTerm = lastterm;
+        t.index = lastindex;
+        t.committed = lastindex + 1;
+        t.ents.push_back(newEntry(lastindex + 1, 4));
+        t.wlasti = lastindex + 1;
+        t.wappend = true;
+        t.wcommit = lastindex + 1;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        // do not increase commit higher than lastnewi
+        Test t;
+        t.logTerm = lastterm;
+        t.index = lastindex;
+        t.committed = lastindex + 2;
+        t.ents.push_back(newEntry(lastindex + 1, 4));
+        t.wlasti = lastindex + 1;
+        t.wappend = true;
+        t.wcommit = lastindex + 1;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        Test t;
+        t.logTerm = lastterm;
+        t.index = lastindex;
+        t.committed = lastindex + 2;
+        t.ents.push_back(newEntry(lastindex + 1, 4));
+        t.ents.push_back(newEntry(lastindex + 2, 4));
+        t.wlasti = lastindex + 2;
+        t.wappend = true;
+        t.wcommit = lastindex + 2;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    // match with the the entry in the middle
+    {
+        Test t;
+        t.logTerm = lastterm - 1;
+        t.index = lastindex - 1;
+        t.committed = lastindex;
+        t.ents.push_back(newEntry(lastindex, 4));
+        t.wlasti = lastindex;
+        t.wappend = true;
+        t.wcommit = lastindex;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        Test t;
+        t.logTerm = lastterm - 2;
+        t.index = lastindex - 2;
+        t.committed = lastindex;
+        t.ents.push_back(newEntry(lastindex - 1, 4));
+        t.wlasti = lastindex - 1;
+        t.wappend = true;
+        t.wcommit = lastindex - 1;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+    {
+        // conflict with existing committed entry
+        Test t;
+        t.logTerm = lastterm - 3;
+        t.index = lastindex - 3;
+        t.committed = lastindex;
+        t.ents.push_back(newEntry(lastindex - 2, 4));
+        t.wlasti = lastindex - 2;
+        t.wappend = true;
+        t.wcommit = lastindex - 2;
+        t.wpanic = true;
+
+        tests.push_back(t);
+    }
+
+    {
+        // conflict with existing committed entry
+        Test t;
+        t.logTerm = lastterm - 2;
+        t.index = lastindex - 2;
+        t.committed = lastindex;
+        t.ents.push_back(newEntry(lastindex - 1, 4));
+        t.ents.push_back(newEntry(lastindex, 4));
+        t.wlasti = lastindex;
+        t.wappend = true;
+        t.wcommit = lastindex;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
 
     for (size_t i = 0; i < tests.size(); ++i) {
         MemoryStoragePtr storage(new MemoryStorage());
@@ -400,6 +595,69 @@ TEST(raftlog, maybeAppend)
             }
         }
     }
+}
+
+TEST(raftlog, CompactionSideEffects)
+{
+    uint64_t lastIndex = 1000;
+    uint64_t unstableIndex = 750;
+    uint64_t lastTerm = lastIndex;
+
+    MemoryStoragePtr storage(new MemoryStorage());
+
+    uint64_t i;
+    for (i = 1; i <= unstableIndex; i++) {
+        std::vector<proto::EntryPtr> entries;
+        entries.push_back(newEntry(i, i));
+        storage->append(std::move(entries));
+    }
+
+    RaftLog l(storage, RaftLog::unlimited());
+    for (i = unstableIndex; i < lastIndex; i++) {
+        std::vector<proto::EntryPtr> entries;
+        entries.push_back(newEntry(i + 1, i + 1));
+        l.append(std::move(entries));
+    }
+
+    bool ok = l.maybe_commit(lastIndex, lastTerm);
+    ASSERT_TRUE(ok);
+
+    l.applied_to(l.committed());
+
+    uint64_t offset = 500;
+    Status status = storage->compact(offset);
+    ASSERT_TRUE(status.is_ok());
+
+    ASSERT_TRUE(l.last_index() == lastIndex);
+
+    for (uint64_t j = offset; j <= l.last_index(); j++) {
+        uint64_t t;
+        l.term(j, t);
+        ASSERT_TRUE(j == t);
+    }
+
+    for (uint64_t j = offset; j <= l.last_index(); j++) {
+        ASSERT_TRUE(l.match_term(j, j));
+    }
+
+    auto unstableEnts = l.unstable_entries();
+    ASSERT_TRUE(unstableEnts.size() == 250);
+
+    ASSERT_TRUE(unstableEnts[0]->index == 751);
+
+    uint64_t prev = l.last_index();
+
+    {
+        std::vector<proto::EntryPtr> entries;
+        entries.push_back(newEntry(l.last_index() + 1, l.last_index() + 1));
+        l.append(entries);
+    }
+    ASSERT_TRUE(l.last_index() == prev + 1);
+
+    std::vector<proto::EntryPtr> entries;
+    status = l.entries(l.last_index(), RaftLog::unlimited(), entries);
+    ASSERT_TRUE(status.is_ok());
+    ASSERT_TRUE(entries.size() == 1);
 }
 
 TEST(raftlog, committo)
@@ -441,9 +699,7 @@ TEST(raftlog, committo)
             l.commit_to(test.commit);
             ASSERT_TRUE(test.wcommit == l.committed());
         }
-
     }
-
 }
 
 int main(int argc, char* argv[])
