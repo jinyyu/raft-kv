@@ -327,6 +327,81 @@ TEST(raftlog, append)
     }
 }
 
+TEST(raftlog, maybeAppend)
+{
+    std::vector<proto::EntryPtr> previousEnts;
+    previousEnts.push_back(newEntry(1, 1));
+    previousEnts.push_back(newEntry(2, 2));
+    previousEnts.push_back(newEntry(3, 3));
+
+    uint64_t lastindex = 3;
+    uint64_t lastterm = 3;
+    uint64_t commit = 1;
+
+    struct Test
+    {
+        uint64_t logTerm;
+        uint64_t index;
+        uint64_t committed;
+        std::vector<proto::EntryPtr> ents;
+
+        uint64_t wlasti;
+        bool wappend;
+        uint64_t wcommit;
+        bool wpanic;
+    };
+
+    std::vector<Test> tests;
+
+    {
+        Test t;
+        t.logTerm = lastterm - 1;
+        t.index = lastindex;
+        t.committed = lastindex;
+        t.ents.push_back(newEntry(lastindex + 1, 4));
+        t.wlasti = 0;
+        t.wappend = false;
+        t.wcommit = commit;
+        t.wpanic = false;
+
+        tests.push_back(t);
+    }
+
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        MemoryStoragePtr storage(new MemoryStorage());
+        RaftLog l(storage, std::numeric_limits<uint64_t>::max());
+        l.append(previousEnts);
+        l.committed() = commit;
+
+        auto& test = tests[i];
+
+        LOG_INFO("testing maybeAppend %lu", i);
+        uint64_t last;
+        bool ok;
+
+        if (test.wpanic) {
+            ASSERT_ANY_THROW(l.maybe_append(test.index, test.logTerm, test.committed, test.ents, last, ok));
+        }
+        else {
+            l.maybe_append(test.index, test.logTerm, test.committed, test.ents, last, ok);
+
+            ASSERT_TRUE(last == test.wlasti);
+            ASSERT_TRUE(ok == test.wappend);
+            ASSERT_TRUE(test.wcommit == l.committed());
+
+            if (ok && !test.ents.empty()) {
+                std::vector<proto::EntryPtr> ents;
+                l.slice(l.last_index() - test.ents.size() + 1,
+                        l.last_index() + 1,
+                        std::numeric_limits<uint64_t>::max(),
+                        ents);
+                ASSERT_TRUE(entry_cmp(ents, test.ents));
+            }
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);

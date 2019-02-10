@@ -125,6 +125,12 @@ public:
     {
         return unstable_;
     }
+
+    // getter && setter
+    uint64_t& committed()
+    {
+        return committed_;
+    }
 private:
     // storage contains all stable entries since the last snapshot.
     StoragePtr storage_;
