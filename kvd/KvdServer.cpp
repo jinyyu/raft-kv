@@ -12,9 +12,14 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
 {
     boost::split(peers_, cluster, boost::is_any_of(","));
     if (peers_.empty()) {
-        LOG_DEBUG("invalid args %s", cluster.c_str());
-        exit(0);
+        LOG_FATAL("invalid args %s", cluster.c_str());
     }
+
+    storage_ = std::make_shared<MemoryStorage>();
+
+    Config c;
+    std::vector<PeerContext> peers;
+    node_ = std::make_shared<RawNode>(c, peers, io_service_);
 }
 
 KvdServer::~KvdServer()

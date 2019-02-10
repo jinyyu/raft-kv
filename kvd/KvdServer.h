@@ -36,6 +36,7 @@ private:
 
     TransporterPtr transport_;
     RawNodePtr node_;
+    MemoryStoragePtr storage_;
 };
 typedef std::shared_ptr<KvdServer> KvdServerPtr;
 

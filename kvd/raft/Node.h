@@ -39,8 +39,9 @@ public:
     // ready returns the current point-in-time state of this RawNode.
     virtual void ready() = 0;
 
-    virtual bool is_ready() = 0;
-
+    // has_ready called when RawNode user need to check if any Ready pending.
+    // Checking logic in this method should be consistent with Ready.containsUpdates().
+    virtual bool has_ready() = 0;
 
     // advance notifies the Node that the application has saved progress up to the last ready.
     // It prepares the node to return the next available ready.
@@ -89,12 +90,29 @@ public:
 // RawNode is a thread-unsafe Node.
 // The methods of this struct correspond to the methods of Node and are described
 // more fully there.
-class RawNode
+class RawNode : public Node
 {
 public:
     explicit RawNode(const Config& conf, const std::vector<PeerContext>& peers, boost::asio::io_service& io_service);
 
     ~RawNode();
+
+    virtual void tick();
+    virtual Status campaign();
+    virtual Status propose(std::vector<uint8_t> data);
+    virtual Status propose_conf_change(proto::ConfChange cs);
+    virtual Status step(proto::Message msg);
+    virtual void ready();
+    virtual bool has_ready();
+    virtual void advance();
+    virtual proto::ConfState apply_conf_change(proto::ConfChange cs);
+
+    virtual void transfer_leadership(uint64_t lead, ino64_t transferee);
+    virtual Status read_index(std::vector<uint8_t> rctx);
+    virtual RaftStatusPtr raft_status();
+    virtual void report_unreachable(uint64_t id);
+    virtual void report_snapshot(uint64_t id, SnapshotStatus status);
+    virtual void stop();
 
 private:
     RaftPtr raft_;
