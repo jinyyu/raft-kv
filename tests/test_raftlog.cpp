@@ -680,7 +680,7 @@ TEST(raftlog, HasNextEnts)
     std::vector<Test> tests;
 
     for (size_t i = 0; i < tests.size(); ++i) {
-        LOG_INFO("testing %d", i);
+        LOG_INFO("testing %lu", i);
         MemoryStoragePtr storage(new MemoryStorage());
         storage->apply_snapshot(snapshot);
 
@@ -692,7 +692,42 @@ TEST(raftlog, HasNextEnts)
 
         ASSERT_TRUE(l.has_next_entries());
     }
+}
 
+TEST(raftlog, NextEnts)
+{
+    proto::SnapshotPtr snapshot(new proto::Snapshot());
+    snapshot->metadata.term = 1;
+    snapshot->metadata.index = 3;
+
+    std::vector<proto::EntryPtr> entries;
+    entries.push_back(newEntry(4, 1));
+    entries.push_back(newEntry(5, 1));
+    entries.push_back(newEntry(6, 1));
+
+    struct Test
+    {
+        uint64_t applied;
+        bool hasNext;
+    };
+
+    std::vector<Test> tests;
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        LOG_INFO("testing %lu", i);
+        MemoryStoragePtr storage(new MemoryStorage());
+        storage->apply_snapshot(snapshot);
+
+        RaftLog l(storage, RaftLog::unlimited());
+
+        l.append(entries);
+        l.maybe_commit(5, 1);
+        l.applied_to(tests[i].applied);
+
+        std::vector<proto::EntryPtr> list;
+        l.next_entries(list);
+        ASSERT_TRUE(entry_cmp(list, entries));
+    }
 }
 
 TEST(raftlog, committo)
