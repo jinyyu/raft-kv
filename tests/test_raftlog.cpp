@@ -754,7 +754,6 @@ TEST(raftlog, NextEnts)
         tests.push_back(Test{.applied = 5, .wents = wents});
     }
 
-
     for (size_t i = 0; i < tests.size(); ++i) {
         LOG_INFO("testing NextEnts %lu", i);
         MemoryStoragePtr storage(new MemoryStorage());
