@@ -36,8 +36,13 @@ TEST(raftlog, term)
     uint64_t offset = 100;
     uint64_t num = 100;
     MemoryStoragePtr storage(new MemoryStorage());
+
+    proto::SnapshotPtr snapshot(new proto::Snapshot());
+    snapshot->metadata.index = offset;
+    snapshot->metadata.term = 1;
+    storage->apply_snapshot(snapshot);
+
     RaftLog log(storage, std::numeric_limits<uint64_t>::max());
-    return;
 
     for (uint64_t i = 1; i < num; i++) {
         std::vector<proto::EntryPtr> entries;
@@ -46,22 +51,21 @@ TEST(raftlog, term)
     }
 
 
-
     struct Test
     {
         uint64_t Index;
         uint64_t w;
     };
 
-    Test tests[] = {
-        {offset - 1, 0},
- //       {offset, 0},
-  //      {offset + num/2, num / 2},
- //       {offset + num - 1, num - 1},
- //       {offset + num, 0},
-    };
+    std::vector<Test> tests;
 
-    for (size_t i = 0; i < sizeof(tests); ++i) {
+    tests.push_back(Test{.Index = offset - 1, .w =0});
+    tests.push_back(Test{.Index = offset, .w =1});
+    tests.push_back(Test{.Index = offset + num / 2, .w = (num / 2)});
+    tests.push_back(Test{.Index = offset + num - 1, .w = (num - 1)});
+    tests.push_back(Test{.Index = offset + num, .w =0});
+
+    for (size_t i = 0; i < tests.size(); ++i) {
         LOG_INFO("testing term %lu", i);
         uint64_t term;
         log.term(tests[i].Index, term);
@@ -69,7 +73,6 @@ TEST(raftlog, term)
         ASSERT_TRUE(term == tests[i].w);
     }
 }
-
 
 TEST(raftlog, append)
 {
@@ -110,6 +113,33 @@ TEST(raftlog, append)
     }
 
 
+    {
+        // conflicts with index 1
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(1, 2));
+
+        //replace
+        std::vector<proto::EntryPtr> wents;
+        wents.push_back(newEntry(1, 2));
+
+        tests.push_back(Test{.ents= ents, .windex = 1, .wents = wents, .wunstable = 1});
+    }
+
+    {
+        // conflicts with index 2
+        std::vector<proto::EntryPtr> ents;
+        ents.push_back(newEntry(2, 3));
+        ents.push_back(newEntry(3, 3));
+
+        std::vector<proto::EntryPtr> wents;
+        wents.push_back(newEntry(1, 1));
+        wents.push_back(newEntry(2, 3));
+        wents.push_back(newEntry(3, 3));
+
+        tests.push_back(Test{.ents= ents, .windex = 3, .wents = wents, .wunstable = 2});
+    }
+
+
     for (size_t i = 0; i < tests.size(); ++i) {
         MemoryStoragePtr storage(new MemoryStorage());
         storage->append(previousEnts);
@@ -119,8 +149,8 @@ TEST(raftlog, append)
 
         auto& t = tests[i];
 
-        uint64_t index = l.append(t.ents);
-        ASSERT_TRUE(index == t.windex);
+        uint64_t last_index = l.append(t.ents);
+        ASSERT_TRUE(last_index == t.windex);
 
         std::vector<proto::EntryPtr> ents;
         Status status = l.entries(1, std::numeric_limits<uint64_t>::max(), ents);

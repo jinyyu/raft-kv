@@ -35,6 +35,7 @@ public:
                       uint64_t& last_new_index,
                       bool& ok);
 
+    // return last index
     uint64_t append(std::vector<proto::EntryPtr> entries);
 
     // find_conflict finds the index of the conflict.

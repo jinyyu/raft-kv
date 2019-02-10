@@ -171,7 +171,7 @@ Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vecto
         return Status::ok();
     }
 
-
+    //slice from storage_
     if (low < unstable_->offset()) {
         status = storage_->entries(low, std::min(high, unstable_->offset()), max_size, entries);
         if (!status.is_ok()) {
@@ -184,6 +184,8 @@ Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vecto
         }
 
     }
+
+    //slice unstable
     if (high > unstable_->offset()) {
         std::vector<proto::EntryPtr> unstable;
         unstable_->slice(std::max(low, unstable_->offset()), high, entries);
