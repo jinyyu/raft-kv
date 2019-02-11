@@ -5,32 +5,10 @@
 #include <kvd/raft/Progress.h>
 #include <kvd/raft/proto.h>
 #include <kvd/raft/ReadOnly.h>
+#include <kvd/raft/Ready.h>
 
 namespace kvd
 {
-
-enum RaftState
-{
-    Follower = 0,
-    Candidate = 1,
-    Leader = 2,
-    PreCandidate = 3,
-};
-
-// SoftState provides state that is useful for logging and debugging.
-// The state is volatile and does not need to be persisted to the WAL.
-struct SoftState
-{
-    explicit SoftState(uint64_t lead, RaftState state)
-        : lead(lead), state(state)
-    {
-
-    }
-
-    uint64_t lead;       // must use atomic operations to access; keep 64-bit aligned.
-    RaftState state;
-};
-typedef std::shared_ptr<SoftState> SoftStatePtr;
 
 class Raft
 {

@@ -14,6 +14,7 @@ set(SRC
     raft/Progress.cpp
     raft/ReadOnly.cpp
     raft/RaftStatus.cpp
+    raft/Ready.cpp
     raft/util.cpp
     transport/proto.h
     transport/Transporter.h

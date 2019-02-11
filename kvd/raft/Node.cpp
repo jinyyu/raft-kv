@@ -96,9 +96,10 @@ Status RawNode::step(proto::Message msg)
     return Status::ok();
 }
 
-void RawNode::ready()
+ReadyPtr RawNode::ready()
 {
-
+    LOG_DEBUG("no impl yet");
+    return nullptr;
 }
 
 bool RawNode::has_ready()

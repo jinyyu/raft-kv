@@ -37,7 +37,7 @@ public:
     virtual Status step(proto::Message msg) = 0;
 
     // ready returns the current point-in-time state of this RawNode.
-    virtual void ready() = 0;
+    virtual ReadyPtr ready() = 0;
 
     // has_ready called when RawNode user need to check if any Ready pending.
     // Checking logic in this method should be consistent with Ready.containsUpdates().
@@ -104,7 +104,7 @@ public:
     virtual Status propose(std::vector<uint8_t> data);
     virtual Status propose_conf_change(proto::ConfChange cs);
     virtual Status step(proto::Message msg);
-    virtual void ready();
+    virtual ReadyPtr ready();
     virtual bool has_ready();
     virtual void advance();
     virtual proto::ConfState apply_conf_change(proto::ConfChange cs);
