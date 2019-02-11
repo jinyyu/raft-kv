@@ -113,6 +113,100 @@ void Raft::become_follower(uint64_t term, uint64_t lead)
     LOG_DEBUG("no impl yet");
 }
 
+void Raft::become_candidate()
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::become_pre_candidate()
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::become_leader()
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::campaign(const std::string& campaign_type)
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::poll(uint64_t id, proto::MessageType type, bool v)
+{
+    LOG_WARN("no impl yet");
+}
+
+
+Status Raft::step(proto::MessagePtr msg)
+{
+    LOG_WARN("no impl yet");
+    return Status::ok();
+}
+
+Status Raft::step_leader(proto::MessagePtr msg)
+{
+    LOG_WARN("no impl yet");
+    return Status::ok();
+}
+
+Status Raft::step_candidate(proto::MessagePtr msg)
+{
+    LOG_WARN("no impl yet");
+    return Status::ok();
+}
+
+
+void Raft::send(proto::MessagePtr msg)
+{
+    msg->from = id_;
+    LOG_WARN("no impl yet");
+}
+
+void Raft::restore_node(std::vector<uint64_t> nodes, bool is_learner)
+{
+    LOG_WARN("no impl yet");
+}
+
+bool Raft::promotable() const
+{
+    auto it = prs_.find(id_);
+    return  it != prs_.end();
+}
+
+void Raft::add_node(uint64_t id, bool is_learner)
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::remove_node(uint64_t id)
+{
+    LOG_WARN("no impl yet");
+}
+
+Status Raft::step_follower(proto::MessagePtr msg)
+{
+    LOG_WARN("no impl yet");
+    return Status::ok();
+}
+
+void Raft::handle_append_entries(proto::MessagePtr msg)
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::handle_heartbeat(proto::MessagePtr msg)
+{
+    LOG_WARN("no impl yet");
+}
+
+bool Raft::restore(proto::SnapshotPtr snapshot)
+{
+    LOG_WARN("no impl yet");
+    return true;
+}
+
 void Raft::tick()
 {
     if (tick_) {
@@ -153,9 +247,18 @@ void Raft::nodes(std::vector<uint64_t>& node) const
     for (auto it = prs_.begin(); it != prs_.end(); ++it) {
         node.push_back(it->first);
     }
+    std::sort(node.begin(), node.end());
 }
 
-ProgressPtr Raft::get_process(uint64_t id)
+void Raft::learner_nodes(std::vector<uint64_t>& learner) const
+{
+    for (auto it = learner_prs_.begin(); it != prs_.end(); ++it) {
+        learner.push_back(it->first);
+    }
+    std::sort(learner.begin(), learner.end());
+}
+
+ProgressPtr Raft::get_progress(uint64_t id)
 {
     auto it = prs_.find(id);
     if (it != prs_.end()) {
@@ -164,6 +267,135 @@ ProgressPtr Raft::get_process(uint64_t id)
     else {
         return nullptr;
     }
+}
+
+void Raft::set_progress(uint64_t id,uint64_t match, uint64_t next,  bool is_learner)
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::del_progress(uint64_t id)
+{
+   prs_.erase(id);
+   learner_prs_.erase(id);
+}
+
+void Raft::send_append(uint64_t to)
+{
+    maybe_send_append(to, true);
+}
+
+bool Raft::maybe_send_append(uint64_t to, bool send_if_empty)
+{
+    LOG_WARN("no impl yet");
+    return true;
+}
+
+void Raft::send_heartbeat(uint64_t to, std::vector<uint8_t> ctx)
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::for_each_progress(const std::function<void(uint64_t, ProgressPtr&)>& callback)
+{
+    for (auto it = prs_.begin(); it != prs_.end(); ++it) {
+        callback(it->first, it->second);
+    }
+
+    for (auto it = learner_prs_.begin(); it != learner_prs_.end(); ++it) {
+        callback(it->first, it->second);
+    }
+}
+
+void Raft::bcast_append()
+{
+    for_each_progress([this](uint64_t id, ProgressPtr& progress) {
+        if (id == id_) {
+            return;
+        }
+
+        this->send_append(id);
+    });
+}
+
+void Raft::bcast_heartbeat()
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::bcast_heartbeat_with_ctx(std::vector<uint8_t> ctx)
+{
+    for_each_progress([this, ctx](uint64_t id, ProgressPtr& progress) {
+        if (id == id_) {
+            return;
+        }
+
+        this->send_heartbeat(id, std::move(ctx));
+    });
+}
+
+bool Raft::maybe_commit()
+{
+    LOG_WARN("no impl yet");
+    return true;
+}
+
+void Raft::reset(uint64_t term)
+{
+    LOG_WARN("no impl yet");
+}
+
+bool Raft::append_entry(std::vector<proto::EntryPtr> entries)
+{
+    LOG_WARN("no impl yet");
+    return true;
+}
+
+void Raft::tick_election()
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::tick_heartbeat()
+{
+    LOG_WARN("no impl yet");
+}
+
+bool Raft::past_election_timeout()
+{
+    return election_elapsed_ >= randomized_election_timeout_;
+}
+
+void Raft::reset_randomized_election_timeout()
+{
+    LOG_WARN("no impl yet");
+}
+
+bool Raft::check_quorum_active() const
+{
+    LOG_WARN("no impl yet");
+    return true;
+}
+
+void Raft::send_timeout_now(uint64_t to)
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::abort_leader_transfer()
+{
+    lead_transferee_ = 0;
+}
+
+bool Raft::increase_uncommitted_size(std::vector<proto::EntryPtr> entries)
+{
+    LOG_WARN("no impl yet");
+    return true;
+}
+
+void Raft::reduce_uncommitted_size(std::vector<proto::EntryPtr> entries)
+{
+    LOG_WARN("no impl yet");
 }
 
 }

@@ -43,9 +43,56 @@ public:
 
     void become_follower(uint64_t term, uint64_t lead);
 
+    void become_candidate();
+
+    void become_pre_candidate();
+
+    void become_leader();
+
+    // campaign_type represents the type of campaigning
+    // the reason we use the type of string instead of uint64
+    // is because it's simpler to compare and fill in raft entries
+    void campaign(const std::string& campaign_type);
+
+    void poll(uint64_t id, proto::MessageType type, bool v);
+
+    Status step(proto::MessagePtr msg);
+
+    Status step_leader(proto::MessagePtr msg);
+
+    Status step_candidate(proto::MessagePtr msg);
+
+    Status step_follower(proto::MessagePtr msg);
+
+    void handle_append_entries(proto::MessagePtr msg);
+
+    void handle_heartbeat(proto::MessagePtr msg);
+
+    bool restore(proto::SnapshotPtr snapshot);
+
+    void send(proto::MessagePtr msg);
+
+    void restore_node(std::vector<uint64_t> nodes, bool is_learner);
+
+    bool promotable() const;
+
+    void add_node(uint64_t id, bool is_learner);
+
+    void remove_node(uint64_t id);
+
     RaftLogPtr& raft_log()
     {
         return raft_log_;
+    }
+
+    bool has_leader() const
+    {
+        return lead_ != 0;
+    }
+
+    uint32_t quorum() const
+    {
+        return prs_.size() / 2 + 1;
     }
 
     SoftStatePtr soft_state() const;
@@ -56,7 +103,74 @@ public:
 
     void nodes(std::vector<uint64_t>& node) const;
 
-    ProgressPtr get_process(uint64_t id);
+    void learner_nodes(std::vector<uint64_t>& learner) const;
+
+    ProgressPtr get_progress(uint64_t id);
+
+    void set_progress(uint64_t id,uint64_t match, uint64_t next,  bool is_learner);
+
+    void del_progress(uint64_t id);
+
+    // sendAppend sends an append RPC with new entries (if any) and the
+    // current commit index to the given peer.
+    void send_append(uint64_t to);
+
+    // maybe_send_append sends an append RPC with new entries to the given peer,
+    // if necessary. Returns true if a message was sent. The sendIfEmpty
+    // argument controls whether messages with no entries will be sent
+    // ("empty" messages are useful to convey updated Commit indexes, but
+    // are undesirable when we're sending multiple messages in a batch).
+    bool maybe_send_append(uint64_t to, bool send_if_empty);
+
+
+    // send_heartbeat sends a heartbeat RPC to the given peer.
+    void send_heartbeat(uint64_t to, std::vector<uint8_t> ctx);
+
+    void for_each_progress(const std::function<void(uint64_t, ProgressPtr&)>& callback);
+
+    // bcast_append sends RPC, with entries to all peers that are not up-to-date
+    // according to the progress recorded in prs_.
+    void bcast_append();
+
+    void bcast_heartbeat();
+
+    void bcast_heartbeat_with_ctx(std::vector<uint8_t> ctx);
+
+    // maybe_commit attempts to advance the commit index. Returns true if
+    // the commit index changed (in which case the caller should call
+    // bcast_append).
+    bool maybe_commit();
+
+    void reset(uint64_t term);
+
+    bool append_entry(std::vector<proto::EntryPtr> entries);
+
+    // tick_election is run by followers and candidates after ElectionTimeout.
+    void tick_election();
+
+    void tick_heartbeat();
+
+    // past_election_timeout returns true if r.electionElapsed is greater
+    // than or equal to the randomized election timeout in
+    // [electiontimeout, 2 * electiontimeout - 1].
+    bool past_election_timeout();
+
+    void reset_randomized_election_timeout();
+
+    bool check_quorum_active() const;
+
+    void send_timeout_now(uint64_t to);
+
+    void abort_leader_transfer();
+
+    // increase_uncommitted_size computes the size of the proposed entries and
+    // determines whether they would push leader over its maxUncommittedSize limit.
+    // If the new entries would exceed the limit, the method returns false. If not,
+    // the increase in uncommitted entry size is recorded and the method returns
+    // true.
+    bool increase_uncommitted_size(std::vector<proto::EntryPtr> entries);
+
+    void reduce_uncommitted_size(std::vector<proto::EntryPtr> entries);
 
 private:
     uint64_t id_;
