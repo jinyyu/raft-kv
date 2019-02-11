@@ -131,6 +131,11 @@ struct HardState
 
     }
 
+    bool is_empty_state() const
+    {
+        return term == 0 && vote == 0 && commit == 0;
+    }
+
     uint64_t term;
     uint64_t vote;
     uint64_t commit;
@@ -147,7 +152,7 @@ struct ConfChange
     uint8_t conf_change_type;
     uint64_t node_id;
     std::vector<uint8_t> context;
-    MSGPACK_DEFINE(id, conf_change_type, node_id, context);
+    MSGPACK_DEFINE (id, conf_change_type, node_id, context);
 
     std::vector<uint8_t> serialize() const;
 };

@@ -29,6 +29,10 @@ typedef std::shared_ptr<ReadIndexStatus> ReadIndexStatusPtr;
 
 struct ReadOnly
 {
+    explicit ReadOnly(ReadOnlyOption option)
+        : option(option)
+    {}
+
     ReadOnlyOption option;
     std::unordered_map<std::string, ReadIndexStatusPtr> pending_read_index;
     std::vector<std::string> read_index_queue;

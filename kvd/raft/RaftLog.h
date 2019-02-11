@@ -136,6 +136,11 @@ public:
     {
         return committed_;
     }
+
+    uint64_t& applied()
+    {
+        return applied_;
+    }
 private:
     // storage contains all stable entries since the last snapshot.
     StoragePtr storage_;

@@ -49,8 +49,14 @@ public:
     }
 
     SoftStatePtr soft_state() const;
+
     proto::HardState hard_state() const;
 
+    void load_state(const proto::HardState& state);
+
+    void nodes(std::vector<uint64_t>& node) const;
+
+    ProgressPtr get_process(uint64_t id);
 
 private:
     uint64_t id_;
@@ -63,12 +69,12 @@ private:
     // the log
     RaftLogPtr raft_log_;
 
-    uint64_t max_bsg_size_;
+    uint64_t max_msg_size_;
     uint64_t max_uncommitted_size_;
     uint64_t max_inflight_;
     std::unordered_map<uint64_t, ProgressPtr> prs_;
     std::unordered_map<uint64_t, ProgressPtr> learner_prs_;
-    std::vector<uint64_t> match_buf;
+    std::vector<uint64_t> match_buf_;
 
     RaftState state_;
 
@@ -109,7 +115,7 @@ private:
     // only leader keeps heartbeatElapsed.
     uint32_t heartbeat_elapsed_;
 
-    uint64_t check_quorum_;
+    bool check_quorum_;
     bool pre_vote_;
 
     uint32_t heartbeat_timeout_;
