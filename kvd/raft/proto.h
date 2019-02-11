@@ -136,9 +136,15 @@ struct HardState
         return term == 0 && vote == 0 && commit == 0;
     }
 
+    bool equal(const HardState& hs)
+    {
+        return term == hs.term && vote == hs.vote && commit == hs.commit;
+    }
+
     uint64_t term;
     uint64_t vote;
     uint64_t commit;
+    MSGPACK_DEFINE (term, vote, commit);
 };
 
 const uint8_t ConfChangeAddNode = 0;

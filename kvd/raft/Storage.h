@@ -12,12 +12,12 @@ class Storage
 public:
     ~Storage() = default;
 
-    // initial_state returns the saved HardState and ConfState information.
+    // initial_state returns the saved hard_state and ConfState information.
     virtual Status initial_state(proto::HardState& hard_state, proto::ConfState& conf_state) = 0;
 
     // entries returns a slice of log entries in the range [low,high).
     // MaxSize limits the total size of the log entries returned, but
-    // Entries returns at least one entry if any.
+    // entries returns at least one entry if any.
     virtual Status entries(uint64_t low,
                            uint64_t high,
                            uint64_t max_size,
@@ -33,7 +33,7 @@ public:
     virtual Status last_index(uint64_t& index) = 0;
 
     // firstIndex returns the index of the first log entry that is
-    // possibly available via Entries (older entries have been incorporated
+    // possibly available via entries (older entries have been incorporated
     // into the latest Snapshot; if storage only contains the dummy entry the
     // first log entry is not available).
     virtual Status first_index(uint64_t& index) = 0;

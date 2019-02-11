@@ -13,7 +13,7 @@ enum RaftState
     PreCandidate = 3,
 };
 
-// SoftState provides state that is useful for logging and debugging.
+// soft_state provides state that is useful for logging and debugging.
 // The state is volatile and does not need to be persisted to the WAL.
 struct SoftState
 {
@@ -23,52 +23,60 @@ struct SoftState
 
     }
 
+    bool equal(const SoftState& ss) const
+    {
+        return lead == ss.lead && state == ss.state;
+    }
+
     uint64_t lead;       // must use atomic operations to access; keep 64-bit aligned.
     RaftState state;
 };
 typedef std::shared_ptr<SoftState> SoftStatePtr;
+class Raft;
 
 struct Ready
 {
+    explicit Ready(std::shared_ptr<Raft> raft, SoftStatePtr soft_state, const proto::HardState& hard_state);
+
     // The current volatile state of a Node.
-    // SoftState will be nil if there is no update.
-    // It is not required to consume or store SoftState.
-    SoftStatePtr SoftState;
+    // soft_state will be nil if there is no update.
+    // It is not required to consume or store soft_state.
+    SoftStatePtr soft_state;
 
     // The current state of a Node to be saved to stable storage BEFORE
-    // Messages are sent.
-    // HardState will be equal to empty state if there is no update.
-    proto::HardState HardState;
+    // messages are sent.
+    // hard_state will be equal to empty state if there is no update.
+    proto::HardState hard_state;
 
 
-    // ReadStates can be used for node to serve linearizable read requests locally
+    // read_states can be used for node to serve linearizable read requests locally
     // when its applied index is greater than the index in ReadState.
     // Note that the readState will be returned when raft receives msgReadIndex.
     // The returned is only valid for the request that requested to read.
-    std::vector<ReadState> ReadStates;
+    std::vector<ReadState> read_states;
 
-    // Entries specifies entries to be saved to stable storage BEFORE
-    // Messages are sent
-    std::vector<proto::EntryPtr> Entries;
+    // entries specifies entries to be saved to stable storage BEFORE
+    // messages are sent
+    std::vector<proto::EntryPtr> entries;
 
     // Snapshot specifies the snapshot to be saved to stable storage.
-    proto::SnapshotPtr snapshot;
+    proto::Snapshot snapshot;
 
 
-    // CommittedEntries specifies entries to be committed to a
+    // committed_entries specifies entries to be committed to a
     // store/state-machine. These have previously been committed to stable
     // store.
-    std::vector<proto::EntryPtr> CommittedEntries;
+    std::vector<proto::EntryPtr> committed_entries;
 
-    // Messages specifies outbound messages to be sent AFTER Entries are
+    // messages specifies outbound messages to be sent AFTER entries are
     // committed to stable storage.
     // If it contains a MsgSnap message, the application MUST report back to raft
     // when the snapshot has been received or has failed by calling ReportSnapshot.
-    std::vector<proto::MessagePtr> Messages;
+    std::vector<proto::MessagePtr> messages;
 
-    // MustSync indicates whether the HardState and Entries must be synchronously
+    // must_sync indicates whether the hard_state and entries must be synchronously
     // written to disk or if an asynchronous write is permissible.
-    bool MustSync;
+    bool must_sync;
 };
 typedef std::shared_ptr<Ready> ReadyPtr;
 

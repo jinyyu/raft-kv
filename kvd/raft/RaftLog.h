@@ -90,7 +90,7 @@ public:
 
     void restore(proto::SnapshotPtr snapshot);
 
-    Status snapshot(proto::Snapshot& snap) const;
+    Status snapshot(proto::SnapshotPtr& snap) const;
 
     void applied_to(uint64_t index);
 

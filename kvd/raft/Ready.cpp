@@ -1,4 +1,50 @@
-//
-// Created by ljy on 2/11/19.
-//
+#include <kvd/raft/Ready.h>
+#include <kvd/raft/Raft.h>
+
+namespace kvd
+{
+
+
+// must_sync returns true if the hard state and count of Raft entries indicate
+// that a synchronous write to persistent storage is required.
+static bool is_must_sync(const proto::HardState& st, const proto::HardState& prevst, size_t entsnum)
+{
+    // Persistent state on all servers:
+    // (Updated on stable storage before responding to RPCs)
+    // currentTerm
+    // votedFor
+    // log entries[]
+    return entsnum != 0 || st.vote != prevst.vote || st.vote != prevst.vote;
+}
+
+Ready::Ready(std::shared_ptr<Raft> raft, SoftStatePtr soft_state, const proto::HardState& hard_state)
+    : entries(raft->raft_log()->unstable_entries()),
+      messages(raft->msgs())
+{
+    raft->raft_log()->next_entries(committed_entries);
+
+    SoftStatePtr st = raft->soft_state();
+    if (!st->equal(*soft_state)) {
+        this->soft_state = st;
+    }
+
+    proto::HardState hs = raft->hard_state();
+    if (!hs.equal(hard_state)) {
+        this->hard_state = hs;
+    }
+
+
+    proto::SnapshotPtr snapshot = raft->raft_log()->unstable()->ref_snapshot();
+    if (snapshot) {
+        //copy
+        this->snapshot = *snapshot;
+    }
+    if (!raft->read_states().empty()) {
+        this->read_states = raft->read_states();
+    }
+
+    this->must_sync = is_must_sync(hs, hard_state, entries.size());
+}
+
+}
 

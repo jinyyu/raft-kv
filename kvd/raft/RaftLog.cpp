@@ -136,18 +136,16 @@ void RaftLog::restore(proto::SnapshotPtr snapshot)
     unstable_->restore(std::move(snapshot));
 }
 
-Status RaftLog::snapshot(proto::Snapshot& snap) const
+Status RaftLog::snapshot(proto::SnapshotPtr& snap) const
 {
     if (unstable_->ref_snapshot()) {
-        //copy
-        snap = (*unstable_->ref_snapshot());
+        snap = unstable_->ref_snapshot();
     }
 
     proto::SnapshotPtr s;
     Status status = storage_->snapshot(s);
     if (s) {
-        //copy
-        snap = *s;
+        snap = s;
     }
     return status;
 }

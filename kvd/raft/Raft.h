@@ -70,7 +70,7 @@ public:
 
     uint32_t quorum() const
     {
-        return prs_.size() / 2 + 1;
+        return static_cast<uint32_t>(prs_.size() / 2 + 1);
     }
 
     SoftStatePtr soft_state() const;
@@ -85,7 +85,7 @@ public:
 
     ProgressPtr get_progress(uint64_t id);
 
-    void set_progress(uint64_t id,uint64_t match, uint64_t next,  bool is_learner);
+    void set_progress(uint64_t id, uint64_t match, uint64_t next, bool is_learner);
 
     void del_progress(uint64_t id);
 
@@ -99,7 +99,6 @@ public:
     // ("empty" messages are useful to convey updated Commit indexes, but
     // are undesirable when we're sending multiple messages in a batch).
     bool maybe_send_append(uint64_t to, bool send_if_empty);
-
 
     // send_heartbeat sends a heartbeat RPC to the given peer.
     void send_heartbeat(uint64_t to, std::vector<uint8_t> ctx);
@@ -149,6 +148,16 @@ public:
     bool increase_uncommitted_size(std::vector<proto::EntryPtr> entries);
 
     void reduce_uncommitted_size(std::vector<proto::EntryPtr> entries);
+
+    std::vector<proto::MessagePtr>& msgs()
+    {
+        return msgs_;
+    };
+
+    std::vector<ReadState>& read_states()
+    {
+        return read_states_;
+    }
 
 private:
     uint64_t id_;
