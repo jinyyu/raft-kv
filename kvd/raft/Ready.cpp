@@ -17,14 +17,15 @@ static bool is_must_sync(const proto::HardState& st, const proto::HardState& pre
     return entsnum != 0 || st.vote != prevst.vote || st.vote != prevst.vote;
 }
 
-Ready::Ready(std::shared_ptr<Raft> raft, SoftStatePtr soft_state, const proto::HardState& hard_state)
-    : entries(raft->raft_log()->unstable_entries()),
-      messages(raft->msgs())
+Ready::Ready(std::shared_ptr<Raft> raft, SoftStatePtr pre_soft_state, const proto::HardState& pre_hard_state)
+    : entries(raft->raft_log()->unstable_entries())
 {
+    std::swap(this->messages, raft->msgs());
+
     raft->raft_log()->next_entries(committed_entries);
 
     SoftStatePtr st = raft->soft_state();
-    if (!st->equal(*soft_state)) {
+    if (!st->equal(*pre_soft_state)) {
         this->soft_state = st;
     }
 
@@ -44,6 +45,26 @@ Ready::Ready(std::shared_ptr<Raft> raft, SoftStatePtr soft_state, const proto::H
     }
 
     this->must_sync = is_must_sync(hs, hard_state, entries.size());
+}
+
+bool Ready::contains_updates() const
+{
+    return soft_state != nullptr || !hard_state.is_empty_state() ||
+        !snapshot.is_empty() || !entries.empty() ||
+        !committed_entries.empty() || !messages.empty() || read_states.empty();
+}
+
+uint64_t Ready::applied_cursor() const
+{
+    size_t n = committed_entries.size();
+    if (!committed_entries.empty()) {
+        return committed_entries.back()->index;
+    }
+    uint64_t index = snapshot.metadata.index;
+    if (index > 0) {
+        return index;
+    }
+    return 0;
 }
 
 }

@@ -175,7 +175,7 @@ bool Raft::promotable() const
     return  it != prs_.end();
 }
 
-void Raft::add_node(uint64_t id, bool is_learner)
+void Raft::add_node_or_learner(uint64_t id, bool is_learner)
 {
     LOG_WARN("no impl yet");
 }
@@ -393,7 +393,7 @@ bool Raft::increase_uncommitted_size(std::vector<proto::EntryPtr> entries)
     return true;
 }
 
-void Raft::reduce_uncommitted_size(std::vector<proto::EntryPtr> entries)
+void Raft::reduce_uncommitted_size(const std::vector<proto::EntryPtr>& entries)
 {
     LOG_WARN("no impl yet");
 }

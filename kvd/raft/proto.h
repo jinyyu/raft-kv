@@ -46,9 +46,14 @@ struct Entry
         : type(EntryNormal),
           term(0),
           index(0)
-    {
+    {}
 
-    }
+    explicit Entry(EntryType type, uint64_t term, uint64_t index, std::vector<uint8_t> data)
+        : type(type),
+          term(term),
+          index(index),
+          data(std::move(data))
+    {}
 
     uint32_t serialize_size() const;
 
@@ -83,6 +88,11 @@ struct SnapshotMetadata
 
 struct Snapshot
 {
+
+    bool is_empty() const
+    {
+        return metadata.index == 0;
+    }
     std::vector<uint8_t> data;
     SnapshotMetadata metadata;
     MSGPACK_DEFINE (data, metadata);
@@ -104,6 +114,11 @@ struct Message
     {
 
     }
+
+
+    bool is_local_msg() const;
+
+    bool is_response_msg() const;
 
     MessageType type;
     uint64_t to;
@@ -159,9 +174,9 @@ struct ConfChange
     uint64_t node_id;
     std::vector<uint8_t> context;
     MSGPACK_DEFINE (id, conf_change_type, node_id, context);
-
     std::vector<uint8_t> serialize() const;
 };
+typedef std::shared_ptr<ConfChange> ConfChangePtr;
 
 }
 }

@@ -89,6 +89,18 @@ const char* entry_type_to_string(EntryType type)
     }
 }
 
+bool Message::is_local_msg() const
+{
+    return type == MsgHup || type == MsgBeat || type == MsgUnreachable || type == MsgSnapStatus
+        || type == MsgCheckQuorum;
+}
+
+bool Message::is_response_msg() const
+{
+    return type == MsgAppResp || type == MsgVoteResp || type == MsgHeartbeatResp || type == MsgUnreachable
+        || type == MsgPreVoteResp;
+}
+
 // detail: https://github.com/msgpack/msgpack/blob/master/spec.md#str-format-family
 static uint32_t u8_serialize_size(uint8_t d)
 {

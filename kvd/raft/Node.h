@@ -34,7 +34,7 @@ public:
     // Application needs to call apply_conf_change when applying EntryConfChange type entry.
     virtual Status propose_conf_change(proto::ConfChange cs) = 0;
     // step advances the state machine using the given message. ctx.Err() will be returned, if any.
-    virtual Status step(proto::Message msg) = 0;
+    virtual Status step(proto::MessagePtr msg) = 0;
 
     // ready returns the current point-in-time state of this RawNode.
     virtual ReadyPtr ready() = 0;
@@ -52,12 +52,12 @@ public:
     // commands. For example. when the last ready contains a snapshot, the application might take
     // a long time to apply the snapshot data. To continue receiving ready without blocking raft
     // progress, it can call advance before finishing applying the last ready.
-    virtual void advance() = 0;
+    virtual void advance(ReadyPtr ready) = 0;
     // apply_conf_change applies config change to the local node.
     // Returns an opaque ConfState protobuf which must be recorded
     // in snapshots. Will never return nil; it returns a pointer only
     // to match MemoryStorage.Compact.
-    virtual proto::ConfState apply_conf_change(proto::ConfChange cs) = 0;
+    virtual proto::ConfStatePtr apply_conf_change(proto::ConfChangePtr cs) = 0;
 
     // transfer_leadership attempts to transfer leadership to the given transferee.
     virtual void transfer_leadership(uint64_t lead, ino64_t transferee) = 0;
@@ -103,12 +103,11 @@ public:
     virtual Status campaign();
     virtual Status propose(std::vector<uint8_t> data);
     virtual Status propose_conf_change(proto::ConfChange cs);
-    virtual Status step(proto::Message msg);
+    virtual Status step(proto::MessagePtr msg);
     virtual ReadyPtr ready();
     virtual bool has_ready();
-    virtual void advance();
-    virtual proto::ConfState apply_conf_change(proto::ConfChange cs);
-
+    virtual void advance(ReadyPtr ready);
+    virtual proto::ConfStatePtr apply_conf_change(proto::ConfChangePtr cs);
     virtual void transfer_leadership(uint64_t lead, ino64_t transferee);
     virtual Status read_index(std::vector<uint8_t> rctx);
     virtual RaftStatusPtr raft_status();
@@ -118,7 +117,7 @@ public:
 
 private:
     RaftPtr raft_;
-    SoftStatePtr soft_state_;
+    SoftStatePtr prev_soft_state_;
     proto::HardState prev_hard_state_;
     boost::asio::io_service& io_service_;
 };

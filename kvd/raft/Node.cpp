@@ -48,10 +48,11 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boos
     }
 
     // Set the initial hard and soft states after performing all initialization.
-    soft_state_ = raft_->soft_state();
+    prev_soft_state_ = raft_->soft_state();
     if (last_index == 0) {
         prev_hard_state_ = proto::HardState();
-    } else {
+    }
+    else {
         prev_hard_state_ = raft_->hard_state();
     }
 
@@ -69,52 +70,148 @@ void RawNode::add_node(uint64_t id)
 
 void RawNode::tick()
 {
-
+    raft_->tick();
 }
 
 Status RawNode::campaign()
 {
-    LOG_DEBUG("no impl yet");
-    return Status::ok();
+    proto::MessagePtr msg(new proto::Message());
+    msg->type = proto::MsgHup;
+    return raft_->step(std::move(msg));
 }
 
 Status RawNode::propose(std::vector<uint8_t> data)
 {
-    LOG_DEBUG("no impl yet");
-    return Status::ok();
+    proto::MessagePtr msg(new proto::Message());
+    msg->type = proto::MsgProp;
+    msg->from = raft_->id();
+    msg->entries.emplace_back(proto::EntryNormal, 0, 0, std::move(data));
+
+    return raft_->step(std::move(msg));
 }
 
 Status RawNode::propose_conf_change(proto::ConfChange cs)
 {
-    LOG_DEBUG("no impl yet");
-    return Status::ok();
+    proto::MessagePtr msg(new proto::Message());
+    msg->type = proto::MsgProp;
+    msg->entries.emplace_back(proto::EntryConfChange, 0, 0, cs.serialize());
+    return raft_->step(std::move(msg));
 }
 
-Status RawNode::step(proto::Message msg)
+Status RawNode::step(proto::MessagePtr msg)
 {
-    LOG_DEBUG("no impl yet");
-    return Status::ok();
+    // ignore unexpected local messages receiving over network
+    if (msg->is_local_msg()) {
+        return Status::invalid_argument("raft: cannot step raft local message");
+    }
+
+    ProgressPtr progress = raft_->get_progress(msg->from);
+    if (progress || !msg->is_response_msg()) {
+        return raft_->step(msg);
+    }
+    return Status::invalid_argument("raft: cannot step as peer not found");
 }
 
 ReadyPtr RawNode::ready()
 {
-    LOG_DEBUG("no impl yet");
-    return nullptr;
+    ReadyPtr rd = std::make_shared<Ready>(raft_, prev_soft_state_, prev_hard_state_);
+    assert(raft_->msgs().empty());
+    raft_->reduce_uncommitted_size(rd->committed_entries);
+    return rd;
 }
 
 bool RawNode::has_ready()
 {
-    return true;
+    if (prev_soft_state_ && prev_soft_state_->equal(*raft_->soft_state())) {
+        return true;
+    }
+    proto::HardState hs = raft_->hard_state();
+    if (!hs.is_empty_state() && !hs.equal(prev_hard_state_)) {
+        return true;
+    }
+
+    proto::SnapshotPtr snapshot = raft_->raft_log()->unstable()->ref_snapshot();
+
+    if (snapshot && !snapshot->is_empty()) {
+        return true;
+    }
+    if (!raft_->msgs().empty() || !raft_->raft_log()->unstable_entries().empty()
+        || raft_->raft_log()->has_next_entries()) {
+        return true;
+    }
+
+    if (!raft_->read_states().empty()) {
+        return true;
+    }
+    return false;
 }
 
-void RawNode::advance()
+void RawNode::advance(ReadyPtr ready)
 {
+    if (ready->soft_state) {
+        prev_soft_state_ = ready->soft_state;
 
+        }
+    if (!ready->hard_state.is_empty_state()) {
+        prev_hard_state_ = ready->hard_state;
+    }
+
+    // If entries were applied (or a snapshot), update our cursor for
+    // the next Ready. Note that if the current HardState contains a
+    // new Commit index, this does not mean that we're also applying
+    // all of the new entries due to commit pagination by size.
+    uint64_t index = ready->applied_cursor();
+    if (index > 0) {
+        raft_->raft_log()->applied_to(index);
+    }
+
+    if (!ready->entries.empty()) {
+        auto& entry = ready->entries.back();
+        raft_->raft_log()->stable_to(entry->index, entry->term);
+    }
+
+    if (!ready->snapshot.is_empty()) {
+        raft_->raft_log()->stable_snap_to(ready->snapshot.metadata.index);
+    }
+
+    if (!ready->read_states.empty()){
+       raft_->read_states().clear();
+    }
 }
 
-proto::ConfState RawNode::apply_conf_change(proto::ConfChange cs)
+proto::ConfStatePtr RawNode::apply_conf_change(proto::ConfChangePtr cs)
 {
-    return proto::ConfState();
+    proto::ConfStatePtr state(new proto::ConfState());
+    if (cs->node_id == 0) {
+        raft_->nodes(state->nodes);
+        raft_->learner_nodes(state->learners);
+        return state;
+    }
+
+    switch (cs->conf_change_type) {
+    case proto::ConfChangeAddNode: {
+        raft_->add_node_or_learner(cs->node_id, false);
+        break;
+    }
+    case proto::ConfChangeAddLearnerNode: {
+        raft_->add_node_or_learner(cs->node_id, true);
+        break;
+    }
+    case proto::ConfChangeRemoveNode: {
+        raft_->remove_node(cs->node_id);
+        break;
+    }
+    case proto::ConfChangeUpdateNode: {
+        LOG_DEBUG("ConfChangeUpdate");
+        break;
+    }
+    default: {
+        LOG_FATAL("unexpected conf type");
+    }
+    }
+    raft_->nodes(state->nodes);
+    raft_->learner_nodes(state->learners);
+    return state;
 }
 
 void RawNode::transfer_leadership(uint64_t lead, ino64_t transferee)

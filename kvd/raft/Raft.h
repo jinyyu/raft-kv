@@ -54,7 +54,7 @@ public:
 
     bool promotable() const;
 
-    void add_node(uint64_t id, bool is_learner);
+    void add_node_or_learner(uint64_t id, bool is_learner);
 
     void remove_node(uint64_t id);
 
@@ -147,7 +147,7 @@ public:
     // true.
     bool increase_uncommitted_size(std::vector<proto::EntryPtr> entries);
 
-    void reduce_uncommitted_size(std::vector<proto::EntryPtr> entries);
+    void reduce_uncommitted_size(const std::vector<proto::EntryPtr>& entries);
 
     std::vector<proto::MessagePtr>& msgs()
     {
@@ -157,6 +157,10 @@ public:
     std::vector<ReadState>& read_states()
     {
         return read_states_;
+    }
+
+    uint64_t id() const {
+        return id_;
     }
 
 private:

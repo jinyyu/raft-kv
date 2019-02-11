@@ -36,7 +36,14 @@ class Raft;
 
 struct Ready
 {
-    explicit Ready(std::shared_ptr<Raft> raft, SoftStatePtr soft_state, const proto::HardState& hard_state);
+    explicit Ready(std::shared_ptr<Raft> raft, SoftStatePtr pre_soft_state, const proto::HardState& pre_hard_state);
+
+    bool contains_updates() const;
+
+    // applied_cursor extracts from the Ready the highest index the client has
+    // applied (once the Ready is confirmed via Advance). If no information is
+    // contained in the Ready, returns zero.
+    uint64_t applied_cursor() const;
 
     // The current volatile state of a Node.
     // soft_state will be nil if there is no update.
@@ -47,7 +54,6 @@ struct Ready
     // messages are sent.
     // hard_state will be equal to empty state if there is no update.
     proto::HardState hard_state;
-
 
     // read_states can be used for node to serve linearizable read requests locally
     // when its applied index is greater than the index in ReadState.
@@ -61,7 +67,6 @@ struct Ready
 
     // Snapshot specifies the snapshot to be saved to stable storage.
     proto::Snapshot snapshot;
-
 
     // committed_entries specifies entries to be committed to a
     // store/state-machine. These have previously been committed to stable
