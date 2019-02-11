@@ -35,7 +35,8 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     Status status = c.validate();
 
     if (!status.is_ok()) {
-        LOG_FATAL("invalid configure %s", status.to_string().c_str());    }
+        LOG_FATAL("invalid configure %s", status.to_string().c_str());
+    }
 
 
     std::vector<PeerContext> peers;

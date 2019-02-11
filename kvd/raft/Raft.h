@@ -159,7 +159,8 @@ public:
         return read_states_;
     }
 
-    uint64_t id() const {
+    uint64_t id() const
+    {
         return id_;
     }
 

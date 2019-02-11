@@ -10,6 +10,9 @@ namespace kvd
 
 typedef uint8_t SnapshotStatus;
 
+static const SnapshotStatus SnapshotFinish = 1;
+static const SnapshotStatus SnapshotFailure = 2;
+
 struct PeerContext
 {
     uint64_t id;

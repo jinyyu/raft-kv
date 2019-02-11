@@ -22,24 +22,22 @@ Status Config::validate()
         return Status::invalid_argument("storage cannot be nil");
     }
 
-    if (this->max_uncommitted_entries_size == 0){
+    if (this->max_uncommitted_entries_size == 0) {
         this->max_uncommitted_entries_size = std::numeric_limits<uint64_t>::max();
     }
 
     // default max_committed_size_per_ready to max_size_per_msg because they were
     // previously the same parameter.
-    if (this->max_committed_size_per_ready == 0){
+    if (this->max_committed_size_per_ready == 0) {
         max_committed_size_per_ready = this->max_size_per_msg;
     }
 
-    if (this->max_inflight_msgs <= 0)
-    {
+    if (this->max_inflight_msgs <= 0) {
         return Status::invalid_argument("max inflight messages must be greater than 0");
     }
 
 
-    if (this->read_only_option == ReadOnlyLeaseBased && !this->check_quorum)
-    {
+    if (this->read_only_option == ReadOnlyLeaseBased && !this->check_quorum) {
         return Status::invalid_argument("check_quorum must be enabled when read_only_option is ReadOnlyLeaseBased");
     }
 

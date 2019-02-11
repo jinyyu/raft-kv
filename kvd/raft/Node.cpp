@@ -151,7 +151,7 @@ void RawNode::advance(ReadyPtr ready)
     if (ready->soft_state) {
         prev_soft_state_ = ready->soft_state;
 
-        }
+    }
     if (!ready->hard_state.is_empty_state()) {
         prev_hard_state_ = ready->hard_state;
     }
@@ -174,8 +174,8 @@ void RawNode::advance(ReadyPtr ready)
         raft_->raft_log()->stable_snap_to(ready->snapshot.metadata.index);
     }
 
-    if (!ready->read_states.empty()){
-       raft_->read_states().clear();
+    if (!ready->read_states.empty()) {
+        raft_->read_states().clear();
     }
 }
 
@@ -216,13 +216,24 @@ proto::ConfStatePtr RawNode::apply_conf_change(proto::ConfChangePtr cs)
 
 void RawNode::transfer_leadership(uint64_t lead, ino64_t transferee)
 {
+    // manually set 'from' and 'to', so that leader can voluntarily transfers its leadership
+    proto::MessagePtr msg(new proto::Message());
+    msg->type = proto::MsgTransferLeader;
+    msg->from = transferee;
+    msg->to = lead;
 
+    Status status = raft_->step(std::move(msg));
+    if (!status.is_ok()) {
+        LOG_WARN("transfer_leadership %s", status.to_string().c_str());
+    }
 }
 
 Status RawNode::read_index(std::vector<uint8_t> rctx)
 {
-    LOG_DEBUG("no impl yet");
-    return Status::ok();
+    proto::MessagePtr msg(new proto::Message());
+    msg->type = proto::MsgReadIndex;
+    msg->entries.emplace_back(proto::MsgReadIndex, 0, 0, std::move(rctx));
+    return raft_->step(std::move(msg));
 }
 
 RaftStatusPtr RawNode::raft_status()
@@ -233,12 +244,28 @@ RaftStatusPtr RawNode::raft_status()
 
 void RawNode::report_unreachable(uint64_t id)
 {
+    proto::MessagePtr msg(new proto::Message());
+    msg->type = proto::MsgUnreachable;
+    msg->from = id;
 
+    Status status = raft_->step(std::move(msg));
+    if (!status.is_ok()) {
+        LOG_WARN("report_unreachable %s", status.to_string().c_str());
+    }
 }
 
 void RawNode::report_snapshot(uint64_t id, SnapshotStatus status)
 {
+    bool rej = (status == SnapshotFailure);
+    proto::MessagePtr msg(new proto::Message());
+    msg->type = proto::MsgSnapStatus;
+    msg->from = id;
+    msg->reject = rej;
 
+    Status s = raft_->step(std::move(msg));
+    if (!s.is_ok()) {
+        LOG_WARN("report_snapshot %s", s.to_string().c_str());
+    }
 }
 
 void RawNode::stop()

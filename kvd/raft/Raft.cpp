@@ -138,7 +138,6 @@ void Raft::poll(uint64_t id, proto::MessageType type, bool v)
     LOG_WARN("no impl yet");
 }
 
-
 Status Raft::step(proto::MessagePtr msg)
 {
     LOG_WARN("no impl yet");
@@ -157,7 +156,6 @@ Status Raft::step_candidate(proto::MessagePtr msg)
     return Status::ok();
 }
 
-
 void Raft::send(proto::MessagePtr msg)
 {
     msg->from = id_;
@@ -172,7 +170,7 @@ void Raft::restore_node(std::vector<uint64_t> nodes, bool is_learner)
 bool Raft::promotable() const
 {
     auto it = prs_.find(id_);
-    return  it != prs_.end();
+    return it != prs_.end();
 }
 
 void Raft::add_node_or_learner(uint64_t id, bool is_learner)
@@ -269,15 +267,15 @@ ProgressPtr Raft::get_progress(uint64_t id)
     }
 }
 
-void Raft::set_progress(uint64_t id,uint64_t match, uint64_t next,  bool is_learner)
+void Raft::set_progress(uint64_t id, uint64_t match, uint64_t next, bool is_learner)
 {
     LOG_WARN("no impl yet");
 }
 
 void Raft::del_progress(uint64_t id)
 {
-   prs_.erase(id);
-   learner_prs_.erase(id);
+    prs_.erase(id);
+    learner_prs_.erase(id);
 }
 
 void Raft::send_append(uint64_t to)

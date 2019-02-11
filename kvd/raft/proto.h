@@ -115,7 +115,6 @@ struct Message
 
     }
 
-
     bool is_local_msg() const;
 
     bool is_response_msg() const;
