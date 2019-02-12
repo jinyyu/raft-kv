@@ -2,6 +2,9 @@
 #include <kvd/third_party/http_parser.h>
 #include <kvd/KvdServer.h>
 #include <kvd/common/log.h>
+#include <rapidjson/rapidjson.h>
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
 
 namespace kvd
 {
@@ -11,7 +14,7 @@ static http_parser_settings g_http_parser_request_setting;
 class HTTPSession: public std::enable_shared_from_this<HTTPSession>
 {
 public:
-    explicit HTTPSession(std::weak_ptr<KvdServer> server, boost::asio::io_service& io_service)
+    explicit HTTPSession(std::weak_ptr<HTTPServer> server, boost::asio::io_service& io_service)
         : server(std::move(server)),
           socket(io_service),
           read_finished(false)
@@ -48,39 +51,74 @@ public:
             if (!self->read_finished) {
                 self->start();
             }
+            else {
+                self->handle_request();
+            }
         };
         socket.async_read_some(buffer, handler);
     }
 
-    std::weak_ptr<KvdServer> server;
+    void handle_request()
+    {
+        if (method == "GET") {
+            handle_get();
+        }
+    }
+
+    void handle_get()
+    {
+        std::string value;
+        bool success = server.lock()->get(url, value);
+        rapidjson::Document document;
+        document.SetObject();
+        document.AddMember("ok", rapidjson::Value(success), document.GetAllocator());
+        if (success) {
+            document.AddMember("result",
+                               rapidjson::Value(value.c_str(), document.GetAllocator()), document.GetAllocator());
+        }
+        else {
+            document.AddMember("result", rapidjson::Value("key not found"), document.GetAllocator());
+        }
+        rapidjson::StringBuffer sb;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+        document.Accept(writer);
+
+        data = std::string(sb.GetString(), sb.GetSize());
+        LOG_DEBUG("%s------------------------------", data.c_str());
+    }
+    std::string url;
+    std::string method;
+    std::weak_ptr<HTTPServer> server;
     boost::asio::ip::tcp::socket socket;
     http_parser http_parser_;
     bool read_finished;
-    std::unordered_map<std::string, std::string> headers;
-    std::string header;
+    std::string data;
     char recv_buffer[512];
 };
-
-static int on_request_header_field(http_parser* parser, const char* field, size_t length)
-{
-    HTTPSession* session = (HTTPSession*) parser->data;
-    session->header = std::string(field, length);
-    return 0;
-}
-
-static int on_request_header_value(http_parser* parser, const char* value, size_t length)
-{
-    HTTPSession* session = (HTTPSession*) parser->data;
-    std::string v(value, length);
-    LOG_DEBUG("%s: %s", session->header.c_str(), v.c_str());
-    session->headers[session->header] = std::move(v);
-    return 0;
-}
 
 static int on_request_complete(http_parser* parser)
 {
     HTTPSession* session = (HTTPSession*) parser->data;
     session->read_finished = true;
+    return 0;
+}
+
+static int on_url(http_parser* parser, const char* url, size_t length)
+{
+    HTTPSession* session = (HTTPSession*) parser->data;
+    session->method = http_method_str((http_method) parser->method);
+    if (length > 1 && *url == '/') {
+        session->url = std::string(url + 1, length-1);
+    }
+
+    LOG_DEBUG("%s:%s", session->method.c_str(), session->url.c_str());
+    return 0;
+}
+
+static int on_body(http_parser* parser, const char* data, size_t length)
+{
+    HTTPSession* session = (HTTPSession*) parser->data;
+    session->data.insert(session->data.end(), data, data + length);
     return 0;
 }
 
@@ -103,11 +141,11 @@ HTTPServer::HTTPServer(std::weak_ptr<KvdServer> server, boost::asio::io_service&
 void HTTPServer::start()
 {
     memset(&g_http_parser_request_setting, 0, sizeof(g_http_parser_request_setting));
-    g_http_parser_request_setting.on_header_field = on_request_header_field;
-    g_http_parser_request_setting.on_header_value = on_request_header_value;
+    g_http_parser_request_setting.on_url = on_url;
+    g_http_parser_request_setting.on_body = on_body;
     g_http_parser_request_setting.on_message_complete = on_request_complete;
 
-    HTTPSessionPtr session(new HTTPSession(server_, io_service_));
+    HTTPSessionPtr session(new HTTPSession(shared_from_this(), io_service_));
     acceptor_.async_accept(session->socket, [this, session](const boost::system::error_code& error) {
         if (error) {
             LOG_DEBUG("accept error %s", error.message().c_str());
@@ -116,6 +154,7 @@ void HTTPServer::start()
         this->start();
         session->start();
     });
+    key_values_["kvd"] = "0.1";
 }
 
 }
