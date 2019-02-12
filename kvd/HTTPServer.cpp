@@ -223,6 +223,7 @@ void HTTPServer::start()
 
 void HTTPServer::put(std::string key, std::string value, std::function<void(const Status&)> callback)
 {
+    LOG_DEBUG("put %s:%s", key.c_str(), value.c_str());
     KeyValue kv(std::move(key), std::move(value));
 
     msgpack::sbuffer sbuf;

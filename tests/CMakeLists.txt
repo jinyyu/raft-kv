@@ -21,3 +21,6 @@ target_link_libraries(unstable ${LIBS})
 
 add_executable(raftlog test_raftlog.cpp)
 target_link_libraries(raftlog ${LIBS})
+
+add_executable(ramdom test_ramdom.cpp)
+target_link_libraries(ramdom ${LIBS})

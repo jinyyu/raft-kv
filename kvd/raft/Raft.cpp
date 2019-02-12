@@ -23,7 +23,8 @@ Raft::Raft(const Config& c)
       heartbeat_timeout_(c.heartbeat_tick),
       election_timeout_(c.election_tick),
       randomized_election_timeout_(0),
-      disable_proposal_forwarding_(c.disable_proposal_forwarding)
+      disable_proposal_forwarding_(c.disable_proposal_forwarding),
+      random_device_(0, c.election_tick)
 {
     raft_log_ = std::make_shared<RaftLog>(c.storage, c.max_committed_size_per_ready);
     proto::HardState hs;
@@ -340,7 +341,35 @@ bool Raft::maybe_commit()
 
 void Raft::reset(uint64_t term)
 {
-    LOG_WARN("no impl yet");
+    if (term_ != term) {
+        term_ = term;
+        vote_ = 0;
+    }
+    lead_ = 0;
+
+    election_elapsed_ = 0;
+    heartbeat_elapsed_ = 0;
+    reset_randomized_election_timeout();
+
+    abort_leader_transfer();
+
+    votes_.clear();
+    for_each_progress([this](uint64_t id, ProgressPtr& progress) {
+        bool is_learner = progress->is_learner;
+        progress = std::make_shared<Progress>(max_inflight_);
+        progress->next = raft_log_->last_index();
+        progress->is_learner = is_learner;
+
+        if (id == id_) {
+            progress->match = raft_log_->last_index();
+        }
+
+    });
+
+    pending_conf_index_ = 0;
+    uncommitted_size_ = 0;
+    read_only_->pending_read_index.clear();
+    read_only_->read_index_queue.clear();
 }
 
 bool Raft::append_entry(std::vector<proto::EntryPtr> entries)
@@ -366,7 +395,8 @@ bool Raft::past_election_timeout()
 
 void Raft::reset_randomized_election_timeout()
 {
-    LOG_WARN("no impl yet");
+    randomized_election_timeout_ = election_timeout_ + random_device_.gen();
+    assert(randomized_election_timeout_ <= 2 * election_timeout_);
 }
 
 bool Raft::check_quorum_active() const
