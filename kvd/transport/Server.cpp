@@ -72,7 +72,7 @@ public:
             assert(len == sizeof(DebugMessage));
             DebugMessage* dbg = (DebugMessage*) buffer_.data();
             assert(dbg->a + 1 == dbg->b);
-            LOG_DEBUG("tick ok");
+            //LOG_DEBUG("tick ok");
             break;
         }
         default: {

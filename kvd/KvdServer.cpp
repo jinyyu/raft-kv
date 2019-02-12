@@ -2,12 +2,14 @@
 #include "kvd/transport/AsioTransport.h"
 #include "kvd/common/log.h"
 #include <boost/algorithm/string.hpp>
+#include <future>
 
 namespace kvd
 {
 
 KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
-    : timer_(io_service_),
+    : port_(port),
+      timer_(io_service_),
       id_(id)
 {
     boost::split(peers_, cluster, boost::is_any_of(","));
@@ -58,12 +60,13 @@ KvdServer::~KvdServer()
 void KvdServer::start_timer()
 {
     auto self = shared_from_this();
-    timer_.expires_from_now(boost::posix_time::seconds(1));
+    timer_.expires_from_now(boost::posix_time::microsec(100));
     timer_.async_wait([self](const boost::system::error_code& err) {
         if (err) {
             LOG_ERROR("timer waiter error %s", err.message().c_str());
             return;
         }
+        //self->node_->tick();
         self->start_timer();
     });
 }
@@ -71,13 +74,21 @@ void KvdServer::start_timer()
 void KvdServer::schedule()
 {
     start_timer();
+    http_server_ = std::make_shared<HTTPServer>(shared_from_this(), io_service_, port_);
+    http_server_->start();
     io_service_.run();
 }
 
 Status KvdServer::process(proto::MessagePtr msg)
 {
-    LOG_DEBUG("no impl yet");
-    return Status::ok();
+    std::shared_ptr<std::promise<Status>> promise(new std::promise<Status>());
+    std::future<Status> future = promise->get_future();
+    io_service_.post([this, promise, msg]() {
+        Status status = this->node_->step(msg);
+        promise->set_value(status);
+    });
+    future.wait();
+    return future.get();
 }
 
 bool KvdServer::is_id_removed(uint64_t id)
@@ -112,19 +123,17 @@ void KvdServer::main(uint64_t id, const std::string& cluster, uint16_t port)
     ::signal(SIGHUP, on_signal);
     g_node = std::make_shared<KvdServer>(id, cluster, port);
 
-    AsioTransport* transport = new AsioTransport(g_node, g_node->id_);
-
-    TransporterPtr ptr((Transporter*) transport);
+    std::shared_ptr<AsioTransport> transport(new AsioTransport(g_node, g_node->id_));
     std::string& host = g_node->peers_[id - 1];
-    ptr->start(host);
-    g_node->transport_ = ptr;
+    transport->start(host);
+    g_node->transport_ = transport;
 
     for (uint64_t i = 0; i < g_node->peers_.size(); ++i) {
         uint64_t peer = i + 1;
         if (peer == g_node->id_) {
             continue;
         }
-        ptr->add_peer(peer, g_node->peers_[i]);
+        transport->add_peer(peer, g_node->peers_[i]);
     }
     g_node->schedule();
 }

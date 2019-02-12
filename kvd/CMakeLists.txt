@@ -1,5 +1,6 @@
 
 set(SRC
+    third_party/http_parser.c
     common/log.h
     common/Slice.h
     common/Status.cpp
@@ -23,6 +24,7 @@ set(SRC
     transport/Server.cpp
     transport/Peer.cpp
     KvdServer.cpp
+    HTTPServer.cpp
     )
 add_library(kvd++ ${SRC})
 target_link_libraries(kvd++ ${LIBS})

@@ -2,10 +2,10 @@
 #include <string>
 #include <stdint.h>
 #include <memory>
-#include <boost/asio.hpp>
 #include <vector>
 #include <kvd/transport/Transporter.h>
 #include <kvd/raft/Node.h>
+#include <kvd/HTTPServer.h>
 
 namespace kvd
 {
@@ -29,6 +29,7 @@ private:
     void start_timer();
     void schedule();
 
+    uint16_t port_;
     boost::asio::io_service io_service_;
     boost::asio::deadline_timer timer_;
     uint64_t id_;
@@ -37,6 +38,7 @@ private:
     TransporterPtr transport_;
     RawNodePtr node_;
     MemoryStoragePtr storage_;
+    std::shared_ptr<HTTPServer> http_server_;
 };
 typedef std::shared_ptr<KvdServer> KvdServerPtr;
 
