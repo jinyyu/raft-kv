@@ -1,6 +1,8 @@
 #pragma once
 #include <boost/asio.hpp>
 #include <unordered_map>
+#include <kvd/common/Status.h>
+
 namespace kvd
 {
 
@@ -23,6 +25,8 @@ public:
             return false;
         }
     }
+
+    void put(std::string key, std::string value, std::function<void(const Status&)> callback);
 
 private:
     std::weak_ptr<KvdServer> server_;

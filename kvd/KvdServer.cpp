@@ -9,6 +9,7 @@ namespace kvd
 
 KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),
+      pthread_id_(0),
       timer_(io_service_),
       id_(id)
 {
@@ -73,14 +74,22 @@ void KvdServer::start_timer()
 
 void KvdServer::schedule()
 {
+    pthread_id_ = pthread_self();
     start_timer();
     http_server_ = std::make_shared<HTTPServer>(shared_from_this(), io_service_, port_);
     http_server_->start();
     io_service_.run();
 }
 
+Status KvdServer::propose(std::vector<uint8_t> data)
+{
+    assert(pthread_id_ == pthread_self());
+    return node_->propose(std::move(data));
+}
+
 Status KvdServer::process(proto::MessagePtr msg)
 {
+    assert(pthread_id_ != pthread_self());
     std::shared_ptr<std::promise<Status>> promise(new std::promise<Status>());
     std::future<Status> future = promise->get_future();
     io_service_.post([this, promise, msg]() {
@@ -89,6 +98,7 @@ Status KvdServer::process(proto::MessagePtr msg)
     });
     future.wait();
     return future.get();
+
 }
 
 bool KvdServer::is_id_removed(uint64_t id)
