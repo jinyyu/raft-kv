@@ -88,14 +88,23 @@ struct SnapshotMetadata
 
 struct Snapshot
 {
+    explicit Snapshot()
+        : data(new std::vector<uint8_t>())
+    {
+    }
+
+    explicit Snapshot(std::vector<uint8_t> data)
+        : data(new std::vector<uint8_t>(std::move(data)))
+    {
+    }
 
     bool is_empty() const
     {
         return metadata.index == 0;
     }
-    std::vector<uint8_t> data;
+    std::shared_ptr<std::vector<uint8_t>> data;
     SnapshotMetadata metadata;
-    MSGPACK_DEFINE (data, metadata);
+    MSGPACK_DEFINE (metadata);
 };
 typedef std::shared_ptr<Snapshot> SnapshotPtr;
 
@@ -142,7 +151,6 @@ struct HardState
           vote(0),
           commit(0)
     {
-
     }
 
     bool is_empty_state() const

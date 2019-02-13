@@ -14,7 +14,7 @@ static proto::SnapshotPtr newSnapshot(uint64_t index, uint64_t term)
 
 static bool snapshot_cmp(const proto::Snapshot& left, const proto::Snapshot& right)
 {
-    if (left.data != right.data) {
+    if (*left.data != *right.data) {
         return false;
     }
 

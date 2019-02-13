@@ -401,7 +401,8 @@ TEST(storage, append)
 
 static bool snapshot_cmp(proto::SnapshotPtr left, proto::SnapshotPtr right)
 {
-    if (left->data != right->data) {
+
+    if (*left->data != *right->data) {
         return false;
     }
 
@@ -444,7 +445,7 @@ TEST(storage, create)
         m.ref_entries().push_back(newMemoryStorage(5, 5));
 
         proto::SnapshotPtr snapshot(new proto::Snapshot());
-        snapshot->data = data;
+        *snapshot->data = data;
         snapshot->metadata.term = 4;
         snapshot->metadata.index = 4;
         snapshot->metadata.conf_state = *cs;
@@ -465,7 +466,7 @@ TEST(storage, create)
         m.ref_entries().push_back(newMemoryStorage(5, 5));
 
         proto::SnapshotPtr snapshot(new proto::Snapshot());
-        snapshot->data = data;
+        *snapshot->data = data;
         snapshot->metadata.term = 5;
         snapshot->metadata.index = 5;
         snapshot->metadata.conf_state = *cs;

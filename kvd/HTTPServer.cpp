@@ -78,16 +78,26 @@ public:
 
     void handle_request()
     {
-        if (method == "GET") {
+
+        switch (method) {
+        case http_method::HTTP_GET: {
             handle_get();
+            break;
         }
-        else if (method == "PUT") {
+        case http_method::HTTP_PUT: {
             handle_put();
+            break;
+        }
+        default: {
+            handle_invalid_method();
+        }
         }
     }
 
     void handle_get()
     {
+        data.clear();
+        data.append("HTTP/1.0 200 OK\r\nContent-type:text/json\r\n\r\n");
         std::string value;
         bool success = server.lock()->get(url, value);
         rapidjson::Document document;
@@ -118,11 +128,30 @@ public:
 
     void handle_put_result(const Status& status)
     {
+        data.clear();
+        data.append("HTTP/1.0 200 OK\r\nContent-type:text/json\r\n\r\n");
         rapidjson::Document document;
         document.SetObject();
         document.AddMember("ok", rapidjson::Value(status.is_ok()), document.GetAllocator());
         document.AddMember("result",
                            rapidjson::Value(status.to_string().c_str(), document.GetAllocator()),
+                           document.GetAllocator());
+        rapidjson::StringBuffer sb;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+        document.Accept(writer);
+
+        data.append(sb.GetString());
+        send_response();
+    }
+
+    void handle_invalid_method()
+    {
+        data.clear();
+        rapidjson::Document document;
+        document.SetObject();
+        document.AddMember("ok", rapidjson::Value(false), document.GetAllocator());
+        document.AddMember("result",
+                           rapidjson::Value("method not allowed", document.GetAllocator()),
                            document.GetAllocator());
         rapidjson::StringBuffer sb;
         rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
@@ -134,6 +163,7 @@ public:
 
     void send_response()
     {
+        data.append("\r\n");
         auto self = shared_from_this();
         auto buffer = boost::asio::buffer(data.data(), data.size());
         boost::asio::async_write(socket,
@@ -145,7 +175,7 @@ public:
     }
 
     std::string url;
-    std::string method;
+    http_method method;
     std::weak_ptr<HTTPServer> server;
     boost::asio::ip::tcp::socket socket;
     http_parser http_parser_;
@@ -163,12 +193,12 @@ static int on_request_complete(http_parser* parser)
 static int on_url(http_parser* parser, const char* url, size_t length)
 {
     HTTPSession* session = (HTTPSession*) parser->data;
-    session->method = http_method_str((http_method) parser->method);
+    session->method = (http_method) parser->method;
     if (length > 1 && *url == '/') {
         session->url = std::string(url + 1, length - 1);
     }
 
-    LOG_DEBUG("%s:%s", session->method.c_str(), session->url.c_str());
+    LOG_DEBUG("%s:%s", http_method_str(session->method), session->url.c_str());
     return 0;
 }
 static int on_headers_complete(http_parser* parser)
@@ -208,8 +238,6 @@ HTTPServer::~HTTPServer()
     }
 }
 
-
-
 void HTTPServer::start(std::promise<pthread_t>& promise)
 {
     memset(&g_http_parser_request_setting, 0, sizeof(g_http_parser_request_setting));
@@ -222,7 +250,7 @@ void HTTPServer::start(std::promise<pthread_t>& promise)
     start_accept();
 
     auto self = shared_from_this();
-    worker_ = std::thread([self, &promise](){
+    worker_ = std::thread([self, &promise]() {
         promise.set_value(pthread_self());
         self->io_service_.run();
     });
