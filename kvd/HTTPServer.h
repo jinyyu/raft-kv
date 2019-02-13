@@ -1,6 +1,8 @@
 #pragma once
 #include <boost/asio.hpp>
 #include <unordered_map>
+#include <thread>
+
 namespace kvd
 {
 
@@ -9,6 +11,8 @@ class HTTPServer: public std::enable_shared_from_this<HTTPServer>
 {
 public:
     explicit HTTPServer(std::weak_ptr<KvdServer> server, boost::asio::io_service& io_service, uint16_t port);
+
+    ~HTTPServer();
 
     void start();
 
@@ -25,9 +29,12 @@ public:
     }
 
 private:
+    void start_accept();
+
     std::weak_ptr<KvdServer> server_;
     boost::asio::io_service& io_service_;
     boost::asio::ip::tcp::acceptor acceptor_;
+    std::thread worker_;
     std::unordered_map<std::string, std::string> key_values_;
 };
 

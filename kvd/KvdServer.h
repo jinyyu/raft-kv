@@ -30,7 +30,8 @@ private:
     void schedule();
 
     uint16_t port_;
-    boost::asio::io_service io_service_;
+    boost::asio::io_service raft_loop_;
+    boost::asio::io_service server_loop_;
     boost::asio::deadline_timer timer_;
     uint64_t id_;
     std::vector<std::string> peers_;

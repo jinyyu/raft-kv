@@ -9,7 +9,7 @@ namespace kvd
 
 KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),
-      timer_(io_service_),
+      timer_(raft_loop_),
       id_(id)
 {
     boost::split(peers_, cluster, boost::is_any_of(","));
@@ -45,7 +45,7 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     for (size_t i = 0; i < peers_.size(); ++i) {
         peers.push_back(PeerContext{.id = i + 1});
     }
-    node_ = std::make_shared<RawNode>(c, std::move(peers), io_service_);
+    node_ = std::make_shared<RawNode>(c, std::move(peers), raft_loop_);
 }
 
 KvdServer::~KvdServer()
@@ -66,24 +66,24 @@ void KvdServer::start_timer()
             LOG_ERROR("timer waiter error %s", err.message().c_str());
             return;
         }
-        //self->node_->tick();
         self->start_timer();
+        self->node_->tick();
     });
 }
 
 void KvdServer::schedule()
 {
     start_timer();
-    http_server_ = std::make_shared<HTTPServer>(shared_from_this(), io_service_, port_);
+    http_server_ = std::make_shared<HTTPServer>(shared_from_this(), raft_loop_, port_);
     http_server_->start();
-    io_service_.run();
+    raft_loop_.run();
 }
 
 Status KvdServer::process(proto::MessagePtr msg)
 {
     std::shared_ptr<std::promise<Status>> promise(new std::promise<Status>());
     std::future<Status> future = promise->get_future();
-    io_service_.post([this, promise, msg]() {
+    raft_loop_.post([this, promise, msg]() {
         Status status = this->node_->step(msg);
         promise->set_value(status);
     });
@@ -141,12 +141,13 @@ void KvdServer::main(uint64_t id, const std::string& cluster, uint16_t port)
 void KvdServer::stop()
 {
     LOG_DEBUG("stopping");
+    server_loop_.stop();
+
     if (transport_) {
         transport_->stop();
         transport_ = nullptr;
     }
-
-    io_service_.stop();
+    raft_loop_.stop();
 }
 
 }
