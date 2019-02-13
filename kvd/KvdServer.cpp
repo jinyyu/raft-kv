@@ -9,8 +9,9 @@ namespace kvd
 
 KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),
-      pthread_id_(0),
-      timer_(io_service_),
+      raft_loop_id_(0),
+      server_loop_id_(0),
+      timer_(raft_loop_),
       id_(id)
 {
     boost::split(peers_, cluster, boost::is_any_of(","));
@@ -46,7 +47,7 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     for (size_t i = 0; i < peers_.size(); ++i) {
         peers.push_back(PeerContext{.id = i + 1});
     }
-    node_ = std::make_shared<RawNode>(c, std::move(peers), io_service_);
+    node_ = std::make_shared<RawNode>(c, std::move(peers), raft_loop_);
 }
 
 KvdServer::~KvdServer()
@@ -61,43 +62,61 @@ KvdServer::~KvdServer()
 void KvdServer::start_timer()
 {
     auto self = shared_from_this();
-    timer_.expires_from_now(boost::posix_time::microsec(100));
+    timer_.expires_from_now(boost::posix_time::millisec(100));
     timer_.async_wait([self](const boost::system::error_code& err) {
         if (err) {
             LOG_ERROR("timer waiter error %s", err.message().c_str());
             return;
         }
-        //self->node_->tick();
         self->start_timer();
+        self->node_->tick();
     });
 }
 
 void KvdServer::schedule()
 {
-    pthread_id_ = pthread_self();
     start_timer();
-    http_server_ = std::make_shared<HTTPServer>(shared_from_this(), io_service_, port_);
-    http_server_->start();
-    io_service_.run();
+    http_server_ = std::make_shared<HTTPServer>(shared_from_this(), raft_loop_, port_);
+    std::promise<pthread_t> promise;
+    std::future<pthread_t> future = promise.get_future();
+    http_server_->start(promise);
+    future.wait();
+    server_loop_id_ = future.get();
+
+    raft_loop_id_ = pthread_self();
+    raft_loop_.run();
 }
 
 Status KvdServer::propose(std::vector<uint8_t> data)
 {
-    assert(pthread_id_ == pthread_self());
-    return node_->propose(std::move(data));
+    if (raft_loop_id_ == pthread_self()) {
+        return node_->propose(std::move(data));;
+    }
+
+    std::promise<Status> promise;
+    std::future<Status> future = promise.get_future();
+    raft_loop_.post([this, &data, &promise]() {
+        Status status = node_->propose(std::move(data));
+        promise.set_value(status);
+    });
+    future.wait();
+    return future.get();
 }
 
 Status KvdServer::process(proto::MessagePtr msg)
 {
-    assert(pthread_id_ != pthread_self());
-    std::shared_ptr<std::promise<Status>> promise(new std::promise<Status>());
-    std::future<Status> future = promise->get_future();
-    io_service_.post([this, promise, msg]() {
+    std::promise<Status> promise;
+    std::future<Status> future = promise.get_future();
+    raft_loop_.post([this, &promise, msg]() {
         Status status = this->node_->step(msg);
-        promise->set_value(status);
+        promise.set_value(status);
     });
     future.wait();
     return future.get();
+}
+
+void KvdServer::post_ready(ReadyPtr ready)
+{
 
 }
 
@@ -151,12 +170,13 @@ void KvdServer::main(uint64_t id, const std::string& cluster, uint16_t port)
 void KvdServer::stop()
 {
     LOG_DEBUG("stopping");
+    server_loop_.stop();
+
     if (transport_) {
         transport_->stop();
         transport_ = nullptr;
     }
-
-    io_service_.stop();
+    raft_loop_.stop();
 }
 
 }

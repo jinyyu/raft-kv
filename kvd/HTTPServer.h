@@ -1,7 +1,9 @@
 #pragma once
 #include <boost/asio.hpp>
 #include <unordered_map>
+#include <thread>
 #include <kvd/common/Status.h>
+#include <future>
 
 namespace kvd
 {
@@ -12,7 +14,9 @@ class HTTPServer: public std::enable_shared_from_this<HTTPServer>
 public:
     explicit HTTPServer(std::weak_ptr<KvdServer> server, boost::asio::io_service& io_service, uint16_t port);
 
-    void start();
+    ~HTTPServer();
+
+    void start(std::promise<pthread_t>& promise);
 
     bool get(const std::string& key, std::string& value)
     {
@@ -29,9 +33,12 @@ public:
     void put(std::string key, std::string value, std::function<void(const Status&)> callback);
 
 private:
+    void start_accept();
+
     std::weak_ptr<KvdServer> server_;
     boost::asio::io_service& io_service_;
     boost::asio::ip::tcp::acceptor acceptor_;
+    std::thread worker_;
     std::unordered_map<std::string, std::string> key_values_;
 };
 

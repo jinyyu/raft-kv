@@ -201,13 +201,35 @@ HTTPServer::HTTPServer(std::weak_ptr<KvdServer> server, boost::asio::io_service&
     acceptor_.listen();
 }
 
-void HTTPServer::start()
+HTTPServer::~HTTPServer()
+{
+    if (worker_.joinable()) {
+        worker_.join();
+    }
+}
+
+
+
+void HTTPServer::start(std::promise<pthread_t>& promise)
 {
     memset(&g_http_parser_request_setting, 0, sizeof(g_http_parser_request_setting));
     g_http_parser_request_setting.on_url = on_url;
     g_http_parser_request_setting.on_body = on_body;
     g_http_parser_request_setting.on_headers_complete = on_headers_complete;
     g_http_parser_request_setting.on_message_complete = on_request_complete;
+    key_values_["kvd"] = "0.1";
+
+    start_accept();
+
+    auto self = shared_from_this();
+    worker_ = std::thread([self, &promise](){
+        promise.set_value(pthread_self());
+        self->io_service_.run();
+    });
+}
+
+void HTTPServer::start_accept()
+{
 
     HTTPSessionPtr session(new HTTPSession(shared_from_this(), io_service_));
     acceptor_.async_accept(session->socket, [this, session](const boost::system::error_code& error) {
@@ -215,10 +237,9 @@ void HTTPServer::start()
             LOG_DEBUG("accept error %s", error.message().c_str());
             return;
         }
-        this->start();
+        this->start_accept();
         session->start();
     });
-    key_values_["kvd"] = "kvd";
 }
 
 void HTTPServer::put(std::string key, std::string value, std::function<void(const Status&)> callback)

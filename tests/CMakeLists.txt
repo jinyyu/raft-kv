@@ -24,3 +24,6 @@ target_link_libraries(raftlog ${LIBS})
 
 add_executable(ramdom test_ramdom.cpp)
 target_link_libraries(ramdom ${LIBS})
+
+add_executable(lambda test_lambda.cpp)
+target_link_libraries(lambda ${LIBS})
