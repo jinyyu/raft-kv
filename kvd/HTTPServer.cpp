@@ -5,9 +5,26 @@
 #include <rapidjson/rapidjson.h>
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
+#include <msgpack.hpp>
+
 
 namespace kvd
 {
+
+struct KeyValue
+{
+    explicit KeyValue()
+    {}
+
+    explicit KeyValue(std::string key, std::string value)
+        : key(std::move(key)),
+          value(std::move(value))
+    {}
+
+    std::string key;
+    std::string value;
+    MSGPACK_DEFINE (key, value);
+};
 
 static http_parser_settings g_http_parser_request_setting;
 
@@ -17,7 +34,8 @@ public:
     explicit HTTPSession(std::weak_ptr<HTTPServer> server, boost::asio::io_service& io_service)
         : server(std::move(server)),
           socket(io_service),
-          read_finished(false)
+          read_finished(false),
+          data(512, 0)
     {
         memset(&http_parser_, 0, sizeof(http_parser_));
         http_parser_init(&http_parser_, HTTP_REQUEST);
@@ -32,7 +50,7 @@ public:
     void start()
     {
         auto self = shared_from_this();
-        auto buffer = boost::asio::buffer(self->recv_buffer);
+        auto buffer = boost::asio::buffer((uint8_t*) data.data(), data.size());
         auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
             if (error || bytes == 0) {
                 LOG_DEBUG("read error %s", error.message().c_str());
@@ -41,7 +59,7 @@ public:
 
             size_t n_parsed = http_parser_execute(&self->http_parser_,
                                                   &g_http_parser_request_setting,
-                                                  self->recv_buffer,
+                                                  self->data.data(),
                                                   bytes);
             if (bytes != n_parsed) {
                 LOG_ERROR("http parse error %s",
@@ -62,6 +80,9 @@ public:
     {
         if (method == "GET") {
             handle_get();
+        }
+        else if (method == "PUT") {
+            handle_put();
         }
     }
 
@@ -84,8 +105,45 @@ public:
         document.Accept(writer);
 
         data = std::string(sb.GetString(), sb.GetSize());
-        LOG_DEBUG("%s------------------------------", data.c_str());
+        send_response();
     }
+
+    void handle_put()
+    {
+        auto self = shared_from_this();
+        server.lock()->put(std::move(url), std::move(data), [self](const Status& status) {
+            self->handle_put_result(status);
+        });
+    }
+
+    void handle_put_result(const Status& status)
+    {
+        rapidjson::Document document;
+        document.SetObject();
+        document.AddMember("ok", rapidjson::Value(status.is_ok()), document.GetAllocator());
+        document.AddMember("result",
+                           rapidjson::Value(status.to_string().c_str(), document.GetAllocator()),
+                           document.GetAllocator());
+        rapidjson::StringBuffer sb;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+        document.Accept(writer);
+
+        data = std::string(sb.GetString(), sb.GetSize());
+        send_response();
+    }
+
+    void send_response()
+    {
+        auto self = shared_from_this();
+        auto buffer = boost::asio::buffer(data.data(), data.size());
+        boost::asio::async_write(socket,
+                                 buffer,
+                                 boost::asio::transfer_exactly(data.size()),
+                                 [self](const boost::system::error_code& error, std::size_t bytes) {
+                                     //ignore error
+                                 });
+    }
+
     std::string url;
     std::string method;
     std::weak_ptr<HTTPServer> server;
@@ -93,7 +151,6 @@ public:
     http_parser http_parser_;
     bool read_finished;
     std::string data;
-    char recv_buffer[512];
 };
 
 static int on_request_complete(http_parser* parser)
@@ -108,10 +165,16 @@ static int on_url(http_parser* parser, const char* url, size_t length)
     HTTPSession* session = (HTTPSession*) parser->data;
     session->method = http_method_str((http_method) parser->method);
     if (length > 1 && *url == '/') {
-        session->url = std::string(url + 1, length-1);
+        session->url = std::string(url + 1, length - 1);
     }
 
     LOG_DEBUG("%s:%s", session->method.c_str(), session->url.c_str());
+    return 0;
+}
+static int on_headers_complete(http_parser* parser)
+{
+    HTTPSession* session = (HTTPSession*) parser->data;
+    session->data.clear();
     return 0;
 }
 
@@ -152,6 +215,7 @@ void HTTPServer::start()
     memset(&g_http_parser_request_setting, 0, sizeof(g_http_parser_request_setting));
     g_http_parser_request_setting.on_url = on_url;
     g_http_parser_request_setting.on_body = on_body;
+    g_http_parser_request_setting.on_headers_complete = on_headers_complete;
     g_http_parser_request_setting.on_message_complete = on_request_complete;
     key_values_["kvd"] = "0.1";
 
@@ -175,8 +239,20 @@ void HTTPServer::start_accept()
         this->start_accept();
         session->start();
     });
+}
 
-    auto self = shared_from_this();
+void HTTPServer::put(std::string key, std::string value, std::function<void(const Status&)> callback)
+{
+    LOG_DEBUG("put %s:%s", key.c_str(), value.c_str());
+    KeyValue kv(std::move(key), std::move(value));
+
+    msgpack::sbuffer sbuf;
+    msgpack::pack(sbuf, kv);
+
+    std::vector<uint8_t> data(sbuf.data(), sbuf.data() + sbuf.size());
+
+    Status status = server_.lock()->propose(std::move(data));
+    callback(status);
 }
 
 }

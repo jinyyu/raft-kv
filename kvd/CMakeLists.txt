@@ -5,6 +5,7 @@ set(SRC
     common/Slice.h
     common/Status.cpp
     common/ByteBuffer.cpp
+    common/RandomDevice.cpp
     raft/proto.cpp
     raft/Config.cpp
     raft/Raft.cpp

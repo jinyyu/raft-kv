@@ -79,11 +79,23 @@ void KvdServer::schedule()
     raft_loop_.run();
 }
 
+Status KvdServer::propose(std::vector<uint8_t> data)
+{
+    std::shared_ptr<std::promise<Status>> promise(new std::promise<Status>());
+    std::future<Status> future = promise->get_future();
+    raft_loop_.post([this, &data, &promise]() {
+        Status status = node_->propose(std::move(data));
+        promise->set_value(status);
+    });
+    future.wait();
+    return future.get();
+}
+
 Status KvdServer::process(proto::MessagePtr msg)
 {
     std::shared_ptr<std::promise<Status>> promise(new std::promise<Status>());
     std::future<Status> future = promise->get_future();
-    raft_loop_.post([this, promise, msg]() {
+    raft_loop_.post([this, &promise, msg]() {
         Status status = this->node_->step(msg);
         promise->set_value(status);
     });

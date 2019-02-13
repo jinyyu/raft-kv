@@ -6,6 +6,7 @@
 #include <kvd/raft/proto.h>
 #include <kvd/raft/ReadOnly.h>
 #include <kvd/raft/Ready.h>
+#include <kvd/common/RandomDevice.h>
 
 namespace kvd
 {
@@ -235,6 +236,7 @@ private:
 
     std::function<void()> tick_;
     std::function<void(proto::Message msg)> step_;
+    RandomDevice random_device_;
 };
 typedef std::shared_ptr<Raft> RaftPtr;
 

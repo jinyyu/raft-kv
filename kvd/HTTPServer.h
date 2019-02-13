@@ -2,6 +2,8 @@
 #include <boost/asio.hpp>
 #include <unordered_map>
 #include <thread>
+#include <kvd/common/Status.h>
+
 
 namespace kvd
 {
@@ -27,6 +29,8 @@ public:
             return false;
         }
     }
+
+    void put(std::string key, std::string value, std::function<void(const Status&)> callback);
 
 private:
     void start_accept();
