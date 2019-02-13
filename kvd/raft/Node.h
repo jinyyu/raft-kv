@@ -100,8 +100,6 @@ public:
 
     ~RawNode();
 
-    void add_node(uint64_t id);
-
     virtual void tick();
     virtual Status campaign();
     virtual Status propose(std::vector<uint8_t> data);

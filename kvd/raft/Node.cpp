@@ -15,8 +15,11 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boos
     if (!status.is_ok()) {
         LOG_FATAL("%s", status.to_string().c_str());
     }
+
+    // If the log is empty, this is a new RawNode (like StartNode); otherwise it's
+    // restoring an existing RawNode (like RestartNode).
     if (last_index == 0) {
-        raft_->become_follower(1, last_index);
+        raft_->become_follower(1, 0);
 
         std::vector<proto::EntryPtr> entries;
 
@@ -35,7 +38,7 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boos
             entry->type = proto::EntryConfChange;
             entry->term = 1;
             entry->index = i + 1;
-            entry->data = peer.context;
+            entry->data = std::move(data);
             entries.push_back(entry);
         }
 
@@ -43,7 +46,7 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boos
         raft_->raft_log()->committed() = entries.size();
 
         for (auto& peer : peers) {
-            this->add_node(peer.id);
+            raft_->add_node(peer.id);
         }
     }
 
@@ -61,11 +64,6 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boos
 RawNode::~RawNode()
 {
 
-}
-
-void RawNode::add_node(uint64_t id)
-{
-    LOG_DEBUG("no impl yet");
 }
 
 void RawNode::tick()

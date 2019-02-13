@@ -53,6 +53,8 @@ public:
 
     void restore_node(std::vector<uint64_t> nodes, bool is_learner);
 
+    // promotable indicates whether state machine can be promoted to leader,
+    // which is true when its own id is in progress list.
     bool promotable() const;
 
     void add_node_or_learner(uint64_t id, bool is_learner);
@@ -165,6 +167,8 @@ public:
         return id_;
     }
 
+    void add_node(uint64_t id);
+
 private:
     uint64_t id_;
 
@@ -235,7 +239,7 @@ private:
     bool disable_proposal_forwarding_;
 
     std::function<void()> tick_;
-    std::function<void(proto::Message msg)> step_;
+    std::function<void(proto::MessagePtr)> step_;
     RandomDevice random_device_;
 };
 typedef std::shared_ptr<Raft> RaftPtr;

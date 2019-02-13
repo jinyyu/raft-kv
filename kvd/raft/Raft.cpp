@@ -38,8 +38,8 @@ Raft::Raft(const Config& c)
     std::vector<uint64_t> peers = c.peers;
     std::vector<uint64_t> learners = c.learners;
 
-    if (cs.nodes.size() > 0 || cs.learners.size() > 0) {
-        if (peers.size() > 0 || learners.size() > 0) {
+    if (!cs.nodes.empty() || !cs.learners.empty()) {
+        if (!peers.empty() || !learners.empty()) {
             // tests; the argument should be removed and these tests should be
             // updated to specify their nodes through a snapshot.
             LOG_FATAL("cannot specify both newRaft(peers, learners) and ConfState.(Nodes, Learners)");
@@ -49,7 +49,7 @@ Raft::Raft(const Config& c)
     }
 
 
-    for (uint64_t peer :  peers) {
+    for (uint64_t peer : peers) {
         ProgressPtr p(new Progress(max_inflight_));
         p->next = 1;
         prs_[peer] = p;
@@ -111,7 +111,18 @@ Raft::~Raft()
 
 void Raft::become_follower(uint64_t term, uint64_t lead)
 {
-    LOG_DEBUG("no impl yet");
+    step_ = [this](proto::MessagePtr msg) {
+        this->step_follower(std::move(msg));
+    };
+    reset(term);
+
+    tick_ = [this]() {
+        this->tick_election();
+    };
+    lead_ = lead;
+    state_ = RaftState::Follower;
+
+    LOG_INFO("%lu became follower at term %lu", id_, term_);
 }
 
 void Raft::become_candidate()
@@ -171,7 +182,15 @@ void Raft::restore_node(std::vector<uint64_t> nodes, bool is_learner)
 bool Raft::promotable() const
 {
     auto it = prs_.find(id_);
-    return it != prs_.end();
+    bool ret = it != prs_.end();
+
+    if (ret) {
+        LOG_INFO("promotable");
+    }
+    else {
+        LOG_INFO("not promotable %d", id_);
+    }
+    return ret;
 }
 
 void Raft::add_node_or_learner(uint64_t id, bool is_learner)
@@ -186,7 +205,7 @@ void Raft::remove_node(uint64_t id)
 
 Status Raft::step_follower(proto::MessagePtr msg)
 {
-    LOG_WARN("no impl yet");
+    LOG_INFO("step follower");
     return Status::ok();
 }
 
@@ -210,7 +229,8 @@ void Raft::tick()
 {
     if (tick_) {
         tick_();
-    } else {
+    }
+    else {
         //LOG_WARN("tick function is not set");
     }
 }
@@ -374,6 +394,11 @@ void Raft::reset(uint64_t term)
     read_only_->read_index_queue.clear();
 }
 
+void Raft::add_node(uint64_t id)
+{
+    LOG_WARN("no impl yet -------------------------------------------%d", id);
+}
+
 bool Raft::append_entry(std::vector<proto::EntryPtr> entries)
 {
     LOG_WARN("no impl yet");
@@ -382,7 +407,15 @@ bool Raft::append_entry(std::vector<proto::EntryPtr> entries)
 
 void Raft::tick_election()
 {
-    LOG_WARN("no impl yet");
+    election_elapsed_++;
+
+    if (promotable() && past_election_timeout()) {
+        election_elapsed_ = 0;
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = id_;
+        msg->type = proto::MsgHup;
+        step(std::move(msg));
+    }
 }
 
 void Raft::tick_heartbeat()

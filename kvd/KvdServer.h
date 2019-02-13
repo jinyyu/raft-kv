@@ -32,11 +32,15 @@ public:
 
     virtual void report_snapshot(uint64_t id, SnapshotStatus status);
 
+    bool publish_entries(const std::vector<proto::EntryPtr>& entries);
+
+    void maybe_trigger_snapshot();
+
 private:
     void start_timer();
-    void schedule();
-
+    void check_raft_ready();
     void post_ready(ReadyPtr ready);
+    void schedule();
 
     uint16_t port_;
     pthread_t raft_loop_id_;

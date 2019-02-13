@@ -70,7 +70,67 @@ void KvdServer::start_timer()
         }
         self->start_timer();
         self->node_->tick();
+        self->check_raft_ready();
     });
+}
+
+void KvdServer::check_raft_ready()
+{
+    auto do_check = [this]() {
+        bool is_ready = node_->has_ready();
+        if (!is_ready) {
+            return;
+        }
+
+        LOG_DEBUG("--------------------------------------------------------ready!!!!");
+
+        auto rd = node_->ready();
+        if (!rd->contains_updates()) {
+            LOG_WARN("ready not contains updates");
+            return;
+        }
+
+        if (!rd->snapshot.is_empty()) {
+            LOG_WARN("no impl yet");
+        }
+
+        if (!rd->entries.empty()) {
+            storage_->append(rd->entries);
+        }
+        if (!rd->messages.empty()) {
+            transport_->send(rd->messages);
+        }
+
+        if (!rd->committed_entries.empty()) {
+            LOG_WARN("not impl yet");
+        }
+        maybe_trigger_snapshot();
+        node_->advance(rd);
+        assert(!node_->has_ready());
+    };
+
+    if (raft_loop_id_ == pthread_self()) {
+        do_check();
+    }
+    else {
+        raft_loop_.post(std::move(do_check));
+    }
+}
+
+bool KvdServer::publish_entries(const std::vector<proto::EntryPtr>& entries)
+{
+    LOG_WARN("not impl yet");
+    return true;
+}
+
+void KvdServer::maybe_trigger_snapshot()
+{
+    LOG_WARN("not impl yet");
+}
+
+void KvdServer::post_ready(ReadyPtr ready)
+{
+
 }
 
 void KvdServer::schedule()
@@ -113,11 +173,6 @@ Status KvdServer::process(proto::MessagePtr msg)
     });
     future.wait();
     return future.get();
-}
-
-void KvdServer::post_ready(ReadyPtr ready)
-{
-
 }
 
 bool KvdServer::is_id_removed(uint64_t id)
