@@ -210,7 +210,7 @@ HTTPServer::~HTTPServer()
 
 
 
-void HTTPServer::start()
+void HTTPServer::start(std::promise<pthread_t>& promise)
 {
     memset(&g_http_parser_request_setting, 0, sizeof(g_http_parser_request_setting));
     g_http_parser_request_setting.on_url = on_url;
@@ -222,7 +222,8 @@ void HTTPServer::start()
     start_accept();
 
     auto self = shared_from_this();
-    worker_ = std::thread([self](){
+    worker_ = std::thread([self, &promise](){
+        promise.set_value(pthread_self());
         self->io_service_.run();
     });
 }

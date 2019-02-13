@@ -9,6 +9,8 @@ namespace kvd
 
 KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),
+      raft_loop_id_(0),
+      server_loop_id_(0),
       timer_(raft_loop_),
       id_(id)
 {
@@ -60,7 +62,7 @@ KvdServer::~KvdServer()
 void KvdServer::start_timer()
 {
     auto self = shared_from_this();
-    timer_.expires_from_now(boost::posix_time::microsec(100));
+    timer_.expires_from_now(boost::posix_time::millisec(100));
     timer_.async_wait([self](const boost::system::error_code& err) {
         if (err) {
             LOG_ERROR("timer waiter error %s", err.message().c_str());
@@ -75,17 +77,27 @@ void KvdServer::schedule()
 {
     start_timer();
     http_server_ = std::make_shared<HTTPServer>(shared_from_this(), raft_loop_, port_);
-    http_server_->start();
+    std::promise<pthread_t> promise;
+    std::future<pthread_t> future = promise.get_future();
+    http_server_->start(promise);
+    future.wait();
+    server_loop_id_ = future.get();
+
+    raft_loop_id_ = pthread_self();
     raft_loop_.run();
 }
 
 Status KvdServer::propose(std::vector<uint8_t> data)
 {
-    std::shared_ptr<std::promise<Status>> promise(new std::promise<Status>());
-    std::future<Status> future = promise->get_future();
+    if (raft_loop_id_ == pthread_self()) {
+        return node_->propose(std::move(data));;
+    }
+
+    std::promise<Status> promise;
+    std::future<Status> future = promise.get_future();
     raft_loop_.post([this, &data, &promise]() {
         Status status = node_->propose(std::move(data));
-        promise->set_value(status);
+        promise.set_value(status);
     });
     future.wait();
     return future.get();
@@ -93,14 +105,19 @@ Status KvdServer::propose(std::vector<uint8_t> data)
 
 Status KvdServer::process(proto::MessagePtr msg)
 {
-    std::shared_ptr<std::promise<Status>> promise(new std::promise<Status>());
-    std::future<Status> future = promise->get_future();
+    std::promise<Status> promise;
+    std::future<Status> future = promise.get_future();
     raft_loop_.post([this, &promise, msg]() {
         Status status = this->node_->step(msg);
-        promise->set_value(status);
+        promise.set_value(status);
     });
     future.wait();
     return future.get();
+}
+
+void KvdServer::post_ready(ReadyPtr ready)
+{
+
 }
 
 bool KvdServer::is_id_removed(uint64_t id)

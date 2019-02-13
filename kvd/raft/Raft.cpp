@@ -210,6 +210,8 @@ void Raft::tick()
 {
     if (tick_) {
         tick_();
+    } else {
+        //LOG_WARN("tick function is not set");
     }
 }
 

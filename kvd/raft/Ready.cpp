@@ -56,7 +56,6 @@ bool Ready::contains_updates() const
 
 uint64_t Ready::applied_cursor() const
 {
-    size_t n = committed_entries.size();
     if (!committed_entries.empty()) {
         return committed_entries.back()->index;
     }

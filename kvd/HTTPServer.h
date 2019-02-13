@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <thread>
 #include <kvd/common/Status.h>
-
+#include <future>
 
 namespace kvd
 {
@@ -16,7 +16,7 @@ public:
 
     ~HTTPServer();
 
-    void start();
+    void start(std::promise<pthread_t>& promise);
 
     bool get(const std::string& key, std::string& value)
     {
