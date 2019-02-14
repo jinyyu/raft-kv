@@ -145,12 +145,10 @@ bool KvdServer::publish_entries(const std::vector<proto::EntryPtr>& entries)
                     case proto::ConfChangeAddNode: {
                         if (!cc.context.empty()) {
                             std::string str((const char*) cc.context.data(), cc.context.size());
-                            transport_->add_peer(cc.node_id, std::move(str));
+                            transport_->add_peer(cc.node_id, str);
                         }
                         break;
-
                         case proto::ConfChangeRemoveNode: {
-
                             if (cc.node_id == id_) {
                                 LOG_INFO("I've been removed from the cluster! Shutting down.");
                                 return false;

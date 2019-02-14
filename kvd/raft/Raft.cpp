@@ -292,7 +292,16 @@ ProgressPtr Raft::get_progress(uint64_t id)
 
 void Raft::set_progress(uint64_t id, uint64_t match, uint64_t next, bool is_learner)
 {
-    LOG_WARN("no impl yet");
+    if (!isLearner_ {
+            delete(r.learnerPrs, id)
+            r.prs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight)}
+            return
+        }
+
+    if _, ok := r.prs[id]; ok {
+        panic(fmt.Sprintf("%x unexpected changing from voter to learner for %x", r.id, id))
+    }
+    r.learnerPrs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight), IsLearner: true}
 }
 
 void Raft::del_progress(uint64_t id)
@@ -396,7 +405,7 @@ void Raft::reset(uint64_t term)
 
 void Raft::add_node(uint64_t id)
 {
-    LOG_WARN("no impl yet -------------------------------------------%d", id);
+    add_node_or_learner(id, false);
 }
 
 bool Raft::append_entry(std::vector<proto::EntryPtr> entries)
