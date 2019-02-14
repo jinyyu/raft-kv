@@ -157,12 +157,77 @@ void Raft::become_leader()
 
 void Raft::campaign(const std::string& campaign_type)
 {
-    LOG_WARN("no impl yet");
+    uint64_t term = 0;
+    proto::MessageType vote_msg = 0;
+    if (campaign_type == kCampaignPreElection) {
+        become_pre_candidate();
+        vote_msg = proto::MsgPreVote;
+        // PreVote RPCs are sent for the next term before we've incremented r.Term.
+        term = term_ + 1;
+    }
+    else {
+        become_candidate();
+        vote_msg = proto::MsgVote;
+        term = term_;
+    }
+
+    if (quorum() == poll(id_, vote_msg, true)) {
+        // We won the election after voting for ourselves (which must mean that
+        // this is a single-node cluster). Advance to the next state.
+        if (campaign_type == kCampaignPreElection) {
+            campaign(kCampaignElection);
+        }
+        else {
+            become_leader();
+        }
+        return;
+    }
+
+    for (auto it = prs_.begin(); it != prs_.end(); ++it) {
+        if (it->first == id_) {
+            continue;
+        }
+
+        LOG_INFO("%lu [logterm: %lu, index: %lu] sent %d request to %lu at term %lu",
+                 id_, raft_log_->last_term(), raft_log_->last_index(), vote_msg, it->first, term_);
+
+        std::vector<uint8_t> ctx;
+        if (campaign_type == kCampaignTransfer) {
+            ctx = std::vector<uint8_t>(kCampaignTransfer.begin(), kCampaignTransfer.end());
+        }
+        proto::MessagePtr msg(new proto::Message());
+        msg->term = term;
+        msg->to = it->first;
+        msg->type = vote_msg;
+        msg->index = raft_log_->last_index();
+        msg->term = raft_log_->last_term();
+        msg->context = std::move(ctx);
+
+        send(std::move(msg));
+    }
 }
 
-void Raft::poll(uint64_t id, proto::MessageType type, bool v)
+uint32_t Raft::poll(uint64_t id, proto::MessageType type, bool v)
 {
-    LOG_WARN("no impl yet");
+    uint32_t granted = 0;
+    if (v) {
+        LOG_INFO("%lu received %d from %lu at term %lu", id_, type, id, term_);
+    }
+    else {
+        LOG_INFO("%lu received %d rejection from %lu at term %lu", id_, type, id, term_);
+    }
+
+    auto it = votes_.find(id);
+    if (it == votes_.end()) {
+        votes_[id] = v;
+    }
+
+    for (it = votes_.begin(); it != votes_.end(); ++it) {
+        if (it->second) {
+            granted++;
+        }
+    }
+    return granted;
 }
 
 Status Raft::step(proto::MessagePtr msg)
@@ -236,7 +301,37 @@ Status Raft::step_candidate(proto::MessagePtr msg)
 void Raft::send(proto::MessagePtr msg)
 {
     msg->from = id_;
-    LOG_WARN("no impl yet");
+    if (msg->type == proto::MsgVote || msg->type == proto::MsgVoteResp || msg->type == proto::MsgPreVote
+        || msg->type == proto::MsgPreVoteResp) {
+        if (msg->term == 0) {
+            // All {pre-,}campaign messages need to have the term set when
+            // sending.
+            // - MsgVote: m.Term is the term the node is campaigning for,
+            //   non-zero as we increment the term when campaigning.
+            // - MsgVoteResp: m.Term is the new r.Term if the MsgVote was
+            //   granted, non-zero for the same reason MsgVote is
+            // - MsgPreVote: m.Term is the term the node will campaign,
+            //   non-zero as we use m.Term to indicate the next term we'll be
+            //   campaigning for
+            // - MsgPreVoteResp: m.Term is the term received in the original
+            //   MsgPreVote if the pre-vote was granted, non-zero for the
+            //   same reasons MsgPreVote is
+            LOG_FATAL("term should be set when sending %d", msg->type);
+        }
+    }
+    else {
+        if (msg->term != 0) {
+            LOG_FATAL("term should not be set when sending %d (was %lu)", msg->type, msg->term);
+        }
+        // do not attach term to MsgProp, MsgReadIndex
+        // proposals are a way to forward to the leader and
+        // should be treated as local message.
+        // MsgReadIndex is also forwarded to leader.
+        if (msg->type != proto::MsgProp && msg->type != proto::MsgReadIndex) {
+            msg->term = term_;
+        }
+    }
+    msgs_.push_back(std::move(msg));
 }
 
 void Raft::restore_node(std::vector<uint64_t> nodes, bool is_learner)

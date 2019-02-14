@@ -57,7 +57,7 @@ void AsioTransport::remove_peer(uint64_t id)
 
 void AsioTransport::send(std::vector<proto::MessagePtr> msgs)
 {
-    LOG_INFO("SENDDDDDDDDD");
+    LOG_INFO("send %d", msgs.size());
 }
 
 void AsioTransport::stop()

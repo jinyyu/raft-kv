@@ -33,7 +33,7 @@ public:
     // is because it's simpler to compare and fill in raft entries
     void campaign(const std::string& campaign_type);
 
-    void poll(uint64_t id, proto::MessageType type, bool v);
+    uint32_t poll(uint64_t id, proto::MessageType type, bool v);
 
     Status step(proto::MessagePtr msg);
 
