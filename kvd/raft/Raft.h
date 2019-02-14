@@ -239,7 +239,7 @@ private:
     bool disable_proposal_forwarding_;
 
     std::function<void()> tick_;
-    std::function<void(proto::MessagePtr)> step_;
+    std::function<Status(proto::MessagePtr)> step_;
     RandomDevice random_device_;
 };
 typedef std::shared_ptr<Raft> RaftPtr;

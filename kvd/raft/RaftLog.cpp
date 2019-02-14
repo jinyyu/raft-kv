@@ -289,7 +289,7 @@ uint64_t RaftLog::last_index() const
 
 Status RaftLog::must_check_out_of_bounds(uint64_t low, uint64_t high) const
 {
-    assert(high > low);
+    assert(high >= low);
 
     uint64_t first = first_index();
 

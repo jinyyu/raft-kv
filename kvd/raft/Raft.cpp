@@ -5,6 +5,22 @@
 namespace kvd
 {
 
+
+static const std::string kCampaignPreElection = "CampaignPreElection";
+static const std::string kCampaignElection = "CampaignElection";
+static const std::string kCampaignTransfer = "CampaignTransfer";
+
+static uint32_t num_of_pending_conf(const std::vector<proto::EntryPtr>& entries)
+{
+    uint32_t n = 0;
+    for (const proto::EntryPtr& entry: entries) {
+        if (entry->type == proto::EntryConfChange) {
+            n++;
+        }
+    }
+    return n;
+}
+
 Raft::Raft(const Config& c)
     : id_(c.id),
       max_msg_size_(c.max_size_per_msg),
@@ -111,9 +127,8 @@ Raft::~Raft()
 
 void Raft::become_follower(uint64_t term, uint64_t lead)
 {
-    step_ = [this](proto::MessagePtr msg) {
-        this->step_follower(std::move(msg));
-    };
+
+    step_ = std::bind(&Raft::step_follower, this, std::placeholders::_1);
     reset(term);
 
     tick_ = [this]() {
@@ -152,7 +167,57 @@ void Raft::poll(uint64_t id, proto::MessageType type, bool v)
 
 Status Raft::step(proto::MessagePtr msg)
 {
-    LOG_WARN("no impl yet");
+    if (term_ == 0) {
+        LOG_INFO("local msg");
+    }
+    else if (msg->term > term_) {
+
+    }
+    else if (msg->term < term_) {
+
+    }
+    else {
+        assert(term_ == msg->term);
+        return Status::ok();
+    }
+
+    switch (msg->type) {
+    case proto::MsgHup: {
+        if (state_ != RaftState::Leader) {
+            std::vector<proto::EntryPtr> entries;
+            Status status =
+                raft_log_->slice(raft_log_->applied() + 1, raft_log_->committed() + 1, RaftLog::unlimited(), entries);
+            if (!status.is_ok()) {
+                LOG_FATAL("unexpected error getting unapplied entries (%s)", status.to_string().c_str());
+            }
+
+            uint32_t pending = num_of_pending_conf(entries);
+            if (pending > 0 && raft_log_->committed() > raft_log_->applied()) {
+                LOG_WARN(
+                    "%lu cannot campaign at term %lu since there are still %u pending configuration changes to apply",
+                    id_,
+                    term_,
+                    pending);
+                return Status::ok();
+            }
+            LOG_INFO("%lu is starting a new election at term %lu", id_, term_);
+            if (pre_vote_) {
+                campaign(kCampaignPreElection);
+            }
+            else {
+                campaign(kCampaignElection);
+            }
+        }
+        else {
+            LOG_DEBUG("%lu ignoring MsgHup because already leader", id_);
+        }
+        break;
+    }
+    default: {
+        return step_(msg);
+    }
+    }
+
     return Status::ok();
 }
 
@@ -182,20 +247,43 @@ void Raft::restore_node(std::vector<uint64_t> nodes, bool is_learner)
 bool Raft::promotable() const
 {
     auto it = prs_.find(id_);
-    bool ret = it != prs_.end();
-
-    if (ret) {
-        LOG_INFO("promotable");
-    }
-    else {
-        LOG_INFO("not promotable %d", id_);
-    }
-    return ret;
+    return it != prs_.end();
 }
 
 void Raft::add_node_or_learner(uint64_t id, bool is_learner)
 {
-    LOG_WARN("no impl yet");
+    ProgressPtr pr = get_progress(id);
+    if (pr == nullptr) {
+        set_progress(id, 0, raft_log_->last_index() + 1, is_learner);
+    }
+    else {
+
+        if (is_learner && !pr->is_learner) {
+            // can only change Learner to Voter
+            LOG_INFO("%lu ignored addLearner: do not support changing %lu from raft peer to learner.", id_, id);
+            return;
+        }
+
+        if (is_learner == pr->is_learner) {
+            // Ignore any redundant addNode calls (which can happen because the
+            // initial bootstrapping entries are applied twice).
+            return;
+        }
+
+        // change Learner to Voter, use origin Learner progress
+        learner_prs_.erase(id);
+        pr->is_learner = false;
+        prs_[id] = pr;
+    }
+
+    if (id_ == id) {
+        is_learner_ = is_learner;
+    }
+
+    // When a node is first added, we should mark it as recently active.
+    // Otherwise, CheckQuorum may cause us to step down if it is invoked
+    // before the added node has a chance to communicate with us.
+    get_progress(id)->recent_active = true;
 }
 
 void Raft::remove_node(uint64_t id)
@@ -285,23 +373,36 @@ ProgressPtr Raft::get_progress(uint64_t id)
     if (it != prs_.end()) {
         return it->second;
     }
-    else {
-        return nullptr;
+
+    it = learner_prs_.find(id);
+    if (it != learner_prs_.end()) {
+        return it->second;
     }
+    return nullptr;
 }
 
 void Raft::set_progress(uint64_t id, uint64_t match, uint64_t next, bool is_learner)
 {
-    if (!isLearner_ {
-            delete(r.learnerPrs, id)
-            r.prs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight)}
-            return
-        }
-
-    if _, ok := r.prs[id]; ok {
-        panic(fmt.Sprintf("%x unexpected changing from voter to learner for %x", r.id, id))
+    if (!is_learner) {
+        learner_prs_.erase(id);
+        ProgressPtr progress(new Progress(max_inflight_));
+        progress->next = next;
+        progress->match = match;
+        prs_[id] = progress;
+        return;
     }
-    r.learnerPrs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight), IsLearner: true}
+
+    auto it = prs_.find(id);
+    if (it != prs_.end()) {
+        LOG_FATAL("%lu unexpected changing from voter to learner for %lu", id_, id);
+    }
+
+    ProgressPtr progress(new Progress(max_inflight_));
+    progress->next = next;
+    progress->match = match;
+    progress->is_learner = true;
+
+    learner_prs_[id] = progress;
 }
 
 void Raft::del_progress(uint64_t id)
