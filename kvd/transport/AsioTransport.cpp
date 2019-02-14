@@ -50,6 +50,11 @@ void AsioTransport::add_peer(uint64_t id, const std::string& peer)
     peers_[id] = p;
 }
 
+void AsioTransport::remove_peer(uint64_t id)
+{
+    LOG_WARN("no impl yet");
+}
+
 void AsioTransport::send(std::vector<proto::MessagePtr> msgs)
 {
 

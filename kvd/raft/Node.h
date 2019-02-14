@@ -116,6 +116,8 @@ public:
     virtual void report_snapshot(uint64_t id, SnapshotStatus status);
     virtual void stop();
 
+    void must_not_ready() const;
+
 private:
     RaftPtr raft_;
     SoftStatePtr prev_soft_state_;

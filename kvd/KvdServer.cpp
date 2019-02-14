@@ -12,7 +12,10 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
       raft_loop_id_(0),
       server_loop_id_(0),
       timer_(raft_loop_),
-      id_(id)
+      id_(id),
+      last_index_(0),
+      snapshot_index_(0),
+      applied_index_(0)
 {
     boost::split(peers_, cluster, boost::is_any_of(","));
     if (peers_.empty()) {
@@ -102,11 +105,15 @@ void KvdServer::check_raft_ready()
         }
 
         if (!rd->committed_entries.empty()) {
-            LOG_WARN("not impl yet");
+            std::vector<proto::EntryPtr> ents;
+            entries_to_apply(rd->committed_entries, ents);
+            if (!ents.empty()) {
+                publish_entries(ents);
+            }
         }
         maybe_trigger_snapshot();
         node_->advance(rd);
-        assert(!node_->has_ready());
+        node_->must_not_ready();
     };
 
     if (raft_loop_id_ == pthread_self()) {
@@ -119,8 +126,74 @@ void KvdServer::check_raft_ready()
 
 bool KvdServer::publish_entries(const std::vector<proto::EntryPtr>& entries)
 {
-    LOG_WARN("not impl yet");
+    for (const proto::EntryPtr& entry : entries) {
+        switch (entry->type) {
+            case proto::EntryNormal: {
+                if (entry->data.empty()) {
+                    // ignore empty messages
+                    break;
+                }
+                LOG_DEBUG("commit data %lu", entry->data.size());
+                break;
+            }
+
+            case proto::EntryConfChange: {
+                proto::ConfChange cc;
+                msgpack::object_handle oh = msgpack::unpack((const char*) entry->data.data(), entry->data.size());
+                oh.get().convert(&cc);
+                switch (cc.conf_change_type) {
+                    case proto::ConfChangeAddNode: {
+                        if (!cc.context.empty()) {
+                            std::string str((const char*) cc.context.data(), cc.context.size());
+                            transport_->add_peer(cc.node_id, std::move(str));
+                        }
+                        break;
+
+                        case proto::ConfChangeRemoveNode: {
+
+                            if (cc.node_id == id_) {
+                                LOG_INFO("I've been removed from the cluster! Shutting down.");
+                                return false;
+                            }
+                            transport_->remove_peer(cc.node_id);
+                            default: {
+                                LOG_INFO("configure change %d", cc.conf_change_type);
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+            default: {
+                LOG_FATAL("unknown type %d", entry->type);
+                return false;
+            }
+        }
+
+        // after commit, update appliedIndex
+        applied_index_ = entry->index;
+
+        // replay has finished
+        if (entry->index == this->last_index_) {
+            break;
+        }
+    }
     return true;
+}
+
+void KvdServer::entries_to_apply(const std::vector<proto::EntryPtr>& entries, std::vector<proto::EntryPtr>& ents)
+{
+    if (entries.empty()) {
+        return;
+    }
+
+    uint64_t first = entries[0]->index;
+    if (first > snapshot_index_ + 1) {
+        LOG_FATAL("first index of committed entry[%lu] should <= progress.appliedIndex[%lu]+1", first, applied_index_);
+    }
+    if (applied_index_ - first + 1 < entries.size()) {
+        ents.insert(ents.end(), entries.begin() + applied_index_ - first + 1, entries.end());
+    }
 }
 
 void KvdServer::maybe_trigger_snapshot()

@@ -24,6 +24,8 @@ public:
     virtual void send(std::vector<proto::MessagePtr> msgs) = 0;
 
     virtual void add_peer(uint64_t id, const std::string& peer) = 0;
+
+    virtual void remove_peer(uint64_t id) = 0;
 };
 
 typedef std::shared_ptr<Transporter> TransporterPtr;

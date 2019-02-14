@@ -33,7 +33,7 @@ public:
     virtual void report_snapshot(uint64_t id, SnapshotStatus status);
 
     bool publish_entries(const std::vector<proto::EntryPtr>& entries);
-
+    void entries_to_apply(const std::vector<proto::EntryPtr>& entries, std::vector<proto::EntryPtr>& ents);
     void maybe_trigger_snapshot();
 
 private:
@@ -50,9 +50,13 @@ private:
     boost::asio::deadline_timer timer_;
     uint64_t id_;
     std::vector<std::string> peers_;
+    uint64_t last_index_;
+    proto::ConfState conf_state_;
+    uint64_t snapshot_index_;
+    uint64_t applied_index_;
 
-    TransporterPtr transport_;
     RawNodePtr node_;
+    TransporterPtr transport_;
     MemoryStoragePtr storage_;
     std::shared_ptr<HTTPServer> http_server_;
 };

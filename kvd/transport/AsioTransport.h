@@ -22,6 +22,8 @@ public:
 
     virtual void add_peer(uint64_t id, const std::string& peer);
 
+    virtual void remove_peer(uint64_t id);
+
     virtual void send(std::vector<proto::MessagePtr> msgs);
 
     virtual void stop();

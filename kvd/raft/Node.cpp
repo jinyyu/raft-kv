@@ -144,6 +144,30 @@ bool RawNode::has_ready()
     return false;
 }
 
+void RawNode::must_not_ready() const
+{
+    if (prev_soft_state_ && prev_soft_state_->equal(*raft_->soft_state())) {
+        assert(false);
+    }
+    proto::HardState hs = raft_->hard_state();
+    if (!hs.is_empty_state() && !hs.equal(prev_hard_state_)) {
+        assert(false);
+    }
+
+    proto::SnapshotPtr snapshot = raft_->raft_log()->unstable()->ref_snapshot();
+
+    if (snapshot && !snapshot->is_empty()) {
+        assert(false);
+    }
+    if (!raft_->msgs().empty() || !raft_->raft_log()->unstable_entries().empty()
+        || raft_->raft_log()->has_next_entries()) {
+        assert(false);
+    }
+
+    if (!raft_->read_states().empty()) {
+        assert(false);
+    }
+}
 void RawNode::advance(ReadyPtr ready)
 {
     if (ready->soft_state) {
