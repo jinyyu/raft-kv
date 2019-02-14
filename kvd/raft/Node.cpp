@@ -120,7 +120,7 @@ ReadyPtr RawNode::ready()
 
 bool RawNode::has_ready()
 {
-    if (prev_soft_state_ && prev_soft_state_->equal(*raft_->soft_state())) {
+    if (prev_soft_state_ && !prev_soft_state_->equal(*raft_->soft_state())) {
         return true;
     }
     proto::HardState hs = raft_->hard_state();
@@ -146,7 +146,7 @@ bool RawNode::has_ready()
 
 void RawNode::must_not_ready() const
 {
-    if (prev_soft_state_ && prev_soft_state_->equal(*raft_->soft_state())) {
+    if (prev_soft_state_ && !prev_soft_state_->equal(*raft_->soft_state())) {
         assert(false);
     }
     proto::HardState hs = raft_->hard_state();

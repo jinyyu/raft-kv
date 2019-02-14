@@ -85,7 +85,7 @@ void KvdServer::check_raft_ready()
             return;
         }
 
-        LOG_DEBUG("--------------------------------------------------------ready!!!!");
+        LOG_DEBUG("ready");
 
         auto rd = node_->ready();
         if (!rd->contains_updates()) {
