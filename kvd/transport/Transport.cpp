@@ -1,5 +1,5 @@
 #include <boost/algorithm/string.hpp>
-#include <kvd/transport/AsioTransport.h>
+#include <kvd/transport/Transport.h>
 #include <kvd/common/log.h>
 
 namespace kvd
@@ -23,7 +23,7 @@ AsioTransport::~AsioTransport()
 
 void AsioTransport::start(const std::string& host)
 {
-    std::shared_ptr<AsioServer> server(new AsioServer(io_service_, host));
+    std::shared_ptr<AsioServer> server(new AsioServer(io_service_, host, raft_));
     server_ = server;
     server_->start();
 

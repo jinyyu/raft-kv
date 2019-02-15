@@ -66,6 +66,7 @@ private:
     ClientSessionPtr session_;
     boost::asio::ip::tcp::endpoint endpoint_;
     boost::asio::deadline_timer timer_;
+    bool paused;
 };
 
 }

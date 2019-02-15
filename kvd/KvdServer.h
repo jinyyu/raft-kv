@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <memory>
 #include <vector>
-#include <kvd/transport/Transporter.h>
+#include <kvd/transport/Transport.h>
 #include <kvd/raft/Node.h>
 #include <kvd/HTTPServer.h>
 

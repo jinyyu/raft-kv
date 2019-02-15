@@ -19,8 +19,8 @@ set(SRC
     raft/Ready.cpp
     raft/util.cpp
     transport/proto.h
-    transport/Transporter.h
-    transport/AsioTransport.cpp
+    transport/Transport.h
+    transport/Transport.cpp
     transport/Peer.h
     transport/Server.cpp
     transport/Peer.cpp

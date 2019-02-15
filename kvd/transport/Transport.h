@@ -1,5 +1,12 @@
 #pragma once
 #include <memory>
+#include <thread>
+#include <mutex>
+#include <unordered_map>
+#include <boost/asio.hpp>
+#include <kvd/transport/Peer.h>
+#include <kvd/transport/Server.h>
+#include <kvd/transport/Transport.h>
 #include <kvd/common/Status.h>
 #include <kvd/raft/proto.h>
 #include <kvd/raft/Node.h>
@@ -7,10 +14,10 @@
 namespace kvd
 {
 
-class Transporter
+class Transport
 {
 public:
-    virtual ~Transporter() = default;
+    virtual ~Transport() = default;
 
     virtual void start(const std::string& host) = 0;
 
@@ -26,9 +33,10 @@ public:
     virtual void add_peer(uint64_t id, const std::string& peer) = 0;
 
     virtual void remove_peer(uint64_t id) = 0;
+
 };
 
-typedef std::shared_ptr<Transporter> TransporterPtr;
+typedef std::shared_ptr<Transport> TransporterPtr;
 
 class RaftServer
 {
@@ -43,5 +51,39 @@ public:
 
     virtual void report_snapshot(uint64_t id, SnapshotStatus status) = 0;
 };
+
+
+
+class AsioTransport: public Transport
+{
+
+public:
+    explicit AsioTransport(std::weak_ptr<RaftServer> raft, uint64_t id);
+
+    ~AsioTransport();
+
+    virtual void start(const std::string& host);
+
+    virtual void add_peer(uint64_t id, const std::string& peer);
+
+    virtual void remove_peer(uint64_t id);
+
+    virtual void send(std::vector<proto::MessagePtr> msgs);
+
+    virtual void stop();
+
+private:
+    std::weak_ptr<RaftServer> raft_;
+    uint64_t id_;
+
+    std::thread io_thread_;
+    boost::asio::io_service io_service_;
+
+    std::mutex mutex_;
+    std::unordered_map<uint64_t, PeerPtr> peers_;
+
+    std::shared_ptr<AsioServer> server_;
+};
+
 
 }

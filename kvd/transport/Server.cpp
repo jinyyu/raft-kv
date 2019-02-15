@@ -3,10 +3,14 @@
 #include <kvd/common/log.h>
 #include <kvd/common/ByteBuffer.h>
 #include <kvd/transport/proto.h>
+#include <kvd/raft/proto.h>
+#include <kvd/transport/Transport.h>
 
 namespace kvd
 {
 
+class ServerSession;
+typedef std::shared_ptr<ServerSession> ServerSessionPtr;
 
 class ServerSession: public std::enable_shared_from_this<ServerSession>
 {
@@ -76,6 +80,13 @@ public:
             //LOG_DEBUG("tick ok");
             break;
         }
+        case TransportTypeStream: {
+            proto::MessagePtr msg(new proto::Message());
+            msgpack::object_handle oh = msgpack::unpack((const char*) buffer_.data(), buffer_.size());
+            oh.get().convert(&*msg);
+            on_receive_stream_message(std::move(msg));
+            break;
+        }
         default: {
             LOG_DEBUG("unknown msg type %d, len = %d", meta_.type, ntohl(meta_.len));
             return;
@@ -85,6 +96,14 @@ public:
         start_read_meta();
     }
 
+    void on_receive_stream_message(proto::MessagePtr msg)
+    {
+        auto server = server_.lock();
+        if (server) {
+            server->on_message(std::move(msg));
+        }
+    }
+
     boost::asio::ip::tcp::socket socket;
 private:
     std::weak_ptr<AsioServer> server_;
@@ -92,9 +111,12 @@ private:
     std::vector<uint8_t> buffer_;
 };
 
-AsioServer::AsioServer(boost::asio::io_service& io_service, const std::string& host)
+AsioServer::AsioServer(boost::asio::io_service& io_service,
+                       const std::string& host,
+                       std::weak_ptr<RaftServer> raft)
     : io_service_(io_service),
-      acceptor_(io_service)
+      acceptor_(io_service),
+      raft_(std::move(raft))
 {
     std::vector<std::string> strs;
     boost::split(strs, host, boost::is_any_of(":"));
@@ -130,6 +152,16 @@ void AsioServer::start()
         this->start();
         session->start_read_meta();
     });
+}
+
+void AsioServer::on_message(proto::MessagePtr msg)
+{
+    auto raft = raft_.lock();
+    if (raft) {
+        Status status = raft->process(std::move(msg));
+        LOG_DEBUG("process %s", status.to_string().c_str());
+
+    }
 }
 
 void AsioServer::stop()

@@ -42,7 +42,7 @@ public:
         }
     }
 
-    void on_disconnected()
+    void close_session()
     {
         auto peer = peer_.lock();
         if (peer) {
@@ -56,7 +56,7 @@ public:
         socket_.async_connect(endpoint_, [self](const boost::system::error_code& err) {
             if (err) {
                 LOG_DEBUG("connect error %s", err.message().c_str());
-                self->on_disconnected();
+                self->close_session();
                 return;
             }
             self->connected_ = true;
@@ -80,7 +80,7 @@ public:
         auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
             if (error || bytes == 0) {
                 LOG_DEBUG("send error %s", error.message().c_str());
-                self->on_disconnected();
+                self->close_session();
                 return;
             }
             self->buffer_.skip_bytes(bytes);
@@ -99,7 +99,8 @@ private:
 
 AsioPeer::AsioPeer(boost::asio::io_service& io_service, uint64_t peer, const std::string& peer_str)
     : io_service_(io_service),
-      timer_(io_service)
+      timer_(io_service),
+      paused(false)
 {
     std::vector<std::string> strs;
     boost::split(strs, peer_str, boost::is_any_of(":"));
@@ -125,7 +126,15 @@ void AsioPeer::start()
 
 void AsioPeer::send(proto::MessagePtr msg)
 {
-    LOG_DEBUG("HIHIHIHIHIHIHIHII");
+    if (msg->type == proto::MsgSnap) {
+        LOG_DEBUG("send snap not impl yet");
+        return;
+    }
+
+    msgpack::sbuffer sbuf;
+    msgpack::pack(sbuf, *msg);
+    do_send_data(TransportTypeStream, (const uint8_t*) sbuf.data(), (uint32_t) sbuf.size());
+
 }
 
 void AsioPeer::send_snap(proto::SnapshotPtr snap)

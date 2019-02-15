@@ -1,41 +1,31 @@
 #pragma once
 #include <memory>
 #include <boost/asio.hpp>
+#include <kvd/raft/proto.h>
 
 namespace kvd
 {
 
-class ServerSession;
-typedef std::shared_ptr<ServerSession> ServerSessionPtr;
-
-class Server
+class RaftServer;
+class AsioServer: public std::enable_shared_from_this<AsioServer>
 {
 public:
-
-    virtual ~Server() = default;
-
-    virtual void start() = 0;
-
-    virtual void stop() = 0;
-};
-typedef std::shared_ptr<Server> ServerPtr;
-
-class AsioServer: public Server, public std::enable_shared_from_this<AsioServer>
-{
-public:
-    explicit AsioServer(boost::asio::io_service& io_service, const std::string& host);
+    explicit AsioServer(boost::asio::io_service& io_service,
+                        const std::string& host,
+                        std::weak_ptr<RaftServer> raft);
 
     ~AsioServer();
 
-    virtual void start();
+    void start();
 
-    virtual void stop();
+    void stop();
+
+    void on_message(proto::MessagePtr msg);
 
 private:
-    friend class ServerSession;
-
     boost::asio::io_service& io_service_;
     boost::asio::ip::tcp::acceptor acceptor_;
+    std::weak_ptr<RaftServer> raft_;
 };
 
 }

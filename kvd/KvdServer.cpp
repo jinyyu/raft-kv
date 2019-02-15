@@ -1,7 +1,7 @@
 #include <boost/algorithm/string.hpp>
 #include <future>
 #include <kvd/KvdServer.h>
-#include <kvd/transport/AsioTransport.h>
+#include <kvd/transport/Transport.h>
 #include <kvd/common/log.h>
 
 namespace kvd
