@@ -57,6 +57,11 @@ struct Entry
 
     uint32_t serialize_size() const;
 
+    uint32_t payload_size() const
+    {
+        return static_cast<uint32_t>(data.size());
+    }
+
     EntryType type;
     uint64_t term;
     uint64_t index;

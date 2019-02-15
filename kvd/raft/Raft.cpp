@@ -127,13 +127,11 @@ Raft::~Raft()
 
 void Raft::become_follower(uint64_t term, uint64_t lead)
 {
-
     step_ = std::bind(&Raft::step_follower, this, std::placeholders::_1);
     reset(term);
 
-    tick_ = [this]() {
-        this->tick_election();
-    };
+    tick_ = std::bind(&Raft::tick_election, this);
+
     lead_ = lead;
     state_ = RaftState::Follower;
 
@@ -147,7 +145,18 @@ void Raft::become_candidate()
 
 void Raft::become_pre_candidate()
 {
-    LOG_WARN("no impl yet");
+    if (state_ == RaftState::Leader) {
+        LOG_FATAL("invalid transition [leader -> pre-candidate]");
+    }
+    // Becoming a pre-candidate changes our step functions and state,
+    // but doesn't change anything else. In particular it does not increase
+    // r.Term or change r.Vote.
+    step_ = std::bind(&Raft::step_candidate, this, std::placeholders::_1);
+    votes_.clear();
+    tick_ = std::bind(&Raft::tick_election, this);
+    lead_ = 0;
+    state_ = RaftState::PreCandidate;
+    LOG_INFO("%lu became pre-candidate at term %lu", id_, term_);
 }
 
 void Raft::become_leader()
@@ -294,7 +303,53 @@ Status Raft::step_leader(proto::MessagePtr msg)
 
 Status Raft::step_candidate(proto::MessagePtr msg)
 {
-    LOG_WARN("no impl yet");
+    // Only handle vote responses corresponding to our candidacy (while in
+    // StateCandidate, we may get stale MsgPreVoteResp messages in this term from
+    // our pre-candidate state).
+    switch (msg->type) {
+    case proto::MsgProp:LOG_INFO("%lu no leader at term %lu; dropping proposal", id_, term_);
+        return Status::invalid_argument("raft proposal dropped");
+    case proto::MsgApp:become_follower(msg->term, msg->from); // always m.Term == r.Term
+        handle_append_entries(std::move(msg));
+        break;
+    case proto::MsgHeartbeat:become_follower(msg->term, msg->from);  // always m.Term == r.Term
+        handle_heartbeat(std::move(msg));
+        break;
+    case proto::MsgSnap:become_follower(msg->term, msg->from); // always m.Term == r.Term
+        handle_snapshot(std::move(msg));
+        break;
+    case proto::MsgPreVoteResp:
+    case proto::MsgVoteResp: {
+        uint64_t gr = poll(msg->from, msg->type, !msg->reject);
+        LOG_INFO("%lu [quorum:%u] has received %lu %d votes and %lu vote rejections",
+                 id_,
+                 quorum(),
+                 gr,
+                 msg->type,
+                 votes_.size() - gr);
+        if (gr == quorum()) {
+            if (state_ == RaftState::PreCandidate) {
+                campaign(kCampaignElection);
+            }
+            else {
+                assert(state_ == RaftState::Candidate);
+                become_leader();
+                bcast_append();
+            }
+        }
+        else if (gr == votes_.size() - gr) {
+            // pb.MsgPreVoteResp contains future term of pre-candidate
+            // m.Term > r.Term; reuse r.Term
+            become_follower(term_, 0);
+        }
+        break;
+    }
+    case proto::MsgTimeoutNow: LOG_DEBUG("%lu [term %lu state %d] ignored MsgTimeoutNow from %lu",
+                                         id_,
+                                         term_,
+                                         state_,
+                                         msg->from);
+    }
     return Status::ok();
 }
 
@@ -398,6 +453,11 @@ void Raft::handle_append_entries(proto::MessagePtr msg)
 }
 
 void Raft::handle_heartbeat(proto::MessagePtr msg)
+{
+    LOG_WARN("no impl yet");
+}
+
+void Raft::handle_snapshot(proto::MessagePtr msg)
 {
     LOG_WARN("no impl yet");
 }
@@ -663,7 +723,25 @@ bool Raft::increase_uncommitted_size(std::vector<proto::EntryPtr> entries)
 
 void Raft::reduce_uncommitted_size(const std::vector<proto::EntryPtr>& entries)
 {
-    LOG_WARN("no impl yet");
+    if (uncommitted_size_ == 0) {
+        // Fast-path for followers, who do not track or enforce the limit.
+        return;
+    }
+
+    uint32_t size = 0;
+
+    for (const proto::EntryPtr& e: entries) {
+        size += e->payload_size();
+    }
+    if (size > uncommitted_size_) {
+        // uncommittedSize may underestimate the size of the uncommitted Raft
+        // log tail but will never overestimate it. Saturate at 0 instead of
+        // allowing overflow.
+        uncommitted_size_ = 0;
+    }
+    else {
+        uncommitted_size_ -= size;
+    }
 }
 
 }

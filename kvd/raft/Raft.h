@@ -39,6 +39,8 @@ public:
 
     Status step_leader(proto::MessagePtr msg);
 
+    // step_candidate is shared by StateCandidate and StatePreCandidate; the difference is
+    // whether they respond to MsgVoteResp or MsgPreVoteResp.
     Status step_candidate(proto::MessagePtr msg);
 
     Status step_follower(proto::MessagePtr msg);
@@ -46,6 +48,8 @@ public:
     void handle_append_entries(proto::MessagePtr msg);
 
     void handle_heartbeat(proto::MessagePtr msg);
+
+    void handle_snapshot(proto::MessagePtr msg);
 
     bool restore(proto::SnapshotPtr snapshot);
 
@@ -150,6 +154,8 @@ public:
     // true.
     bool increase_uncommitted_size(std::vector<proto::EntryPtr> entries);
 
+    // reduce_uncommitted_size accounts for the newly committed entries by decreasing
+    // the uncommitted entry size limit.
     void reduce_uncommitted_size(const std::vector<proto::EntryPtr>& entries);
 
     std::vector<proto::MessagePtr>& msgs()
