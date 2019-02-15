@@ -1,12 +1,11 @@
-#include <kvd/HTTPServer.h>
-#include <kvd/third_party/http_parser.h>
-#include <kvd/KvdServer.h>
-#include <kvd/common/log.h>
 #include <rapidjson/rapidjson.h>
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <msgpack.hpp>
-
+#include <kvd/HTTPServer.h>
+#include <kvd/third_party/http_parser.h>
+#include <kvd/KvdServer.h>
+#include <kvd/common/log.h>
 
 namespace kvd
 {

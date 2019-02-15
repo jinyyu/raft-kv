@@ -1,6 +1,6 @@
 #pragma once
-#include <kvd/raft/proto.h>
 #include <boost/asio.hpp>
+#include <kvd/raft/proto.h>
 
 namespace kvd
 {

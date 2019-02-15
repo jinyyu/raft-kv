@@ -2,8 +2,8 @@
 #include <boost/asio.hpp>
 #include <unordered_map>
 #include <thread>
-#include <kvd/common/Status.h>
 #include <future>
+#include <kvd/common/Status.h>
 
 namespace kvd
 {

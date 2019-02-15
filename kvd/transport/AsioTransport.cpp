@@ -1,7 +1,6 @@
-#include "kvd/transport/AsioTransport.h"
-#include "kvd/common/log.h"
 #include <boost/algorithm/string.hpp>
-
+#include <kvd/transport/AsioTransport.h>
+#include <kvd/common/log.h>
 
 namespace kvd
 {
@@ -57,7 +56,23 @@ void AsioTransport::remove_peer(uint64_t id)
 
 void AsioTransport::send(std::vector<proto::MessagePtr> msgs)
 {
-    LOG_INFO("send %d", msgs.size());
+    auto callback = [this](std::vector<proto::MessagePtr> msgs) {
+        for (proto::MessagePtr& msg : msgs) {
+        if (msg->to == 0) {
+            // ignore intentionally dropped message
+            continue;
+        }
+
+
+        auto it = peers_.find(msg->to);
+        if (it != peers_.end()) {
+            it->second->send(msg);
+            continue;
+        }
+        LOG_DEBUG("ignored message %d (sent to unknown peer %lu)", msg->type, msg->to);
+    }
+    };
+    io_service_.post(std::bind(callback, std::move(msgs)));
 }
 
 void AsioTransport::stop()

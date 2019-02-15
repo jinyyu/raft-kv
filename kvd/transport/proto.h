@@ -1,10 +1,13 @@
 #pragma once
 #include <stdint.h>
 
-const uint8_t TransportTypeDebug = 5;
-
 namespace kvd
 {
+const uint8_t TransportTypeStream = 1;
+const uint8_t TransportTypePipeline = 3;
+const uint8_t TransportTypeDebug = 5;
+
+
 #pragma pack(1)
 struct TransportMeta
 {

@@ -1,8 +1,8 @@
 #pragma once
-#include <kvd/common/Status.h>
-#include <kvd/raft/proto.h>
 #include <memory>
 #include <mutex>
+#include <kvd/common/Status.h>
+#include <kvd/raft/proto.h>
 
 namespace kvd
 {

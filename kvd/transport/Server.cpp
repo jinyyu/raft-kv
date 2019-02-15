@@ -1,8 +1,9 @@
-#include <kvd/transport/Server.h>
 #include <boost/algorithm/string.hpp>
+#include <kvd/transport/Server.h>
 #include <kvd/common/log.h>
 #include <kvd/common/ByteBuffer.h>
 #include <kvd/transport/proto.h>
+
 namespace kvd
 {
 

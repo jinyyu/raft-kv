@@ -1,8 +1,8 @@
-#include "kvd/transport/Peer.h"
-#include "kvd/common/log.h"
-#include "kvd/common/ByteBuffer.h"
-#include "kvd/transport/proto.h"
 #include <boost/algorithm/string.hpp>
+#include <kvd/transport/Peer.h>
+#include <kvd/common/log.h>
+#include <kvd/common/ByteBuffer.h>
+#include <kvd/transport/proto.h>
 
 namespace kvd
 {
@@ -125,7 +125,7 @@ void AsioPeer::start()
 
 void AsioPeer::send(proto::MessagePtr msg)
 {
-
+    LOG_DEBUG("HIHIHIHIHIHIHIHII");
 }
 
 void AsioPeer::send_snap(proto::SnapshotPtr snap)

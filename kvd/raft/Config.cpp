@@ -1,5 +1,4 @@
-#include "kvd/raft/Config.h"
-
+#include <kvd/raft/Config.h>
 
 namespace kvd
 {

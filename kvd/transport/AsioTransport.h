@@ -1,11 +1,11 @@
 #pragma once
-#include <kvd/transport/Transporter.h>
 #include <boost/asio/io_service.hpp>
 #include <thread>
 #include <mutex>
 #include <unordered_map>
 #include <kvd/transport/Peer.h>
 #include <kvd/transport/Server.h>
+#include <kvd/transport/Transporter.h>
 
 namespace kvd
 {

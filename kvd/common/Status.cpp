@@ -1,10 +1,9 @@
-#include "kvd/common/Status.h"
-
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
 #include <iostream>
 #include <jemalloc/jemalloc.h>
+#include <kvd/common/Status.h>
 
 namespace kvd
 {
