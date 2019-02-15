@@ -140,7 +140,7 @@ bool KvdServer::publish_entries(const std::vector<proto::EntryPtr>& entries)
             case proto::EntryConfChange: {
                 proto::ConfChange cc;
                 msgpack::object_handle oh = msgpack::unpack((const char*) entry->data.data(), entry->data.size());
-                oh.get().convert(&cc);
+                oh.get().convert(cc);
                 switch (cc.conf_change_type) {
                     case proto::ConfChangeAddNode: {
                         if (!cc.context.empty()) {

@@ -11,7 +11,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(dependencies
                   glib-2.0>=2.10 REQUIRED
-                  jemalloc>5.1 REQUIRED
+                  jemalloc REQUIRED
                   msgpack REQUIRED)
 include_directories(${dependencies_INCLUDE_DIRS})
 set(LIBS
@@ -21,6 +21,7 @@ find_package(Boost REQUIRED COMPONENTS system filesystem)
 include_directories(${Boost_INCLUDE_DIRS})
 set(LIBS
     ${LIBS}
+    pthread
     Boost::system
     Boost::filesystem)
 

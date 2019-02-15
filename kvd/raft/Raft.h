@@ -1,5 +1,5 @@
 #pragma once
-
+#include <functional>
 #include <stdint.h>
 #include <kvd/raft/RaftLog.h>
 #include <kvd/raft/Progress.h>
