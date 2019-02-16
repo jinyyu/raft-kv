@@ -142,8 +142,15 @@ void Raft::become_follower(uint64_t term, uint64_t lead)
 
 void Raft::become_candidate()
 {
-    LOG_WARN(
-        "----------------------------------------------------------------------------------------------------------------no impl yet");
+    if (state_ == RaftState::Leader) {
+        LOG_FATAL("invalid transition [leader -> candidate]");
+    }
+    step_ = std::bind(&Raft::step_candidate, this, std::placeholders::_1);
+    reset(term_ + 1);
+    tick_ = std::bind(&Raft::tick_election, this);
+    vote_ = id_;
+    state_ = RaftState::Candidate;
+    LOG_INFO("%lu became candidate at term %lu", id_, term_);
 }
 
 void Raft::become_pre_candidate()
@@ -164,7 +171,44 @@ void Raft::become_pre_candidate()
 
 void Raft::become_leader()
 {
-    LOG_WARN("no impl yet");
+    if (state_ == RaftState::Follower) {
+            LOG_FATAL("invalid transition [follower -> leader]");
+        }
+    step_ = std::bind(&Raft::step_leader, this, std::placeholders::_1);
+    reset(term_);
+    tick_ = std::bind(&Raft::tick_heartbeat, this);
+    lead_ = id_;
+    state_ = RaftState::Leader;
+    // Followers enter replicate mode when they've been successfully probed
+    // (perhaps after having received a snapshot as a result). The leader is
+    // trivially in this state. Note that r.reset() has initialized this
+    // progress with the last index already.
+    auto it = prs_.find(id_);
+    assert(it != prs_.end());
+    it->second->become_replicate();
+
+    // Conservatively set the pendingConfIndex to the last index in the
+    // log. There may or may not be a pending config change, but it's
+    // safe to delay any future proposals until we commit all our
+    // pending log entries, and scanning the entire tail of the log
+    // could be expensive.
+    pending_conf_index_= raft_log_->last_index();
+
+    std::vector<proto::EntryPtr> entries;
+    auto empty_ent = std::make_shared<proto::Entry>();
+    entries.push_back(empty_ent);
+
+    if (!append_entry(entries)) {
+        // This won't happen because we just called reset() above.
+        LOG_FATAL("empty entry was dropped");
+    }
+
+    // As a special case, don't count the initial empty entry towards the
+    // uncommitted log quota. This is because we want to preserve the
+    // behavior of allowing one entry larger than quota if the current
+    // usage is zero.
+    reduce_uncommitted_size(entries);
+    LOG_INFO("%lu became leader at term %lu", id_, term_);
 }
 
 void Raft::campaign(const std::string& campaign_type)
@@ -528,11 +572,13 @@ Status Raft::step_candidate(proto::MessagePtr msg)
         }
         break;
     }
-    case proto::MsgTimeoutNow: LOG_DEBUG("%lu [term %lu state %d] ignored MsgTimeoutNow from %lu",
-                                         id_,
-                                         term_,
-                                         state_,
-                                         msg->from);
+    case proto::MsgTimeoutNow: {
+        LOG_DEBUG("%lu [term %lu state %d] ignored MsgTimeoutNow from %lu",
+                  id_,
+                  term_,
+                  state_,
+                  msg->from);
+    }
     }
     return Status::ok();
 }

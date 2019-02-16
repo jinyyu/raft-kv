@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <vector>
 
 namespace kvd
 {
@@ -7,7 +8,7 @@ namespace kvd
 enum ProgressState
 {
     ProgressStateProbe = 0,
-    ProgressStateReplicat = 1,
+    ProgressStateReplicate = 1,
     ProgressStateSnapshot = 2
 };
 
@@ -19,6 +20,12 @@ struct InFlights
           buffer(max_inflight_msgs, 0)
     {
 
+    }
+
+    void reset()
+    {
+        start = 0;
+        count = 0;
     }
 
     // the starting index in the buffer
@@ -48,6 +55,10 @@ public:
     {
 
     }
+
+    void become_replicate();
+
+    void reset_state(ProgressState state);
 
     uint64_t match;
     uint64_t next;
