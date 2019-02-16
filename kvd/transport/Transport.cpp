@@ -58,19 +58,19 @@ void AsioTransport::send(std::vector<proto::MessagePtr> msgs)
 {
     auto callback = [this](std::vector<proto::MessagePtr> msgs) {
         for (proto::MessagePtr& msg : msgs) {
-        if (msg->to == 0) {
-            // ignore intentionally dropped message
-            continue;
-        }
+            if (msg->to == 0) {
+                // ignore intentionally dropped message
+                continue;
+            }
 
 
-        auto it = peers_.find(msg->to);
-        if (it != peers_.end()) {
-            it->second->send(msg);
-            continue;
+            auto it = peers_.find(msg->to);
+            if (it != peers_.end()) {
+                it->second->send(msg);
+                continue;
+            }
+            LOG_DEBUG("ignored message %d (sent to unknown peer %lu)", msg->type, msg->to);
         }
-        LOG_DEBUG("ignored message %d (sent to unknown peer %lu)", msg->type, msg->to);
-    }
     };
     io_service_.post(std::bind(callback, std::move(msgs)));
 }

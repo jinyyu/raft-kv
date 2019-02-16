@@ -231,6 +231,7 @@ Status KvdServer::propose(std::vector<uint8_t> data)
         promise.set_value(status);
     });
     future.wait();
+    check_raft_ready();
     return future.get();
 }
 
@@ -243,6 +244,7 @@ Status KvdServer::process(proto::MessagePtr msg)
         promise.set_value(status);
     });
     future.wait();
+    check_raft_ready();
     return future.get();
 }
 

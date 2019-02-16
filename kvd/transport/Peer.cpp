@@ -133,6 +133,7 @@ void AsioPeer::send(proto::MessagePtr msg)
 
     msgpack::sbuffer sbuf;
     msgpack::pack(sbuf, *msg);
+    LOG_DEBUG("send %s, to %lu", proto::msg_type_to_string(msg->type), msg->to);
     do_send_data(TransportTypeStream, (const uint8_t*) sbuf.data(), (uint32_t) sbuf.size());
 
 }
@@ -183,7 +184,7 @@ void AsioPeer::start_timer()
         self->start_timer();
     });
 
-    static std::atomic<int> tick;
+    static std::atomic<uint32_t> tick;
     DebugMessage dbg;
     dbg.a = tick++;
     dbg.b = tick++;

@@ -1,6 +1,8 @@
 #include <boost/algorithm/string.hpp>
 #include <kvd/raft/Raft.h>
 #include <kvd/common/log.h>
+#include <kvd/common/Slice.h>
+#include <kvd/raft/util.h>
 
 namespace kvd
 {
@@ -140,7 +142,8 @@ void Raft::become_follower(uint64_t term, uint64_t lead)
 
 void Raft::become_candidate()
 {
-    LOG_WARN("no impl yet");
+    LOG_WARN(
+        "----------------------------------------------------------------------------------------------------------------no impl yet");
 }
 
 void Raft::become_pre_candidate()
@@ -197,8 +200,13 @@ void Raft::campaign(const std::string& campaign_type)
             continue;
         }
 
-        LOG_INFO("%lu [logterm: %lu, index: %lu] sent %d request to %lu at term %lu",
-                 id_, raft_log_->last_term(), raft_log_->last_index(), vote_msg, it->first, term_);
+        LOG_INFO("%lu [log_term: %lu, index: %lu] sent %s request to %lu at term %lu",
+                 id_,
+                 raft_log_->last_term(),
+                 raft_log_->last_index(),
+                 proto::msg_type_to_string(vote_msg),
+                 it->first,
+                 term_);
 
         std::vector<uint8_t> ctx;
         if (campaign_type == kCampaignTransfer) {
@@ -220,10 +228,10 @@ uint32_t Raft::poll(uint64_t id, proto::MessageType type, bool v)
 {
     uint32_t granted = 0;
     if (v) {
-        LOG_INFO("%lu received %d from %lu at term %lu", id_, type, id, term_);
+        LOG_INFO("%lu received %s from %lu at term %lu", id_, proto::msg_type_to_string(type), id, term_);
     }
     else {
-        LOG_INFO("%lu received %d rejection from %lu at term %lu", id_, type, id, term_);
+        LOG_INFO("%lu received %s rejection from %lu at term %lu", id_, proto::msg_type_to_string(type), id, term_);
     }
 
     auto it = votes_.find(id);
@@ -241,17 +249,112 @@ uint32_t Raft::poll(uint64_t id, proto::MessageType type, bool v)
 
 Status Raft::step(proto::MessagePtr msg)
 {
-    if (term_ == 0) {
+    if (msg->term == 0) {
         LOG_INFO("local msg");
     }
     else if (msg->term > term_) {
+        if (msg->type == proto::MsgVote || msg->type == proto::MsgPreVote) {
+            bool force = (Slice((const char*) msg->context.data(), msg->context.size()) == Slice(kCampaignTransfer));
+            bool in_lease = (check_quorum_ && lead_ != 0 && election_elapsed_ < election_timeout_);
+            if (!force && in_lease) {
+                // If a server receives a RequestVote request within the minimum election timeout
+                // of hearing from a current leader, it does not update its term or grant its vote
+                LOG_INFO(
+                    "%lu [log_term: %lu, index: %lu, vote: %lu] ignored %s from %lu [log_term: %lu, index: %lu] at term %lu: lease is not expired (remaining ticks: %d)",
+                    id_,
+                    raft_log_->last_term(),
+                    raft_log_->last_index(),
+                    vote_,
+                    proto::msg_type_to_string(msg->type),
+                    msg->from,
+                    msg->log_term,
+                    msg->index,
+                    term_,
+                    election_timeout_ - election_elapsed_);
+                return Status::ok();
+            }
+        }
 
+        if (msg->type == proto::MsgPreVote) {
+            // Never change our term in response to a PreVote
+        }
+        else if (msg->type == proto::MsgPreVoteResp && !msg->reject) {
+            // We send pre-vote requests with a term in our future. If the
+            // pre-vote is granted, we will increment our term when we get a
+            // quorum. If it is not, the term comes from the node that
+            // rejected our vote so we should become a follower at the new
+            // term.
+        }
+        else {
+            LOG_INFO("%lu [term: %lu] received a %s message with higher term from %lu [term: %lu]",
+                     id_, term_,
+                     proto::msg_type_to_string(msg->type),
+                     msg->from,
+                     msg->term);
+
+            if (msg->type == proto::MsgApp || msg->type == proto::MsgHeartbeat || msg->type == proto::MsgSnap) {
+                become_follower(msg->term, msg->from);
+            }
+            else {
+                become_follower(msg->term, 0);
+            }
+        }
     }
     else if (msg->term < term_) {
-
-    }
-    else {
-        assert(term_ == msg->term);
+        if ((check_quorum_ || pre_vote_) && (msg->type == proto::MsgHeartbeat || msg->type == proto::MsgApp)) {
+            // We have received messages from a leader at a lower term. It is possible
+            // that these messages were simply delayed in the network, but this could
+            // also mean that this node has advanced its term number during a network
+            // partition, and it is now unable to either win an election or to rejoin
+            // the majority on the old term. If checkQuorum is false, this will be
+            // handled by incrementing term numbers in response to MsgVote with a
+            // higher term, but if checkQuorum is true we may not advance the term on
+            // MsgVote and must generate other messages to advance the term. The net
+            // result of these two features is to minimize the disruption caused by
+            // nodes that have been removed from the cluster's configuration: a
+            // removed node will send MsgVotes (or MsgPreVotes) which will be ignored,
+            // but it will not receive MsgApp or MsgHeartbeat, so it will not create
+            // disruptive term increases, by notifying leader of this node's activeness.
+            // The above comments also true for Pre-Vote
+            //
+            // When follower gets isolated, it soon starts an election ending
+            // up with a higher term than leader, although it won't receive enough
+            // votes to win the election. When it regains connectivity, this response
+            // with "pb.MsgAppResp" of higher term would force leader to step down.
+            // However, this disruption is inevitable to free this stuck node with
+            // fresh election. This can be prevented with Pre-Vote phase.
+            proto::MessagePtr m(new proto::Message());
+            m->to = msg->from;
+            m->type = proto::MsgAppResp;
+            send(std::move(m));
+        }
+        else if (msg->type == proto::MsgPreVote) {
+            // Before Pre-Vote enable, there may have candidate with higher term,
+            // but less log. After update to Pre-Vote, the cluster may deadlock if
+            // we drop messages with a lower term.
+            LOG_INFO(
+                "%lu [log_term: %lu, index: %lu, vote: %lu] rejected %s from %lu [log_term: %lu, index: %lu] at term %lu",
+                id_,
+                raft_log_->last_term(),
+                raft_log_->last_index(),
+                vote_,
+                proto::msg_type_to_string(msg->type),
+                msg->from,
+                msg->log_term,
+                msg->index,
+                term_);
+            proto::MessagePtr m(new proto::Message());
+            m->to = msg->from;
+            m->type = proto::MsgPreVoteResp;
+            m->reject = true;
+            m->term = term_;
+            send(std::move(m));
+        }
+        else {
+            // ignore other cases
+            LOG_INFO("%lu [term: %lu] ignored a %s message with lower term from %lu [term: %lu]",
+                     id_, term_, proto::msg_type_to_string(msg->type), msg->from, msg->term);
+        }
         return Status::ok();
     }
 
@@ -285,6 +388,87 @@ Status Raft::step(proto::MessagePtr msg)
         else {
             LOG_DEBUG("%lu ignoring MsgHup because already leader", id_);
         }
+        break;
+    }
+    case proto::MsgVote:
+    case proto::MsgPreVote: {
+        if (is_learner_) {
+            // TODO: learner may need to vote, in case of node down when confchange.
+            LOG_INFO(
+                "%lu [log_term: %lu, index: %lu, vote: %lu] ignored %s from %lu [log_term: %lu, index: %lu] at term %lu: learner can not vote",
+                id_,
+                raft_log_->last_term(),
+                raft_log_->last_index(),
+                vote_,
+                proto::msg_type_to_string(msg->type),
+                msg->from,
+                msg->log_term,
+                msg->index,
+                msg->term);
+            return Status::ok();
+        }
+        // We can vote if this is a repeat of a vote we've already cast...
+        bool can_vote = vote_ == msg->from ||
+            // ...we haven't voted and we don't think there's a leader yet in this term...
+            (vote_ == 0 && lead_ == 0) ||
+            // ...or this is a PreVote for a future term...
+            (msg->type == proto::MsgPreVote && msg->term > term_);
+        // ...and we believe the candidate is up to date.
+        if (can_vote && this->raft_log_->is_up_to_date(msg->index, msg->term)) {
+            LOG_INFO(
+                "%lu [log_term: %lu, index: %lu, vote: %lu] cast %s for %lu [log_term: %lu, index: %lu] at term %lu",
+                id_,
+                raft_log_->last_term(),
+                raft_log_->last_index(),
+                vote_,
+                proto::msg_type_to_string(msg->type),
+                msg->from,
+                msg->log_term,
+                msg->index,
+                msg->term);
+            // When responding to Msg{Pre,}Vote messages we include the term
+            // from the message, not the local term. To see why consider the
+            // case where a single node was previously partitioned away and
+            // it's local term is now of date. If we include the local term
+            // (recall that for pre-votes we don't update the local term), the
+            // (pre-)campaigning node on the other end will proceed to ignore
+            // the message (it ignores all out of date messages).
+            // The term in the original message and current local term are the
+            // same in the case of regular votes, but different for pre-votes.
+
+            proto::MessagePtr m(new proto::Message());
+            m->to = msg->from;
+            m->term = msg->term;
+            m->type = vote_resp_msg_type(msg->type);
+            send(std::move(m));
+
+            if (msg->type == proto::MsgVote) {
+                // Only record real votes.
+                election_elapsed_ = 0;
+                vote_ = msg->from;
+            }
+        }
+        else {
+            LOG_INFO(
+                "%lu [log_term: %lu, index: %lu, vote: %lu] rejected %s from %lu [log_term: %lu, index: %lu] at term %lu",
+                id_,
+                raft_log_->last_term(),
+                raft_log_->last_index(),
+                vote_,
+                proto::msg_type_to_string(msg->type),
+                msg->from,
+                msg->log_term,
+                msg->index,
+                msg->term);
+
+            proto::MessagePtr m(new proto::Message());
+            m->to = msg->from;
+            m->term = term_;
+            m->type = vote_resp_msg_type(msg->type);
+            m->reject = true;
+            send(std::move(m));
+        }
+
         break;
     }
     default: {
@@ -321,11 +505,11 @@ Status Raft::step_candidate(proto::MessagePtr msg)
     case proto::MsgPreVoteResp:
     case proto::MsgVoteResp: {
         uint64_t gr = poll(msg->from, msg->type, !msg->reject);
-        LOG_INFO("%lu [quorum:%u] has received %lu %d votes and %lu vote rejections",
+        LOG_INFO("%lu [quorum:%u] has received %lu %s votes and %lu vote rejections",
                  id_,
                  quorum(),
                  gr,
-                 msg->type,
+                 proto::msg_type_to_string(msg->type),
                  votes_.size() - gr);
         if (gr == quorum()) {
             if (state_ == RaftState::PreCandidate) {

@@ -1,8 +1,8 @@
 #include <kvd/raft/util.h>
+#include <kvd/common/log.h>
 
 namespace kvd
 {
-
 
 void entry_limit_size(uint64_t max_size, std::vector<proto::EntryPtr>& entries)
 {
@@ -17,6 +17,21 @@ void entry_limit_size(uint64_t max_size, std::vector<proto::EntryPtr>& entries)
             entries.resize(limit);
             break;
         }
+    }
+}
+
+proto::MessageType vote_resp_msg_type(proto::MessageType type)
+{
+    switch (type) {
+    case proto::MsgVote: {
+        return proto::MsgVoteResp;
+    }
+    case proto::MsgPreVote: {
+        return proto::MsgPreVoteResp;
+    }
+    default: {
+        LOG_FATAL("not a vote message: %s", proto::msg_type_to_string(type));
+    }
     }
 }
 
