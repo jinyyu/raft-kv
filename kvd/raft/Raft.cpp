@@ -619,9 +619,18 @@ void Raft::send(proto::MessagePtr msg)
     msgs_.push_back(std::move(msg));
 }
 
-void Raft::restore_node(std::vector<uint64_t> nodes, bool is_learner)
+void Raft::restore_node(const std::vector<uint64_t>& nodes, bool is_learner)
 {
-    LOG_WARN("no impl yet");
+    for (uint64_t node: nodes) {
+        uint64_t match = 0;
+        uint64_t next = raft_log_->last_index() + 1;
+        if (node == id_) {
+            match = next - 1;
+            is_learner_ = is_learner;
+        }
+        set_progress(node, match, next, is_learner);
+        LOG_INFO("%lu restored progress of %lu [%s]", id_, node, get_progress(id_)->string().c_str());
+    }
 }
 
 bool Raft::promotable() const

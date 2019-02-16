@@ -28,6 +28,11 @@ struct InFlights
         count = 0;
     }
 
+    bool is_full() const
+    {
+        return start == count;
+    }
+
     // the starting index in the buffer
     uint32_t start;
     // number of inflights in the buffer
@@ -59,6 +64,10 @@ public:
     void become_replicate();
 
     void reset_state(ProgressState state);
+
+    std::string string() const;
+
+    bool is_paused() const;
 
     uint64_t match;
     uint64_t next;

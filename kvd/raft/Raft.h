@@ -55,7 +55,7 @@ public:
 
     void send(proto::MessagePtr msg);
 
-    void restore_node(std::vector<uint64_t> nodes, bool is_learner);
+    void restore_node(const std::vector<uint64_t>& nodes, bool is_learner);
 
     // promotable indicates whether state machine can be promoted to leader,
     // which is true when its own id is in progress list.
