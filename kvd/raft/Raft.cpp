@@ -172,8 +172,8 @@ void Raft::become_pre_candidate()
 void Raft::become_leader()
 {
     if (state_ == RaftState::Follower) {
-            LOG_FATAL("invalid transition [follower -> leader]");
-        }
+        LOG_FATAL("invalid transition [follower -> leader]");
+    }
     step_ = std::bind(&Raft::step_leader, this, std::placeholders::_1);
     reset(term_);
     tick_ = std::bind(&Raft::tick_heartbeat, this);
@@ -192,7 +192,7 @@ void Raft::become_leader()
     // safe to delay any future proposals until we commit all our
     // pending log entries, and scanning the entire tail of the log
     // could be expensive.
-    pending_conf_index_= raft_log_->last_index();
+    pending_conf_index_ = raft_log_->last_index();
 
     std::vector<proto::EntryPtr> entries;
     auto empty_ent = std::make_shared<proto::Entry>();
@@ -682,7 +682,76 @@ void Raft::remove_node(uint64_t id)
 
 Status Raft::step_follower(proto::MessagePtr msg)
 {
-    LOG_INFO("step follower");
+    switch (msg->type) {
+    case proto::MsgProp:
+        if (lead_ == 0) {
+            LOG_INFO("%lu no leader at term %lu; dropping proposal", id_, term_);
+            return Status::invalid_argument("raft proposal dropped");
+        }
+        else if (disable_proposal_forwarding_) {
+            LOG_INFO("%lu not forwarding to leader %lu at term %lu; dropping proposal", id_, lead_, term_);
+            return Status::invalid_argument("raft proposal dropped");
+        }
+        msg->to = lead_;
+        send(msg);
+        break;
+    case proto::MsgApp:election_elapsed_ = 0;
+        lead_ = msg->from;
+        handle_append_entries(msg);
+        break;
+    case proto::MsgHeartbeat:election_elapsed_ = 0;
+        lead_ = msg->from;
+        handle_heartbeat(msg);
+        break;
+    case proto::MsgSnap:election_elapsed_ = 0;
+        lead_ = msg->from;
+        handle_snapshot(msg);
+        break;
+    case proto::MsgTransferLeader:
+        if (lead_ == 0) {
+            LOG_INFO("%lu no leader at term %lu; dropping leader transfer msg", id_, term_);
+            return Status::ok();
+        }
+        msg->to = lead_;
+        send(msg);
+        break;
+    case proto::MsgTimeoutNow:
+        if (promotable()) {
+            LOG_INFO("%lu [term %lu] received MsgTimeoutNow from %lu and starts an election to get leadership.",
+                     id_,
+                     term_,
+                     msg->from);
+            // Leadership transfers never use pre-vote even if r.preVote is true; we
+            // know we are not recovering from a partition so there is no need for the
+            // extra round trip.
+            campaign(kCampaignTransfer);
+        }
+        else {
+            LOG_INFO("%lu received MsgTimeoutNow from %lu but is not promotable", id_, msg->from);
+        }
+        break;
+    case proto::MsgReadIndex:
+        if (lead_ == 0) {
+            LOG_INFO("%lu no leader at term %lu; dropping index reading msg", id_, term_);
+            return Status::ok();
+        }
+        msg->to = lead_;
+        send(msg);
+        break;
+    case proto::MsgReadIndexResp:
+        if (msg->entries.size() != 1) {
+            LOG_ERROR("%lu invalid format of MsgReadIndexResp from %lu, entries count: %lu",
+                      id_,
+                      msg->from,
+                      msg->entries.size());
+            return Status::ok();
+        }
+        ReadState rs;
+        rs.index = msg->index;
+        rs.request_ctx = std::move(msg->entries[0].data);
+        read_states_.push_back(std::move(rs));
+        break;
+    }
     return Status::ok();
 }
 
