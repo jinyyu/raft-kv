@@ -1,5 +1,4 @@
 
-
 set(LIBS
     ${LIBS}
     kvd++)
@@ -27,3 +26,6 @@ target_link_libraries(ramdom ${LIBS})
 
 add_executable(lambda test_lambda.cpp)
 target_link_libraries(lambda ${LIBS})
+
+add_executable(progress test_progress.cpp)
+target_link_libraries(progress ${LIBS})

@@ -65,7 +65,7 @@ KvdServer::~KvdServer()
 void KvdServer::start_timer()
 {
     auto self = shared_from_this();
-    timer_.expires_from_now(boost::posix_time::millisec(100));
+    timer_.expires_from_now(boost::posix_time::millisec(500));
     timer_.async_wait([self](const boost::system::error_code& err) {
         if (err) {
             LOG_ERROR("timer waiter error %s", err.message().c_str());

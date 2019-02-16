@@ -12,15 +12,14 @@ enum ProgressState
     ProgressStateSnapshot = 2
 };
 
-struct InFlights
+class InFlights
 {
+public:
     explicit InFlights(uint64_t max_inflight_msgs)
         : start(0),
           count(0),
-          buffer(max_inflight_msgs, 0)
-    {
-
-    }
+          size(static_cast<uint32_t>(max_inflight_msgs))
+    {}
 
     void reset()
     {
@@ -30,15 +29,25 @@ struct InFlights
 
     bool is_full() const
     {
-        return start == count;
+        return size == count;
     }
+
+    void add(uint64_t inflight);
+
+    // freeTo frees the inflights smaller or equal to the given `to` flight.
+    void free_to(uint64_t to);
+
+    void free_first_one();
 
     // the starting index in the buffer
     uint32_t start;
     // number of inflights in the buffer
     uint32_t count;
 
-    // buffer contains the index of the last entry
+    // the size of the buffer
+    uint32_t size;
+
+    // ring buffer contains the index of the last entry
     // inside one message.
     std::vector<uint64_t> buffer;
 };
@@ -63,11 +72,38 @@ public:
 
     void become_replicate();
 
+    void become_probe();
+
+    void become_snapshot(uint64_t snapshoti);
+
     void reset_state(ProgressState state);
 
     std::string string() const;
 
     bool is_paused() const;
+
+    void set_pause()
+    {
+        this->paused = true;
+    }
+
+    void resume()
+    {
+        this->paused = false;
+    }
+
+    // maybe_update returns false if the given n index comes from an outdated message.
+    // Otherwise it updates the progress and returns true.
+    bool maybe_update(uint64_t n);
+
+    void optimistic_update(uint64_t n)
+    {
+        next = n + 1;
+    }
+
+    // maybe_decr_to returns false if the given to index comes from an out of order message.
+    // Otherwise it decreases the progress next index to min(rejected, last) and returns true.
+    bool maybe_decreases_to(uint64_t rejected, uint64_t last);
 
     uint64_t match;
     uint64_t next;
