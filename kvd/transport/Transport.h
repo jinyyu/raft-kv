@@ -52,8 +52,6 @@ public:
     virtual void report_snapshot(uint64_t id, SnapshotStatus status) = 0;
 };
 
-
-
 class AsioTransport: public Transport
 {
 
@@ -84,6 +82,5 @@ private:
 
     std::shared_ptr<AsioServer> server_;
 };
-
 
 }

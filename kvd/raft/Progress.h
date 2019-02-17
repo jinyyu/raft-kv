@@ -130,7 +130,6 @@ public:
     // is reported to be failed.
     uint64_t pending_snapshot;
 
-
     // recent_active is true if the progress is recently active. Receiving any messages
     // from the corresponding follower indicates the progress is active.
     // recent_active can be reset to false after an election timeout.

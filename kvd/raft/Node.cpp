@@ -151,7 +151,7 @@ void RawNode::must_not_ready() const
     }
     proto::HardState hs = raft_->hard_state();
     if (!hs.is_empty_state() && !hs.equal(prev_hard_state_)) {
-        LOG_ERROR("--------------------%d, %d", hs.is_empty_state() , hs.equal(prev_hard_state_));
+        LOG_ERROR("--------------------%d, %d", hs.is_empty_state(), hs.equal(prev_hard_state_));
         assert(false);
     }
 

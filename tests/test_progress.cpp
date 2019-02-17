@@ -110,7 +110,6 @@ TEST(progress, freeto)
     ASSERT_TRUE(cmp_InFlights(wantIn4, in));
 }
 
-
 TEST(progress, FreeFirstOne)
 {
     InFlights in(10);
@@ -124,6 +123,99 @@ TEST(progress, FreeFirstOne)
     wantIn.count = 9;
     wantIn.buffer = std::vector<uint64_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     ASSERT_TRUE(cmp_InFlights(wantIn, in));
+}
+
+TEST(progress, BecomeProbe)
+{
+    struct Test
+    {
+        ProgressPtr pr;
+        uint64_t wnext;
+    };
+    std::vector<Test> tests;
+    {
+        ProgressPtr pr(new Progress(256));
+        pr->state = ProgressStateReplicate;
+        pr->match = 1;
+        pr->next = 5;
+        tests.push_back(Test{.pr = pr, .wnext = 2});
+    }
+
+    {
+        ProgressPtr pr(new Progress(256));
+        pr->state = ProgressStateSnapshot;
+        pr->match = 1;
+        pr->next = 5;
+        pr->pending_snapshot = 10;
+        tests.push_back(Test{.pr = pr, .wnext = 11});
+    }
+
+    {
+        ProgressPtr pr(new Progress(256));
+        pr->state = ProgressStateSnapshot;
+        pr->match = 1;
+        pr->next = 5;
+        pr->pending_snapshot = 0;
+        tests.push_back(Test{.pr = pr, .wnext = 2});
+    }
+
+    for (Test& test : tests) {
+        test.pr->become_probe();
+        ASSERT_TRUE(test.pr->match == 1);
+        ASSERT_TRUE(test.pr->state == ProgressStateProbe);
+        ASSERT_TRUE(test.pr->next == test.wnext);
+    }
+}
+
+TEST(progress, BecomeReplicate)
+{
+    ProgressPtr pr(new Progress(256));
+    pr->match = 1;
+    pr->next = 5;
+    pr->become_replicate();
+    ASSERT_TRUE(pr->next = pr->match + 1);
+    ASSERT_TRUE(pr->state = ProgressStateReplicate);
+}
+
+TEST(progress, BecomeSnapshot)
+{
+    ProgressPtr pr(new Progress(256));
+    pr->match = 1;
+    pr->next = 5;
+    pr->become_snapshot(10);
+    ASSERT_TRUE(pr->match = 1);
+    ASSERT_TRUE(pr->state = ProgressStateSnapshot);
+    ASSERT_TRUE(pr->pending_snapshot = 10);
+}
+
+TEST(progress, Update)
+{
+    uint64_t prevM = 3;
+    uint64_t prevN = 5;
+
+    struct Test
+    {
+        uint64_t update;
+        uint64_t wm;
+        uint64_t wn;
+        bool wok;
+    };
+    std::vector<Test> tests;
+    tests.push_back(Test{.update = prevM - 1, .wm = prevM, .wn = prevN, .wok = false});
+    tests.push_back(Test{.update = prevM, .wm = prevM, .wn = prevN, .wok = false});
+    tests.push_back(Test{.update = prevM + 1, .wm = prevM + 1, .wn = prevN, .wok = true});
+    tests.push_back(Test{.update = prevM + 2, .wm = prevM + 2, .wn = prevN + 1, .wok = true});
+
+    for (Test& test: tests) {
+        ProgressPtr pr(new Progress(256));
+        pr->match = prevM;
+        pr->next = prevN;
+
+        bool ok = pr->maybe_update(test.update);
+        ASSERT_TRUE(ok == test.wok);
+        ASSERT_TRUE(pr->match = test.wm);
+        ASSERT_TRUE(pr->next = test.wn);
+    }
 }
 
 int main(int argc, char* argv[])
