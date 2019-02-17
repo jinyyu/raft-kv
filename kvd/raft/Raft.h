@@ -51,7 +51,7 @@ public:
 
     void handle_snapshot(proto::MessagePtr msg);
 
-    bool restore(proto::SnapshotPtr snapshot);
+    bool restore(const proto::Snapshot& snapshot);
 
     void send(proto::MessagePtr msg);
 

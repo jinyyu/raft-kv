@@ -23,6 +23,8 @@ struct ReadIndexStatus
     proto::Message req;
     uint64_t index;
     std::unordered_set<uint64_t> acks;
+
+
 };
 typedef std::shared_ptr<ReadIndexStatus> ReadIndexStatusPtr;
 
@@ -31,6 +33,10 @@ struct ReadOnly
     explicit ReadOnly(ReadOnlyOption option)
         : option(option)
     {}
+
+    // last_pending_request_ctx returns the context of the last pending read only
+    // request in readonly struct.
+    void last_pending_request_ctx(std::vector<uint8_t>& ctx);
 
     ReadOnlyOption option;
     std::unordered_map<std::string, ReadIndexStatusPtr> pending_read_index;

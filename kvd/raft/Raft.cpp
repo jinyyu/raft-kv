@@ -677,7 +677,22 @@ void Raft::add_node_or_learner(uint64_t id, bool is_learner)
 
 void Raft::remove_node(uint64_t id)
 {
-    LOG_WARN("no impl yet");
+    del_progress(id);
+
+    // do not try to commit or abort transferring if there is no nodes in the cluster.
+    if (prs_.empty() && learner_prs_.empty()) {
+        return;
+    }
+
+    // The quorum size is now smaller, so see if any pending entries can
+    // be committed.
+    if (maybe_commit()) {
+        bcast_append();
+    }
+    // If the removed node is the leadTransferee, then abort the leadership transferring.
+    if (state_ == RaftState::Leader && lead_transferee_ == id) {
+        abort_leader_transfer();
+    }
 }
 
 Status Raft::step_follower(proto::MessagePtr msg)
@@ -757,22 +772,131 @@ Status Raft::step_follower(proto::MessagePtr msg)
 
 void Raft::handle_append_entries(proto::MessagePtr msg)
 {
-    LOG_WARN("no impl yet");
+    if (msg->index < raft_log_->committed()) {
+        proto::MessagePtr m(new proto::Message());
+        m->to = msg->from;
+        m->type = proto::MsgAppResp;
+        m->index = raft_log_->committed();
+        send(std::move(m));
+        return;
+    }
+
+    std::vector<proto::EntryPtr> entries;
+    for (proto::Entry& entry: msg->entries) {
+        entries.push_back(std::make_shared<proto::Entry>(std::move(entry)));
+    }
+
+    bool ok = false;
+    uint64_t last_index = 0;
+    raft_log_->maybe_append(msg->index, msg->log_term, msg->commit, std::move(entries), last_index, ok);
+
+    if (ok) {
+        proto::MessagePtr m(new proto::Message());
+        m->to = msg->from;
+        m->type = proto::MsgAppResp;
+        m->index = last_index;
+        send(std::move(m));
+    }
+    else {
+        uint64_t term = 0;
+        raft_log_->term(msg->index, term);
+        LOG_DEBUG("%lu [log_term: %lu, index: %lu] rejected msgApp [log_term: %lu, index: %lu] from %lu",
+                  id_, term, msg->index, msg->log_term, msg->index, msg->from)
+
+        proto::MessagePtr m(new proto::Message());
+        m->to = msg->from;
+        m->type = proto::MsgAppResp;
+        m->index = msg->index;
+        m->reject = true;
+        m->reject_hint = raft_log_->last_index();
+        send(std::move(m));
+    }
+
 }
 
 void Raft::handle_heartbeat(proto::MessagePtr msg)
 {
-    LOG_WARN("no impl yet");
+    raft_log_->commit_to(msg->commit);
+    proto::MessagePtr m(new proto::Message());
+    m->to = msg->from;
+    m->type = proto::MsgHeartbeatResp;
+    msg->context = std::move(msg->context);
+    send(std::move(m));
 }
 
 void Raft::handle_snapshot(proto::MessagePtr msg)
 {
-    LOG_WARN("no impl yet");
+    uint64_t sindex = msg->snapshot.metadata.index;
+    uint64_t sterm = msg->snapshot.metadata.term;
+
+    if (restore(msg->snapshot)) {
+        LOG_INFO("%lu [commit: %lu] restored snapshot [index: %lu, term: %lu]",
+                 id_, raft_log_->committed(), sindex, sterm);
+        proto::MessagePtr m(new proto::Message());
+        m->to = msg->from;
+        m->type = proto::MsgAppResp;
+        msg->index = raft_log_->last_index();
+        send(std::move(m));
+    }
+    else {
+        LOG_INFO("%lu [commit: %lu] ignored snapshot [index: %lu, term: %lu]",
+                 id_, raft_log_->committed(), sindex, sterm);
+        proto::MessagePtr m(new proto::Message());
+        m->to = msg->from;
+        m->type = proto::MsgAppResp;
+        msg->index = raft_log_->committed();
+        send(std::move(m));
+    }
+
 }
 
-bool Raft::restore(proto::SnapshotPtr snapshot)
+bool Raft::restore(const proto::Snapshot& s)
 {
-    LOG_WARN("no impl yet");
+    if (s.metadata.index <= raft_log_->committed()) {
+        return false;
+    }
+
+    if (raft_log_->match_term(s.metadata.index, s.metadata.term)) {
+        LOG_INFO(
+            "%lu [commit: %lu, last_index: %lu, last_term: %lu] fast-forwarded commit to snapshot [index: %lu, term: %lu]",
+            id_,
+            raft_log_->committed(),
+            raft_log_->last_index(),
+            raft_log_->last_term(),
+            s.metadata.index,
+            s.metadata.term);
+        raft_log_->commit_to(s.metadata.index);
+        return false;
+    }
+
+    // The normal peer can't become learner.
+    if (!is_learner_) {
+        for (uint64_t id : s.metadata.conf_state.learners) {
+            if (id == id_) {
+                LOG_ERROR("%lu can't become learner when restores snapshot [index: %lu, term: %lu]",
+                          id_,
+                          s.metadata.index,
+                          s.metadata.term);
+                return false;
+            }
+
+        }
+    }
+
+    LOG_INFO("%lu [commit: %lu, last_index: %lu, last_term: %lu] starts to restore snapshot [index: %lu, term: %lu]",
+             id_,
+             raft_log_->committed(),
+             raft_log_->last_index(),
+             raft_log_->last_term(),
+             s.metadata.index,
+             s.metadata.term);
+
+    proto::SnapshotPtr snap(new proto::Snapshot(*s.data));
+    raft_log_->restore(snap);
+    prs_.clear();
+    learner_prs_.clear();
+    restore_node(s.metadata.conf_state.nodes, false);
+    restore_node(s.metadata.conf_state.learners, true);
     return true;
 }
 
@@ -881,13 +1005,89 @@ void Raft::send_append(uint64_t to)
 
 bool Raft::maybe_send_append(uint64_t to, bool send_if_empty)
 {
-    LOG_WARN("no impl yet");
+    ProgressPtr pr = get_progress(to);
+    if (pr->is_paused()) {
+        return false;
+    }
+
+    proto::MessagePtr msg(new proto::Message());
+    msg->to = to;
+    uint64_t term = 0;
+    Status status_term = raft_log_->term(pr->next - 1, term);
+    std::vector<proto::EntryPtr> entries;
+    Status status_entries = raft_log_->entries(pr->next, max_msg_size_, entries);
+    if (entries.empty() && !send_if_empty) {
+        return false;
+    }
+
+    if (!status_term.is_ok() || !status_entries.is_ok()) { // send snapshot if we failed to get term or entries
+        if (!pr->recent_active) {
+            LOG_DEBUG("ignore sending snapshot to %lu since it is not recently active", to)
+            return false;
+        }
+
+        msg->type = proto::MsgSnap;
+
+        proto::SnapshotPtr snap;
+        Status status = raft_log_->snapshot(snap);
+        if (!status.is_ok()) {
+            LOG_FATAL("snapshot error %s", status.to_string().c_str());
+        }
+        if (snap->is_empty()) {
+            LOG_FATAL("need non-empty snapshot");
+        }
+        uint64_t sindex = snap->metadata.index;
+        uint64_t sterm = snap->metadata.term;
+        LOG_DEBUG("%lu [first_index: %lu, commit: %lu] sent snapshot[index: %lu, term: %lu] to %lu [%s]",
+                  id_, raft_log_->first_index(), raft_log_->committed(), sindex, sterm, to, pr->string().c_str());
+        pr->become_snapshot(sindex);
+        msg->snapshot = *snap;
+        LOG_DEBUG("%lu paused sending replication messages to %lu [%s]", id_, to, pr->string().c_str());
+    }
+    else {
+        msg->type = proto::MsgApp;
+        msg->index = pr->next - 1;
+        msg->log_term = term;
+        for (proto::EntryPtr& entry: entries) {
+            //copy
+            msg->entries.emplace_back(*entry);
+        }
+
+        msg->commit = raft_log_->committed();
+        if (!msg->entries.empty()) {
+            switch (pr->state) {
+                // optimistically increase the next when in ProgressStateReplicate
+            case ProgressStateReplicate: {
+                uint64_t last = msg->entries.back().index;
+                pr->optimistic_update(last);
+                pr->inflights->add(last);
+                break;
+            }
+            case ProgressStateProbe:pr->set_pause();
+                break;
+            default:LOG_FATAL("%lu is sending append in unhandled state %s", id_, progress_state_to_string(pr->state));
+            }
+        }
+    }
+    send(std::move(msg));
     return true;
 }
 
 void Raft::send_heartbeat(uint64_t to, std::vector<uint8_t> ctx)
 {
-    LOG_WARN("no impl yet");
+    // Attach the commit as min(to.matched, r.committed).
+    // When the leader sends out heartbeat message,
+    // the receiver(follower) might not be matched with the leader
+    // or it might not have all the committed entries.
+    // The leader MUST NOT forward the follower's commit to
+    // an unmatched index.
+    uint64_t commit = std::min(get_progress(to)->match, raft_log_->committed());
+    proto::MessagePtr msg(new proto::Message());
+    msg->to = to;
+    msg->type = proto::MsgHeartbeat;
+    msg->commit = commit;
+    msg->context = std::move(ctx);
+    send(std::move(msg));
 }
 
 void Raft::for_each_progress(const std::function<void(uint64_t, ProgressPtr&)>& callback)
@@ -914,7 +1114,9 @@ void Raft::bcast_append()
 
 void Raft::bcast_heartbeat()
 {
-    LOG_WARN("no impl yet");
+    std::vector<uint8_t> ctx;
+    read_only_->last_pending_request_ctx(ctx);
+    bcast_heartbeat_with_ctx(std::move(ctx));
 }
 
 void Raft::bcast_heartbeat_with_ctx(std::vector<uint8_t> ctx)

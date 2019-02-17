@@ -12,6 +12,8 @@ enum ProgressState
     ProgressStateSnapshot = 2
 };
 
+const char* progress_state_to_string(ProgressState state);
+
 class InFlights
 {
 public:

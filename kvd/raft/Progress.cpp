@@ -4,6 +4,24 @@
 namespace kvd
 {
 
+const char* progress_state_to_string(ProgressState state)
+{
+    switch (state) {
+    case ProgressStateProbe: {
+        return "ProgressStateProbe";
+    }
+    case ProgressStateReplicate: {
+        return "ProgressStateReplicate";
+    }
+    case ProgressStateSnapshot: {
+        return "ProgressStateSnapshot";
+    }
+    default:{
+        LOG_FATAL("unknown state %d", state);
+    }
+    }
+}
+
 void InFlights::add(uint64_t inflight)
 {
     if (is_full()) {

@@ -29,3 +29,6 @@ target_link_libraries(lambda ${LIBS})
 
 add_executable(progress test_progress.cpp)
 target_link_libraries(progress ${LIBS})
+
+add_executable(raft test_raft.cpp)
+target_link_libraries(raft ${LIBS})

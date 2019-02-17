@@ -48,6 +48,17 @@ struct Entry
           index(0)
     {}
 
+    Entry(Entry&& entry)
+        : type(entry.type),
+          term(entry.term),
+          index(entry.index),
+          data(std::move(entry.data))
+    {
+
+    }
+
+    Entry(const Entry& entry) = default;
+
     explicit Entry(EntryType type, uint64_t term, uint64_t index, std::vector<uint8_t> data)
         : type(type),
           term(term),
