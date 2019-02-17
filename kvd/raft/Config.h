@@ -23,6 +23,21 @@ enum ReadOnlyOption
 // Config contains the parameters to start a raft.
 struct Config
 {
+    explicit Config()
+        : id(0),
+          election_tick(0),
+          heartbeat_tick(0),
+          applied(0),
+          max_size_per_msg(0),
+          max_committed_size_per_ready(0),
+          max_uncommitted_entries_size(0),
+          max_inflight_msgs(0),
+          check_quorum(false),
+          pre_vote(0),
+          read_only_option(ReadOnlySafe),
+          disable_proposal_forwarding(false)
+    {}
+
     // id is the identity of the local raft. ID cannot be 0.
     uint64_t id;
 

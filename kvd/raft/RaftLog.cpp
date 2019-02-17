@@ -7,6 +7,8 @@ namespace kvd
 
 RaftLog::RaftLog(StoragePtr storage, uint64_t max_next_ents_size)
     : storage_(std::move(storage)),
+      committed_(0),
+      applied_(0),
       max_next_ents_size_(max_next_ents_size)
 {
     assert(storage_);

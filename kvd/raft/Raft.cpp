@@ -174,7 +174,9 @@ void Raft::become_leader()
     if (state_ == RaftState::Follower) {
         LOG_FATAL("invalid transition [follower -> leader]");
     }
-    step_ = std::bind(&Raft::step_leader, this, std::placeholders::_1);
+    step_ = [this](proto::MessagePtr msg) {
+        return this->step_leader(std::move(msg));
+    };
     reset(term_);
     tick_ = std::bind(&Raft::tick_heartbeat, this);
     lead_ = id_;
@@ -796,7 +798,8 @@ Status Raft::step_leader(proto::MessagePtr msg)
                      id_,
                      lead_transferee,
                      lead_transferee);
-        } else {
+        }
+        else {
             send_append(lead_transferee);
         }
         break;
