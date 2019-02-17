@@ -183,9 +183,9 @@ TEST(progress, BecomeSnapshot)
     pr->match = 1;
     pr->next = 5;
     pr->become_snapshot(10);
-    ASSERT_TRUE(pr->match = 1);
-    ASSERT_TRUE(pr->state = ProgressStateSnapshot);
-    ASSERT_TRUE(pr->pending_snapshot = 10);
+    ASSERT_TRUE(pr->match == 1);
+    ASSERT_TRUE(pr->state == ProgressStateSnapshot);
+    ASSERT_TRUE(pr->pending_snapshot == 10);
 }
 
 TEST(progress, Update)
@@ -213,8 +213,52 @@ TEST(progress, Update)
 
         bool ok = pr->maybe_update(test.update);
         ASSERT_TRUE(ok == test.wok);
-        ASSERT_TRUE(pr->match = test.wm);
-        ASSERT_TRUE(pr->next = test.wn);
+        ASSERT_TRUE(pr->match == test.wm);
+        ASSERT_TRUE(pr->next == test.wn);
+    }
+}
+
+TEST(progress, MaybeDecr)
+{
+    struct Test
+    {
+        ProgressState state;
+        uint64_t m;
+        uint64_t n;
+        uint64_t rejected;
+        uint64_t last;
+        bool w;
+        uint64_t wn;
+    };
+    std::vector<Test> tests;
+
+    // state replicate and rejected is not greater than match
+    tests.push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 5, .last = 5, .w = false, .wn = 10});
+    // state replicate and rejected is not greater than match
+    tests.push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 4, .last = 5, .w = false, .wn = 10});
+    // state replicate and rejected is greater than match
+    // directly decrease to match+1
+    tests.push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 9, .last = 9, .w = true, .wn = 6});
+    // next-1 != rejected is always false
+    tests.push_back(Test{.state = ProgressStateProbe, .m = 0, .n = 0, .rejected = 0, .last = 0, .w = false, .wn = 0});
+    // next-1 != rejected is always false
+    tests.push_back(Test{.state = ProgressStateProbe, .m = 0, .n = 10, .rejected = 5, .last = 5, .w = false, .wn = 10});
+    // next>1 = decremented by 1
+    tests.push_back(Test{.state = ProgressStateProbe, .m = 0, .n = 10, .rejected = 9, .last = 9, .w = true, .wn = 9});
+    tests.push_back(Test{.state = ProgressStateProbe, .m = 0, .n = 2, .rejected = 1, .last = 1, .w = true, .wn = 1});
+    tests.push_back(Test{.state = ProgressStateProbe, .m = 0, .n = 1, .rejected = 0, .last = 0, .w = true, .wn = 1});
+    tests.push_back(Test{.state = ProgressStateProbe, .m = 0, .n = 10, .rejected = 9, .last = 2, .w = true, .wn = 3});
+    tests.push_back(Test{.state = ProgressStateProbe, .m = 0, .n = 10, .rejected = 9, .last = 0, .w = true, .wn = 1});
+    for (Test& test: tests) {
+        ProgressPtr pr(new Progress(256));
+        pr->state = test.state;
+        pr->match = test.m;
+        pr->next = test.n;
+
+        bool ok = pr->maybe_decreases_to(test.rejected, test.last);
+        ASSERT_TRUE(ok == test.w);
+        ASSERT_TRUE(pr->match == test.m);
+        ASSERT_TRUE(pr->next == test.wn);
     }
 }
 
