@@ -578,8 +578,43 @@ Status Raft::step_leader(proto::MessagePtr msg)
         bcast_append();
         return Status::ok();
     }
-    case proto::MsgReadIndex:LOG_ERROR("MsgReadIndex not impl yet");
+    case proto::MsgReadIndex: {
+        if (quorum() > 1) {
+            uint64_t term = 0;
+            raft_log_->term(raft_log_->committed(), term);
+            if (term != term_) {
+                return Status::ok();
+            }
+
+            // thinking: use an interally defined context instead of the user given context.
+            // We can express this in terms of the term and index instead of a user-supplied value.
+            // This would allow multiple reads to piggyback on the same message.
+            switch (read_only_->option) {
+            case ReadOnlySafe:read_only_->add_request(raft_log_->committed(), msg);
+                bcast_heartbeat_with_ctx(msg->entries[0].data);
+                break;
+            case ReadOnlyLeaseBased:
+                if (msg->from == 0 || msg->from == id_) { // from local member
+                    read_states_
+                        .push_back(ReadState{.index = raft_log_->committed(), .request_ctx = msg->entries[0].data});
+                }
+                else {
+                    proto::MessagePtr m(new proto::Message());
+                    m->to = msg->from;
+                    m->type = proto::MsgReadIndexResp;
+                    m->index = raft_log_->committed();
+                    m->entries = msg->entries;
+                    send(std::move(m));
+                }
+                break;
+            }
+        }
+        else {
+            read_states_.push_back(ReadState{.index = raft_log_->committed(), .request_ctx = msg->entries[0].data});
+        }
+
         return Status::ok();
+    }
     }
 
     // All other message types require a progress for m.From (pr).
@@ -694,7 +729,76 @@ Status Raft::step_leader(proto::MessagePtr msg)
     }
         break;
     case proto::MsgSnapStatus: {
-        LOG_ERROR("no impl yet");
+        if (pr->state != ProgressStateSnapshot) {
+            return Status::ok();
+        }
+        if (!msg->reject) {
+            pr->become_probe();
+            LOG_DEBUG("%lu snapshot succeeded, resumed sending replication messages to %lu [%s]",
+                      id_,
+                      msg->from,
+                      pr->string().c_str());
+        }
+        else {
+            pr->snapshot_failure();
+            pr->become_probe();
+            LOG_DEBUG("%lu snapshot failed, resumed sending replication messages to %lu [%s]",
+                      id_,
+                      msg->from,
+                      pr->string().c_str());
+        }
+        // If snapshot finish, wait for the msgAppResp from the remote node before sending
+        // out the next msgApp.
+        // If snapshot failure, wait for a heartbeat interval before next try
+        pr->set_pause();
+        break;
+    }
+    case proto::MsgUnreachable: {
+        // During optimistic replication, if the remote becomes unreachable,
+        // there is huge probability that a MsgApp is lost.
+        if (pr->state == ProgressStateReplicate) {
+            pr->become_probe();
+        }
+        LOG_DEBUG("%lu failed to send message to %lu because it is unreachable [%s]", id_,
+                  msg->from,
+                  pr->string().c_str());
+        break;
+    }
+    case proto::MsgTransferLeader: {
+        if (pr->is_learner) {
+            LOG_DEBUG("%lu is learner. Ignored transferring leadership", id_);
+            return Status::ok();
+        }
+
+        uint64_t lead_transferee = msg->from;
+        uint64_t last_lead_transferee = lead_transferee_;
+        if (last_lead_transferee != 0) {
+            if (last_lead_transferee == lead_transferee) {
+                LOG_INFO("%lu [term %lu] transfer leadership to %lu is in progress, ignores request to same node %lu",
+                         id_, term_, lead_transferee, lead_transferee);
+                return Status::ok();
+            }
+            abort_leader_transfer();
+            LOG_INFO("%lu [term %lu] abort previous transferring leadership to %lu", id_, term_, last_lead_transferee);
+        }
+        if (lead_transferee == id_) {
+            LOG_DEBUG("%lu is already leader. Ignored transferring leadership to self", id_);
+            return Status::ok();
+        }
+        // Transfer leadership to third party.
+        LOG_INFO("%lu [term %lu] starts to transfer leadership to %lu", id_, term_, lead_transferee);
+        // Transfer leadership should be finished in one electionTimeout, so reset r.electionElapsed.
+        election_elapsed_ = 0;
+        lead_transferee_ = lead_transferee;
+        if (pr->match == raft_log_->last_index()) {
+            send_timeout_now(lead_transferee);
+            LOG_INFO("%lu sends MsgTimeoutNow to %lu immediately as %lu already has up-to-date log",
+                     id_,
+                     lead_transferee,
+                     lead_transferee);
+        } else {
+            send_append(lead_transferee);
+        }
         break;
     }
     }
@@ -1297,7 +1401,7 @@ void Raft::bcast_heartbeat()
     bcast_heartbeat_with_ctx(std::move(ctx));
 }
 
-void Raft::bcast_heartbeat_with_ctx(std::vector<uint8_t> ctx)
+void Raft::bcast_heartbeat_with_ctx(const std::vector<uint8_t>& ctx)
 {
     for_each_progress([this, ctx](uint64_t id, ProgressPtr& progress) {
         if (id == id_) {

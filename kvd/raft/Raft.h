@@ -118,7 +118,7 @@ public:
 
     void bcast_heartbeat();
 
-    void bcast_heartbeat_with_ctx(std::vector<uint8_t> ctx);
+    void bcast_heartbeat_with_ctx(const std::vector<uint8_t>& ctx);
 
     // maybe_commit attempts to advance the commit index. Returns true if
     // the commit index changed (in which case the caller should call

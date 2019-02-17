@@ -111,6 +111,12 @@ public:
     // is equal or higher than the pending_snapshot.
     bool need_snapshot_abort() const;
 
+    void snapshot_failure()
+    {
+        pending_snapshot = 0;
+    }
+
+
     uint64_t match;
     uint64_t next;
     // state defines how the leader should interact with the follower.

@@ -60,4 +60,18 @@ std::vector<ReadIndexStatusPtr> ReadOnly::advance(const proto::Message& msg)
     return rss;
 }
 
+void ReadOnly::add_request(uint64_t index, proto::MessagePtr msg)
+{
+    std::string ctx(msg->entries[0].data.begin(), msg->entries[0].data.end());
+    auto it = pending_read_index.find(ctx);
+    if (it != pending_read_index.end()) {
+        return;
+    }
+    ReadIndexStatusPtr status(new ReadIndexStatus());
+    status->index = index;
+    status->req = *msg;
+    pending_read_index[ctx] = status;
+    read_index_queue.push_back(ctx);
+}
+
 }

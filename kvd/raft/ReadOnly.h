@@ -42,6 +42,8 @@ struct ReadOnly
 
     std::vector<ReadIndexStatusPtr> advance(const proto::Message& msg);
 
+    void add_request(uint64_t index, proto::MessagePtr msg);
+
     ReadOnlyOption option;
     std::unordered_map<std::string, ReadIndexStatusPtr> pending_read_index;
     std::vector<std::string> read_index_queue;
