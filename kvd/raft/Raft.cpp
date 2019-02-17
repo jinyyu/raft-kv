@@ -1587,7 +1587,6 @@ bool Raft::increase_uncommitted_size(const std::vector<proto::EntryPtr>& entries
     for (auto& entry : entries) {
         s += entry->payload_size();
     }
-
     if (uncommitted_size_ > 0 && uncommitted_size_ + s > max_uncommitted_size_) {
         // If the uncommitted tail of the Raft log is empty, allow any size
         // proposal. Otherwise, limit the size of the uncommitted tail of the

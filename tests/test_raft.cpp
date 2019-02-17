@@ -26,6 +26,7 @@ static RaftPtr newTestRaft(uint64_t id,
                            StoragePtr storage)
 {
     Config c = newTestConfig(id, peers, election, heartbeat, storage);
+    c.validate();
     return std::make_shared<Raft>(c);
 }
 
@@ -47,9 +48,6 @@ TEST(raft, ProgressLeader)
 
     // Send proposals to r1. The first 5 entries should be appended to the log.
     for (uint32_t i = 0; i < 5; i++) {
-        if (i > 1) {
-            return;
-        }
         LOG_INFO("ProgressLeader %u", i);
         auto pr = r->get_progress(r->id());
         ASSERT_TRUE(pr->state == ProgressStateReplicate);
