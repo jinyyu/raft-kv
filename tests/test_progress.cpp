@@ -262,6 +262,40 @@ TEST(progress, MaybeDecr)
     }
 }
 
+TEST(progress, IsPaused)
+{
+    struct Test
+    {
+        ProgressState state;
+        bool paused;
+        bool w;
+    };
+    std::vector<Test> tests;
+    tests.push_back(Test{.state = ProgressStateProbe, .paused = false, .w = false});
+    tests.push_back(Test{.state = ProgressStateProbe, .paused = true, .w = true});
+    tests.push_back(Test{.state = ProgressStateReplicate, .paused = false, .w = false});
+    tests.push_back(Test{.state = ProgressStateReplicate, .paused = true, .w = false});
+    tests.push_back(Test{.state = ProgressStateSnapshot, .paused = false, .w = true});
+    tests.push_back(Test{.state = ProgressStateSnapshot, .paused = true, .w = true});
+    for (Test& test: tests) {
+        ProgressPtr pr(new Progress(256));
+        pr->state = test.state;
+        pr->paused = test.paused;
+        ASSERT_TRUE(pr->is_paused() == test.w);
+    }
+}
+
+TEST(progress, resume)
+{
+    ProgressPtr pr(new Progress(256));
+    pr->next = 2;
+    pr->paused = true;
+    pr->maybe_decreases_to(2, 2);
+    ASSERT_TRUE(pr->paused);
+    pr->maybe_update(2);
+    ASSERT_FALSE(pr->paused);
+}
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
