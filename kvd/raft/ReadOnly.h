@@ -38,6 +38,10 @@ struct ReadOnly
     // request in readonly struct.
     void last_pending_request_ctx(std::vector<uint8_t>& ctx);
 
+    uint32_t recv_ack(const proto::Message& msg);
+
+    std::vector<ReadIndexStatusPtr> advance(const proto::Message& msg);
+
     ReadOnlyOption option;
     std::unordered_map<std::string, ReadIndexStatusPtr> pending_read_index;
     std::vector<std::string> read_index_queue;

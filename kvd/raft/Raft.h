@@ -127,7 +127,7 @@ public:
 
     void reset(uint64_t term);
 
-    bool append_entry(std::vector<proto::EntryPtr> entries);
+    bool append_entry(const std::vector<proto::Entry>& entries);
 
     // tick_election is run by followers and candidates after ElectionTimeout.
     void tick_election();
@@ -141,7 +141,7 @@ public:
 
     void reset_randomized_election_timeout();
 
-    bool check_quorum_active() const;
+    bool check_quorum_active();
 
     void send_timeout_now(uint64_t to);
 
@@ -152,7 +152,7 @@ public:
     // If the new entries would exceed the limit, the method returns false. If not,
     // the increase in uncommitted entry size is recorded and the method returns
     // true.
-    bool increase_uncommitted_size(std::vector<proto::EntryPtr> entries);
+    bool increase_uncommitted_size(const std::vector<proto::EntryPtr>& entries);
 
     // reduce_uncommitted_size accounts for the newly committed entries by decreasing
     // the uncommitted entry size limit.

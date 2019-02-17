@@ -183,4 +183,10 @@ bool Progress::maybe_decreases_to(uint64_t rejected, uint64_t last)
     return true;
 }
 
+
+bool Progress::need_snapshot_abort() const
+{
+    return state == ProgressStateSnapshot && match >= pending_snapshot;
+}
+
 }

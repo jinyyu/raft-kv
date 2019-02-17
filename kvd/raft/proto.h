@@ -57,6 +57,7 @@ struct Entry
 
     }
 
+    kvd::proto::Entry& operator=(const kvd::proto::Entry& entry) = default;
     Entry(const Entry& entry) = default;
 
     explicit Entry(EntryType type, uint64_t term, uint64_t index, std::vector<uint8_t> data)

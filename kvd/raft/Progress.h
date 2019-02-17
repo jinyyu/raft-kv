@@ -107,6 +107,10 @@ public:
     // Otherwise it decreases the progress next index to min(rejected, last) and returns true.
     bool maybe_decreases_to(uint64_t rejected, uint64_t last);
 
+    // need_snapshot_abort returns true if snapshot progress's match
+    // is equal or higher than the pending_snapshot.
+    bool need_snapshot_abort() const;
+
     uint64_t match;
     uint64_t next;
     // state defines how the leader should interact with the follower.
