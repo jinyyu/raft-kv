@@ -97,44 +97,24 @@ TEST(raft, ProgressPaused)
     r->become_candidate();
     r->become_leader();
 
-    {
-        proto::MessagePtr msg(new proto::Message());
-        msg->from = 1;
-        msg->to = 1;
-        msg->type = proto::MsgProp;
-        proto::Entry e;
-        e.data = std::vector<uint8_t>{'f', 'o', 'o'};
-        msg->entries.push_back(e);
-        r->step(msg);
-    }
-    {
-        proto::MessagePtr msg(new proto::Message());
-        msg->from = 1;
-        msg->to = 1;
-        msg->type = proto::MsgProp;
-        proto::Entry e;
-        e.data = std::vector<uint8_t>{'f', 'o', 'o'};
-        msg->entries.push_back(e);
-        r->step(msg);
-    }
-    {
-        proto::MessagePtr msg(new proto::Message());
-        msg->from = 1;
-        msg->to = 1;
-        msg->type = proto::MsgProp;
-        proto::Entry e;
-        e.data = std::vector<uint8_t>{'f', 'o', 'o'};
-        msg->entries.push_back(e);
-        r->step(msg);
-    }
+    proto::MessagePtr msg(new proto::Message());
+    msg->from = 1;
+    msg->to = 1;
+    msg->type = proto::MsgProp;
+    proto::Entry e;
+    e.data = std::vector<uint8_t>{'f', 'o', 'o'};
+    msg->entries.push_back(e);
+    r->step(msg);
+    r->step(msg);
+    r->step(msg);
 
     auto msgs = r->msgs();
-    fprintf(stderr, "===================%lu\n", msgs.size());
     ASSERT_TRUE(r->msgs().size() == 1);
 }
 
 int main(int argc, char* argv[])
 {
+    testing::GTEST_FLAG(output) = "raft.ProgressPaused";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

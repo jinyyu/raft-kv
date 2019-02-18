@@ -440,17 +440,17 @@ Status Raft::step(proto::MessagePtr msg)
     case proto::MsgPreVote: {
         if (is_learner_) {
             // TODO: learner may need to vote, in case of node down when confchange.
-            LOG_INFO(append_entry
-                         "%lu [log_term: %lu, index: %lu, vote: %lu] ignored %s from %lu [log_term: %lu, index: %lu] at term %lu: learner can not vote",
-                     id_,
-                     raft_log_->last_term(),
-                     raft_log_->last_index(),
-                     vote_,
-                     proto::msg_type_to_string(msg->type),
-                     msg->from,
-                     msg->log_term,
-                     msg->index,
-                     msg->term);
+            LOG_INFO(
+                "%lu [log_term: %lu, index: %lu, vote: %lu] ignored %s from %lu [log_term: %lu, index: %lu] at term %lu: learner can not vote",
+                id_,
+                raft_log_->last_term(),
+                raft_log_->last_index(),
+                vote_,
+                proto::msg_type_to_string(msg->type),
+                msg->from,
+                msg->log_term,
+                msg->index,
+                msg->term);
             return Status::ok();
         }
         // We can vote if this is a repeat of a vote we've already cast...
@@ -1361,9 +1361,13 @@ bool Raft::maybe_send_append(uint64_t to, bool send_if_empty)
                 pr->inflights->add(last);
                 break;
             }
-            case ProgressStateProbe:pr->set_pause();
+            case ProgressStateProbe: {
+                pr->set_pause();
                 break;
-            default:LOG_FATAL("%lu is sending append in unhandled state %s", id_, progress_state_to_string(pr->state));
+            }
+            default: {
+                LOG_FATAL("%lu is sending append in unhandled state %s", id_, progress_state_to_string(pr->state));
+            }
             }
         }
     }
@@ -1460,7 +1464,7 @@ void Raft::reset(uint64_t term)
     for_each_progress([this](uint64_t id, ProgressPtr& progress) {
         bool is_learner = progress->is_learner;
         progress = std::make_shared<Progress>(max_inflight_);
-        progress->next = raft_log_->last_index();
+        progress->next = raft_log_->last_index() + 1;
         progress->is_learner = is_learner;
 
         if (id == id_) {
@@ -1483,8 +1487,6 @@ void Raft::add_node(uint64_t id)
 bool Raft::append_entry(const std::vector<proto::Entry>& entries)
 {
     uint64_t li = raft_log_->last_index();
-    fprintf(stderr, "---------------------%lu\n", li);
-
     std::vector<proto::EntryPtr> ents(entries.size(), nullptr);
 
     for (size_t i = 0; i < entries.size(); ++i) {

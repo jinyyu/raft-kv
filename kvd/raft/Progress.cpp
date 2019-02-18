@@ -124,10 +124,10 @@ std::string Progress::string() const
     char buffer[256];
     int n = snprintf(buffer,
                      sizeof(buffer),
-                     "next = %lu, match = %lu, state = %d, waiting = %d, pendingSnapshot = %lu",
+                     "next = %lu, match = %lu, state = %s, waiting = %d, pendingSnapshot = %lu",
                      next,
                      match,
-                     state,
+                     progress_state_to_string(state),
                      is_paused(),
                      pending_snapshot);
     return std::string(buffer, n);
