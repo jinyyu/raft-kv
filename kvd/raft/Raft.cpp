@@ -440,7 +440,7 @@ Status Raft::step(proto::MessagePtr msg)
         case proto::MsgPreVote: {
             if (is_learner_) {
                 // TODO: learner may need to vote, in case of node down when confchange.
-                LOG_INFO(
+                LOG_INFO(append_entry
                     "%lu [log_term: %lu, index: %lu, vote: %lu] ignored %s from %lu [log_term: %lu, index: %lu] at term %lu: learner can not vote",
                     id_,
                     raft_log_->last_term(),
@@ -1490,6 +1490,7 @@ void Raft::add_node(uint64_t id)
 bool Raft::append_entry(const std::vector<proto::Entry>& entries)
 {
     uint64_t li = raft_log_->last_index();
+    fprintf(stderr, "---------------------%lu\n", li);
 
     std::vector<proto::EntryPtr> ents(entries.size(), nullptr);
 
