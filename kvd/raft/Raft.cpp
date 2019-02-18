@@ -174,9 +174,8 @@ void Raft::become_leader()
     if (state_ == RaftState::Follower) {
         LOG_FATAL("invalid transition [follower -> leader]");
     }
-    step_ = [this](proto::MessagePtr msg) {
-        return this->step_leader(std::move(msg));
-    };
+    step_ = std::bind(&Raft::step_leader, this, std::placeholders::_1);
+
     reset(term_);
     tick_ = std::bind(&Raft::tick_heartbeat, this);
     lead_ = id_;
@@ -296,7 +295,7 @@ uint32_t Raft::poll(uint64_t id, proto::MessageType type, bool v)
 Status Raft::step(proto::MessagePtr msg)
 {
     if (msg->term == 0) {
-        LOG_INFO("local msg %s", proto::msg_type_to_string(msg->type));
+        LOG_DEBUG("local msg %s", proto::msg_type_to_string(msg->type));
     }
     else if (msg->term > term_) {
         if (msg->type == proto::MsgVote || msg->type == proto::MsgPreVote) {
@@ -405,121 +404,122 @@ Status Raft::step(proto::MessagePtr msg)
     }
 
     switch (msg->type) {
-    case proto::MsgHup: {
-        if (state_ != RaftState::Leader) {
-            std::vector<proto::EntryPtr> entries;
-            Status status =
-                raft_log_->slice(raft_log_->applied() + 1, raft_log_->committed() + 1, RaftLog::unlimited(), entries);
-            if (!status.is_ok()) {
-                LOG_FATAL("unexpected error getting unapplied entries (%s)", status.to_string().c_str());
-            }
+        case proto::MsgHup: {
+            if (state_ != RaftState::Leader) {
+                std::vector<proto::EntryPtr> entries;
+                Status status =
+                    raft_log_
+                        ->slice(raft_log_->applied() + 1, raft_log_->committed() + 1, RaftLog::unlimited(), entries);
+                if (!status.is_ok()) {
+                    LOG_FATAL("unexpected error getting unapplied entries (%s)", status.to_string().c_str());
+                }
 
-            uint32_t pending = num_of_pending_conf(entries);
-            if (pending > 0 && raft_log_->committed() > raft_log_->applied()) {
-                LOG_WARN(
-                    "%lu cannot campaign at term %lu since there are still %u pending configuration changes to apply",
-                    id_,
-                    term_,
-                    pending);
-                return Status::ok();
-            }
-            LOG_INFO("%lu is starting a new election at term %lu", id_, term_);
-            if (pre_vote_) {
-                campaign(kCampaignPreElection);
+                uint32_t pending = num_of_pending_conf(entries);
+                if (pending > 0 && raft_log_->committed() > raft_log_->applied()) {
+                    LOG_WARN(
+                        "%lu cannot campaign at term %lu since there are still %u pending configuration changes to apply",
+                        id_,
+                        term_,
+                        pending);
+                    return Status::ok();
+                }
+                LOG_INFO("%lu is starting a new election at term %lu", id_, term_);
+                if (pre_vote_) {
+                    campaign(kCampaignPreElection);
+                }
+                else {
+                    campaign(kCampaignElection);
+                }
             }
             else {
-                campaign(kCampaignElection);
+                LOG_DEBUG("%lu ignoring MsgHup because already leader", id_);
             }
+            break;
         }
-        else {
-            LOG_DEBUG("%lu ignoring MsgHup because already leader", id_);
-        }
-        break;
-    }
-    case proto::MsgVote:
-    case proto::MsgPreVote: {
-        if (is_learner_) {
-            // TODO: learner may need to vote, in case of node down when confchange.
-            LOG_INFO(
-                "%lu [log_term: %lu, index: %lu, vote: %lu] ignored %s from %lu [log_term: %lu, index: %lu] at term %lu: learner can not vote",
-                id_,
-                raft_log_->last_term(),
-                raft_log_->last_index(),
-                vote_,
-                proto::msg_type_to_string(msg->type),
-                msg->from,
-                msg->log_term,
-                msg->index,
-                msg->term);
-            return Status::ok();
-        }
-        // We can vote if this is a repeat of a vote we've already cast...
-        bool can_vote = vote_ == msg->from ||
-            // ...we haven't voted and we don't think there's a leader yet in this term...
-            (vote_ == 0 && lead_ == 0) ||
-            // ...or this is a PreVote for a future term...
-            (msg->type == proto::MsgPreVote && msg->term > term_);
-        // ...and we believe the candidate is up to date.
-        if (can_vote && this->raft_log_->is_up_to_date(msg->index, msg->term)) {
-            LOG_INFO(
-                "%lu [log_term: %lu, index: %lu, vote: %lu] cast %s for %lu [log_term: %lu, index: %lu] at term %lu",
-                id_,
-                raft_log_->last_term(),
-                raft_log_->last_index(),
-                vote_,
-                proto::msg_type_to_string(msg->type),
-                msg->from,
-                msg->log_term,
-                msg->index,
-                msg->term);
-            // When responding to Msg{Pre,}Vote messages we include the term
-            // from the message, not the local term. To see why consider the
-            // case where a single node was previously partitioned away and
-            // it's local term is now of date. If we include the local term
-            // (recall that for pre-votes we don't update the local term), the
-            // (pre-)campaigning node on the other end will proceed to ignore
-            // the message (it ignores all out of date messages).
-            // The term in the original message and current local term are the
-            // same in the case of regular votes, but different for pre-votes.
-
-            proto::MessagePtr m(new proto::Message());
-            m->to = msg->from;
-            m->term = msg->term;
-            m->type = vote_resp_msg_type(msg->type);
-            send(std::move(m));
-
-            if (msg->type == proto::MsgVote) {
-                // Only record real votes.
-                election_elapsed_ = 0;
-                vote_ = msg->from;
+        case proto::MsgVote:
+        case proto::MsgPreVote: {
+            if (is_learner_) {
+                // TODO: learner may need to vote, in case of node down when confchange.
+                LOG_INFO(
+                    "%lu [log_term: %lu, index: %lu, vote: %lu] ignored %s from %lu [log_term: %lu, index: %lu] at term %lu: learner can not vote",
+                    id_,
+                    raft_log_->last_term(),
+                    raft_log_->last_index(),
+                    vote_,
+                    proto::msg_type_to_string(msg->type),
+                    msg->from,
+                    msg->log_term,
+                    msg->index,
+                    msg->term);
+                return Status::ok();
             }
-        }
-        else {
-            LOG_INFO(
-                "%lu [log_term: %lu, index: %lu, vote: %lu] rejected %s from %lu [log_term: %lu, index: %lu] at term %lu",
-                id_,
-                raft_log_->last_term(),
-                raft_log_->last_index(),
-                vote_,
-                proto::msg_type_to_string(msg->type),
-                msg->from,
-                msg->log_term,
-                msg->index,
-                msg->term);
+            // We can vote if this is a repeat of a vote we've already cast...
+            bool can_vote = vote_ == msg->from ||
+                // ...we haven't voted and we don't think there's a leader yet in this term...
+                (vote_ == 0 && lead_ == 0) ||
+                // ...or this is a PreVote for a future term...
+                (msg->type == proto::MsgPreVote && msg->term > term_);
+            // ...and we believe the candidate is up to date.
+            if (can_vote && this->raft_log_->is_up_to_date(msg->index, msg->term)) {
+                LOG_INFO(
+                    "%lu [log_term: %lu, index: %lu, vote: %lu] cast %s for %lu [log_term: %lu, index: %lu] at term %lu",
+                    id_,
+                    raft_log_->last_term(),
+                    raft_log_->last_index(),
+                    vote_,
+                    proto::msg_type_to_string(msg->type),
+                    msg->from,
+                    msg->log_term,
+                    msg->index,
+                    msg->term);
+                // When responding to Msg{Pre,}Vote messages we include the term
+                // from the message, not the local term. To see why consider the
+                // case where a single node was previously partitioned away and
+                // it's local term is now of date. If we include the local term
+                // (recall that for pre-votes we don't update the local term), the
+                // (pre-)campaigning node on the other end will proceed to ignore
+                // the message (it ignores all out of date messages).
+                // The term in the original message and current local term are the
+                // same in the case of regular votes, but different for pre-votes.
 
-            proto::MessagePtr m(new proto::Message());
-            m->to = msg->from;
-            m->term = term_;
-            m->type = vote_resp_msg_type(msg->type);
-            m->reject = true;
-            send(std::move(m));
-        }
+                proto::MessagePtr m(new proto::Message());
+                m->to = msg->from;
+                m->term = msg->term;
+                m->type = vote_resp_msg_type(msg->type);
+                send(std::move(m));
 
-        break;
-    }
-    default: {
-        return step_(msg);
-    }
+                if (msg->type == proto::MsgVote) {
+                    // Only record real votes.
+                    election_elapsed_ = 0;
+                    vote_ = msg->from;
+                }
+            }
+            else {
+                LOG_INFO(
+                    "%lu [log_term: %lu, index: %lu, vote: %lu] rejected %s from %lu [log_term: %lu, index: %lu] at term %lu",
+                    id_,
+                    raft_log_->last_term(),
+                    raft_log_->last_index(),
+                    vote_,
+                    proto::msg_type_to_string(msg->type),
+                    msg->from,
+                    msg->log_term,
+                    msg->index,
+                    msg->term);
+
+                proto::MessagePtr m(new proto::Message());
+                m->to = msg->from;
+                m->term = term_;
+                m->type = vote_resp_msg_type(msg->type);
+                m->reject = true;
+                send(std::move(m));
+            }
+
+            break;
+        }
+        default: {
+            return step_(msg);
+        }
     }
 
     return Status::ok();
@@ -529,94 +529,101 @@ Status Raft::step_leader(proto::MessagePtr msg)
 {
     // These message types do not require any progress for m.From.
     switch (msg->type) {
-    case proto::MsgBeat:bcast_heartbeat();
-        return Status::ok();
-    case proto::MsgCheckQuorum:
-        if (!check_quorum_active()) {
-            LOG_WARN("%lu stepped down to follower since quorum is not active", id_);
-            become_follower(term_, 0);
+        case proto::MsgBeat: {
+            bcast_heartbeat();
+            return Status::ok();
         }
-        return Status::ok();
-    case proto::MsgProp: {
-        if (msg->entries.empty()) {
-            LOG_FATAL("%lu stepped empty MsgProp", id_);
-        }
-        auto it = prs_.find(id_);
-        if (it == prs_.end()) {
-            // If we are not currently a member of the range (i.e. this node
-            // was removed from the configuration while serving as leader),
-            // drop any new proposals.
-            return Status::invalid_argument("raft proposal dropped");
-        }
-
-        if (lead_transferee_ != 0) {
-            LOG_DEBUG("%lu [term %lu] transfer leadership to %lu is in progress; dropping proposal",
-                      id_,
-                      term_,
-                      lead_transferee_);
-            return Status::invalid_argument("raft proposal dropped");
-        }
-
-        for (size_t i = 0; i < msg->entries.size(); ++i) {
-            proto::Entry& e = msg->entries[i];
-            if (e.type == proto::EntryConfChange) {
-                if (pending_conf_index_ > raft_log_->applied()) {
-                    LOG_INFO("propose conf %s ignored since pending unapplied configuration [index %lu, applied %lu]",
-                             proto::entry_type_to_string(e.type), pending_conf_index_, raft_log_->applied());
-                    e.type = proto::EntryNormal;
-                    e.index = 0;
-                    e.term = 0;
-                    e.data.clear();
-                }
-                else {
-                    pending_conf_index_ = raft_log_->last_index() + i + 1;
-                }
+        case proto::MsgCheckQuorum:
+            if (!check_quorum_active()) {
+                LOG_WARN("%lu stepped down to follower since quorum is not active", id_);
+                become_follower(term_, 0);
             }
-        }
-
-        if (!append_entry(msg->entries)) {
-            return Status::invalid_argument("raft proposal dropped");
-        }
-        bcast_append();
-        return Status::ok();
-    }
-    case proto::MsgReadIndex: {
-        if (quorum() > 1) {
-            uint64_t term = 0;
-            raft_log_->term(raft_log_->committed(), term);
-            if (term != term_) {
-                return Status::ok();
+            return Status::ok();
+        case proto::MsgProp: {
+            if (msg->entries.empty()) {
+                LOG_FATAL("%lu stepped empty MsgProp", id_);
+            }
+            auto it = prs_.find(id_);
+            if (it == prs_.end()) {
+                // If we are not currently a member of the range (i.e. this node
+                // was removed from the configuration while serving as leader),
+                // drop any new proposals.
+                return Status::invalid_argument("raft proposal dropped");
             }
 
-            // thinking: use an interally defined context instead of the user given context.
-            // We can express this in terms of the term and index instead of a user-supplied value.
-            // This would allow multiple reads to piggyback on the same message.
-            switch (read_only_->option) {
-            case ReadOnlySafe:read_only_->add_request(raft_log_->committed(), msg);
-                bcast_heartbeat_with_ctx(msg->entries[0].data);
-                break;
-            case ReadOnlyLeaseBased:
-                if (msg->from == 0 || msg->from == id_) { // from local member
-                    read_states_
-                        .push_back(ReadState{.index = raft_log_->committed(), .request_ctx = msg->entries[0].data});
-                }
-                else {
-                    proto::MessagePtr m(new proto::Message());
-                    m->to = msg->from;
-                    m->type = proto::MsgReadIndexResp;
-                    m->index = raft_log_->committed();
-                    m->entries = msg->entries;
-                    send(std::move(m));
-                }
-                break;
+            if (lead_transferee_ != 0) {
+                LOG_DEBUG("%lu [term %lu] transfer leadership to %lu is in progress; dropping proposal",
+                          id_,
+                          term_,
+                          lead_transferee_);
+                return Status::invalid_argument("raft proposal dropped");
             }
-        }
-        else {
-            read_states_.push_back(ReadState{.index = raft_log_->committed(), .request_ctx = msg->entries[0].data});
-        }
 
-        return Status::ok();
-    }
+            for (size_t i = 0; i < msg->entries.size(); ++i) {
+                proto::Entry& e = msg->entries[i];
+                if (e.type == proto::EntryConfChange) {
+                    if (pending_conf_index_ > raft_log_->applied()) {
+                        LOG_INFO(
+                            "propose conf %s ignored since pending unapplied configuration [index %lu, applied %lu]",
+                            proto::entry_type_to_string(e.type),
+                            pending_conf_index_,
+                            raft_log_->applied());
+                        e.type = proto::EntryNormal;
+                        e.index = 0;
+                        e.term = 0;
+                        e.data.clear();
+                    }
+                    else {
+                        pending_conf_index_ = raft_log_->last_index() + i + 1;
+                    }
+                }
+            }
+
+            if (!append_entry(msg->entries)) {
+                return Status::invalid_argument("raft proposal dropped");
+            }
+            bcast_append();
+            return Status::ok();
+        }
+        case proto::MsgReadIndex: {
+            if (quorum() > 1) {
+                uint64_t term = 0;
+                raft_log_->term(raft_log_->committed(), term);
+                if (term != term_) {
+                    return Status::ok();
+                }
+
+                // thinking: use an interally defined context instead of the user given context.
+                // We can express this in terms of the term and index instead of a user-supplied value.
+                // This would allow multiple reads to piggyback on the same message.
+                switch (read_only_->option) {
+                    case ReadOnlySafe:
+                        read_only_->add_request(raft_log_->committed(), msg);
+                        bcast_heartbeat_with_ctx(msg->entries[0].data);
+                        break;
+                    case ReadOnlyLeaseBased:
+                        if (msg->from == 0 || msg->from == id_) { // from local member
+                            read_states_
+                                .push_back(ReadState{.index = raft_log_->committed(), .request_ctx = msg->entries[0]
+                                    .data});
+                        }
+                        else {
+                            proto::MessagePtr m(new proto::Message());
+                            m->to = msg->from;
+                            m->type = proto::MsgReadIndexResp;
+                            m->index = raft_log_->committed();
+                            m->entries = msg->entries;
+                            send(std::move(m));
+                        }
+                        break;
+                }
+            }
+            else {
+                read_states_.push_back(ReadState{.index = raft_log_->committed(), .request_ctx = msg->entries[0].data});
+            }
+
+            return Status::ok();
+        }
     }
 
     // All other message types require a progress for m.From (pr).
@@ -626,184 +633,191 @@ Status Raft::step_leader(proto::MessagePtr msg)
         return Status::ok();
     }
     switch (msg->type) {
-    case proto::MsgAppResp: {
-        pr->recent_active = true;
+        case proto::MsgAppResp: {
+            pr->recent_active = true;
 
-        if (msg->reject) {
-            LOG_DEBUG("%lu received msgApp rejection(last_index: %lu) from %lu for index %lu",
-                      id_, msg->reject_hint, msg->from, msg->index);
-            if (pr->maybe_decreases_to(msg->index, msg->reject_hint)) {
-                LOG_DEBUG("%lu decreased progress of %lu to [%s]", id_, msg->from, pr->string().c_str());
-                if (pr->state == ProgressStateReplicate) {
-                    pr->become_probe();
-                }
-                send_append(msg->from);
-            }
-        }
-        else {
-            bool old_paused = pr->is_paused();
-            if (pr->maybe_update(msg->index)) {
-                if (pr->state == ProgressStateProbe) {
-                    pr->become_replicate();
-                }
-                else if (pr->state == ProgressStateSnapshot && pr->need_snapshot_abort()) {
-                    LOG_DEBUG("%lu snapshot aborted, resumed sending replication messages to %lu [%s]",
-                              id_,
-                              msg->from,
-                              pr->string().c_str());
-                    // Transition back to replicating state via probing state
-                    // (which takes the snapshot into account). If we didn't
-                    // move to replicating state, that would only happen with
-                    // the next round of appends (but there may not be a next
-                    // round for a while, exposing an inconsistent RaftStatus).
-                    pr->become_probe();
-                    pr->become_replicate();
-                }
-                else if (pr->state == ProgressStateReplicate) {
-                    pr->inflights->free_to(msg->index);
-                }
-
-                if (maybe_commit()) {
-                    bcast_append();
-                }
-                else if (old_paused) {
-                    // If we were paused before, this node may be missing the
-                    // latest commit index, so send it.
+            if (msg->reject) {
+                LOG_DEBUG("%lu received msgApp rejection(last_index: %lu) from %lu for index %lu",
+                          id_, msg->reject_hint, msg->from, msg->index);
+                if (pr->maybe_decreases_to(msg->index, msg->reject_hint)) {
+                    LOG_DEBUG("%lu decreased progress of %lu to [%s]", id_, msg->from, pr->string().c_str());
+                    if (pr->state == ProgressStateReplicate) {
+                        pr->become_probe();
+                    }
                     send_append(msg->from);
                 }
-                // We've updated flow control information above, which may
-                // allow us to send multiple (size-limited) in-flight messages
-                // at once (such as when transitioning from probe to
-                // replicate, or when freeTo() covers multiple messages). If
-                // we have more entries to send, send as many messages as we
-                // can (without sending empty messages for the commit index)
-                while (true) {
-                    if (maybe_send_append(msg->from, false)) {
-                        break;
-                    }
-                }
-                // Transfer leadership is in progress.
-                if (msg->from == lead_transferee_ && pr->match == raft_log_->last_index()) {
-                    LOG_INFO("%lu sent MsgTimeoutNow to %lu after received MsgAppResp", id_, msg->from);
-                    send_timeout_now(msg->from);
-                }
-            }
-        }
-    }
-        break;
-    case proto::MsgHeartbeatResp: {
-        pr->recent_active = true;
-        pr->resume();
-
-        // free one slot for the full inflights window to allow progress.
-        if (pr->state == ProgressStateReplicate && pr->inflights->is_full()) {
-            pr->inflights->free_first_one();
-        }
-        if (pr->match < raft_log_->last_index()) {
-            send_append(msg->from);
-        }
-
-        if (read_only_->option != ReadOnlySafe || msg->context.empty()) {
-            return Status::ok();
-        }
-
-        uint32_t ack_count = read_only_->recv_ack(*msg);
-        if (ack_count < quorum()) {
-            return Status::ok();
-        }
-
-        auto rss = read_only_->advance(*msg);
-        for (auto& rs : rss) {
-            auto& req = rs->req;
-            if (req.from == 0 || req.from == id_) {
-                ReadState read_state = ReadState{.index = rs->index, .request_ctx = req.entries[0].data};
-                read_states_.push_back(std::move(read_state));
             }
             else {
-                proto::MessagePtr m(new proto::Message());
-                m->to = req.from;
-                m->type = proto::MsgReadIndexResp;
-                m->index = rs->index;
-                m->entries = req.entries;
-                send(std::move(m));
+                bool old_paused = pr->is_paused();
+                if (pr->maybe_update(msg->index)) {
+                    if (pr->state == ProgressStateProbe) {
+                        pr->become_replicate();
+                    }
+                    else if (pr->state == ProgressStateSnapshot && pr->need_snapshot_abort()) {
+                        LOG_DEBUG("%lu snapshot aborted, resumed sending replication messages to %lu [%s]",
+                                  id_,
+                                  msg->from,
+                                  pr->string().c_str());
+                        // Transition back to replicating state via probing state
+                        // (which takes the snapshot into account). If we didn't
+                        // move to replicating state, that would only happen with
+                        // the next round of appends (but there may not be a next
+                        // round for a while, exposing an inconsistent RaftStatus).
+                        pr->become_probe();
+                        pr->become_replicate();
+                    }
+                    else if (pr->state == ProgressStateReplicate) {
+                        pr->inflights->free_to(msg->index);
+                    }
+
+                    if (maybe_commit()) {
+                        bcast_append();
+                    }
+                    else if (old_paused) {
+                        // If we were paused before, this node may be missing the
+                        // latest commit index, so send it.
+                        send_append(msg->from);
+                    }
+                    // We've updated flow control information above, which may
+                    // allow us to send multiple (size-limited) in-flight messages
+                    // at once (such as when transitioning from probe to
+                    // replicate, or when freeTo() covers multiple messages). If
+                    // we have more entries to send, send as many messages as we
+                    // can (without sending empty messages for the commit index)
+                    while (true) {
+                        if (maybe_send_append(msg->from, false)) {
+                            break;
+                        }
+                    }
+                    // Transfer leadership is in progress.
+                    if (msg->from == lead_transferee_ && pr->match == raft_log_->last_index()) {
+                        LOG_INFO("%lu sent MsgTimeoutNow to %lu after received MsgAppResp", id_, msg->from);
+                        send_timeout_now(msg->from);
+                    }
+                }
             }
         }
-    }
-        break;
-    case proto::MsgSnapStatus: {
-        if (pr->state != ProgressStateSnapshot) {
-            return Status::ok();
-        }
-        if (!msg->reject) {
-            pr->become_probe();
-            LOG_DEBUG("%lu snapshot succeeded, resumed sending replication messages to %lu [%s]",
-                      id_,
-                      msg->from,
-                      pr->string().c_str());
-        }
-        else {
-            pr->snapshot_failure();
-            pr->become_probe();
-            LOG_DEBUG("%lu snapshot failed, resumed sending replication messages to %lu [%s]",
-                      id_,
-                      msg->from,
-                      pr->string().c_str());
-        }
-        // If snapshot finish, wait for the msgAppResp from the remote node before sending
-        // out the next msgApp.
-        // If snapshot failure, wait for a heartbeat interval before next try
-        pr->set_pause();
-        break;
-    }
-    case proto::MsgUnreachable: {
-        // During optimistic replication, if the remote becomes unreachable,
-        // there is huge probability that a MsgApp is lost.
-        if (pr->state == ProgressStateReplicate) {
-            pr->become_probe();
-        }
-        LOG_DEBUG("%lu failed to send message to %lu because it is unreachable [%s]", id_,
-                  msg->from,
-                  pr->string().c_str());
-        break;
-    }
-    case proto::MsgTransferLeader: {
-        if (pr->is_learner) {
-            LOG_DEBUG("%lu is learner. Ignored transferring leadership", id_);
-            return Status::ok();
-        }
+            break;
+        case proto::MsgHeartbeatResp: {
+            pr->recent_active = true;
+            pr->resume();
 
-        uint64_t lead_transferee = msg->from;
-        uint64_t last_lead_transferee = lead_transferee_;
-        if (last_lead_transferee != 0) {
-            if (last_lead_transferee == lead_transferee) {
-                LOG_INFO("%lu [term %lu] transfer leadership to %lu is in progress, ignores request to same node %lu",
-                         id_, term_, lead_transferee, lead_transferee);
+            // free one slot for the full inflights window to allow progress.
+            if (pr->state == ProgressStateReplicate && pr->inflights->is_full()) {
+                pr->inflights->free_first_one();
+            }
+            if (pr->match < raft_log_->last_index()) {
+                send_append(msg->from);
+            }
+
+            if (read_only_->option != ReadOnlySafe || msg->context.empty()) {
                 return Status::ok();
             }
-            abort_leader_transfer();
-            LOG_INFO("%lu [term %lu] abort previous transferring leadership to %lu", id_, term_, last_lead_transferee);
+
+            uint32_t ack_count = read_only_->recv_ack(*msg);
+            if (ack_count < quorum()) {
+                return Status::ok();
+            }
+
+            auto rss = read_only_->advance(*msg);
+            for (auto& rs : rss) {
+                auto& req = rs->req;
+                if (req.from == 0 || req.from == id_) {
+                    ReadState read_state = ReadState{.index = rs->index, .request_ctx = req.entries[0].data};
+                    read_states_.push_back(std::move(read_state));
+                }
+                else {
+                    proto::MessagePtr m(new proto::Message());
+                    m->to = req.from;
+                    m->type = proto::MsgReadIndexResp;
+                    m->index = rs->index;
+                    m->entries = req.entries;
+                    send(std::move(m));
+                }
+            }
         }
-        if (lead_transferee == id_) {
-            LOG_DEBUG("%lu is already leader. Ignored transferring leadership to self", id_);
-            return Status::ok();
+            break;
+        case proto::MsgSnapStatus: {
+            if (pr->state != ProgressStateSnapshot) {
+                return Status::ok();
+            }
+            if (!msg->reject) {
+                pr->become_probe();
+                LOG_DEBUG("%lu snapshot succeeded, resumed sending replication messages to %lu [%s]",
+                          id_,
+                          msg->from,
+                          pr->string().c_str());
+            }
+            else {
+                pr->snapshot_failure();
+                pr->become_probe();
+                LOG_DEBUG("%lu snapshot failed, resumed sending replication messages to %lu [%s]",
+                          id_,
+                          msg->from,
+                          pr->string().c_str());
+            }
+            // If snapshot finish, wait for the msgAppResp from the remote node before sending
+            // out the next msgApp.
+            // If snapshot failure, wait for a heartbeat interval before next try
+            pr->set_pause();
+            break;
         }
-        // Transfer leadership to third party.
-        LOG_INFO("%lu [term %lu] starts to transfer leadership to %lu", id_, term_, lead_transferee);
-        // Transfer leadership should be finished in one electionTimeout, so reset r.electionElapsed.
-        election_elapsed_ = 0;
-        lead_transferee_ = lead_transferee;
-        if (pr->match == raft_log_->last_index()) {
-            send_timeout_now(lead_transferee);
-            LOG_INFO("%lu sends MsgTimeoutNow to %lu immediately as %lu already has up-to-date log",
-                     id_,
-                     lead_transferee,
-                     lead_transferee);
+        case proto::MsgUnreachable: {
+            // During optimistic replication, if the remote becomes unreachable,
+            // there is huge probability that a MsgApp is lost.
+            if (pr->state == ProgressStateReplicate) {
+                pr->become_probe();
+            }
+            LOG_DEBUG("%lu failed to send message to %lu because it is unreachable [%s]", id_,
+                      msg->from,
+                      pr->string().c_str());
+            break;
         }
-        else {
-            send_append(lead_transferee);
+        case proto::MsgTransferLeader: {
+            if (pr->is_learner) {
+                LOG_DEBUG("%lu is learner. Ignored transferring leadership", id_);
+                return Status::ok();
+            }
+
+            uint64_t lead_transferee = msg->from;
+            uint64_t last_lead_transferee = lead_transferee_;
+            if (last_lead_transferee != 0) {
+                if (last_lead_transferee == lead_transferee) {
+                    LOG_INFO(
+                        "%lu [term %lu] transfer leadership to %lu is in progress, ignores request to same node %lu",
+                        id_,
+                        term_,
+                        lead_transferee,
+                        lead_transferee);
+                    return Status::ok();
+                }
+                abort_leader_transfer();
+                LOG_INFO("%lu [term %lu] abort previous transferring leadership to %lu",
+                         id_,
+                         term_,
+                         last_lead_transferee);
+            }
+            if (lead_transferee == id_) {
+                LOG_DEBUG("%lu is already leader. Ignored transferring leadership to self", id_);
+                return Status::ok();
+            }
+            // Transfer leadership to third party.
+            LOG_INFO("%lu [term %lu] starts to transfer leadership to %lu", id_, term_, lead_transferee);
+            // Transfer leadership should be finished in one electionTimeout, so reset r.electionElapsed.
+            election_elapsed_ = 0;
+            lead_transferee_ = lead_transferee;
+            if (pr->match == raft_log_->last_index()) {
+                send_timeout_now(lead_transferee);
+                LOG_INFO("%lu sends MsgTimeoutNow to %lu immediately as %lu already has up-to-date log",
+                         id_,
+                         lead_transferee,
+                         lead_transferee);
+            }
+            else {
+                send_append(lead_transferee);
+            }
+            break;
         }
-        break;
-    }
     }
     return Status::ok();
 }
@@ -814,50 +828,54 @@ Status Raft::step_candidate(proto::MessagePtr msg)
     // StateCandidate, we may get stale MsgPreVoteResp messages in this term from
     // our pre-candidate state).
     switch (msg->type) {
-    case proto::MsgProp:LOG_INFO("%lu no leader at term %lu; dropping proposal", id_, term_);
-        return Status::invalid_argument("raft proposal dropped");
-    case proto::MsgApp:become_follower(msg->term, msg->from); // always m.Term == r.Term
-        handle_append_entries(std::move(msg));
-        break;
-    case proto::MsgHeartbeat:become_follower(msg->term, msg->from);  // always m.Term == r.Term
-        handle_heartbeat(std::move(msg));
-        break;
-    case proto::MsgSnap:become_follower(msg->term, msg->from); // always m.Term == r.Term
-        handle_snapshot(std::move(msg));
-        break;
-    case proto::MsgPreVoteResp:
-    case proto::MsgVoteResp: {
-        uint64_t gr = poll(msg->from, msg->type, !msg->reject);
-        LOG_INFO("%lu [quorum:%u] has received %lu %s votes and %lu vote rejections",
-                 id_,
-                 quorum(),
-                 gr,
-                 proto::msg_type_to_string(msg->type),
-                 votes_.size() - gr);
-        if (gr == quorum()) {
-            if (state_ == RaftState::PreCandidate) {
-                campaign(kCampaignElection);
+        case proto::MsgProp:
+            LOG_INFO("%lu no leader at term %lu; dropping proposal", id_, term_);
+            return Status::invalid_argument("raft proposal dropped");
+        case proto::MsgApp:
+            become_follower(msg->term, msg->from); // always m.Term == r.Term
+            handle_append_entries(std::move(msg));
+            break;
+        case proto::MsgHeartbeat:
+            become_follower(msg->term, msg->from);  // always m.Term == r.Term
+            handle_heartbeat(std::move(msg));
+            break;
+        case proto::MsgSnap:
+            become_follower(msg->term, msg->from); // always m.Term == r.Term
+            handle_snapshot(std::move(msg));
+            break;
+        case proto::MsgPreVoteResp:
+        case proto::MsgVoteResp: {
+            uint64_t gr = poll(msg->from, msg->type, !msg->reject);
+            LOG_INFO("%lu [quorum:%u] has received %lu %s votes and %lu vote rejections",
+                     id_,
+                     quorum(),
+                     gr,
+                     proto::msg_type_to_string(msg->type),
+                     votes_.size() - gr);
+            if (gr == quorum()) {
+                if (state_ == RaftState::PreCandidate) {
+                    campaign(kCampaignElection);
+                }
+                else {
+                    assert(state_ == RaftState::Candidate);
+                    become_leader();
+                    bcast_append();
+                }
             }
-            else {
-                assert(state_ == RaftState::Candidate);
-                become_leader();
-                bcast_append();
+            else if (gr == votes_.size() - gr) {
+                // pb.MsgPreVoteResp contains future term of pre-candidate
+                // m.Term > r.Term; reuse r.Term
+                become_follower(term_, 0);
             }
+            break;
         }
-        else if (gr == votes_.size() - gr) {
-            // pb.MsgPreVoteResp contains future term of pre-candidate
-            // m.Term > r.Term; reuse r.Term
-            become_follower(term_, 0);
+        case proto::MsgTimeoutNow: {
+            LOG_DEBUG("%lu [term %lu state %d] ignored MsgTimeoutNow from %lu",
+                      id_,
+                      term_,
+                      state_,
+                      msg->from);
         }
-        break;
-    }
-    case proto::MsgTimeoutNow: {
-        LOG_DEBUG("%lu [term %lu state %d] ignored MsgTimeoutNow from %lu",
-                  id_,
-                  term_,
-                  state_,
-                  msg->from);
-    }
     }
     return Status::ok();
 }
@@ -977,80 +995,80 @@ void Raft::remove_node(uint64_t id)
 Status Raft::step_follower(proto::MessagePtr msg)
 {
     switch (msg->type) {
-    case proto::MsgProp:
-        if (lead_ == 0) {
-            LOG_INFO("%lu no leader at term %lu; dropping proposal", id_, term_);
-            return Status::invalid_argument("raft proposal dropped");
+        case proto::MsgProp:
+            if (lead_ == 0) {
+                LOG_INFO("%lu no leader at term %lu; dropping proposal", id_, term_);
+                return Status::invalid_argument("raft proposal dropped");
+            }
+            else if (disable_proposal_forwarding_) {
+                LOG_INFO("%lu not forwarding to leader %lu at term %lu; dropping proposal", id_, lead_, term_);
+                return Status::invalid_argument("raft proposal dropped");
+            }
+            msg->to = lead_;
+            send(msg);
+            break;
+        case proto::MsgApp: {
+            election_elapsed_ = 0;
+            lead_ = msg->from;
+            handle_append_entries(msg);
+            break;
         }
-        else if (disable_proposal_forwarding_) {
-            LOG_INFO("%lu not forwarding to leader %lu at term %lu; dropping proposal", id_, lead_, term_);
-            return Status::invalid_argument("raft proposal dropped");
+        case proto::MsgHeartbeat: {
+            election_elapsed_ = 0;
+            lead_ = msg->from;
+            handle_heartbeat(msg);
+            break;
         }
-        msg->to = lead_;
-        send(msg);
-        break;
-    case proto::MsgApp: {
-        election_elapsed_ = 0;
-        lead_ = msg->from;
-        handle_append_entries(msg);
-        break;
-    }
-    case proto::MsgHeartbeat: {
-        election_elapsed_ = 0;
-        lead_ = msg->from;
-        handle_heartbeat(msg);
-        break;
-    }
-    case proto::MsgSnap: {
-        election_elapsed_ = 0;
-        lead_ = msg->from;
-        handle_snapshot(msg);
-        break;
-    }
-    case proto::MsgTransferLeader:
-        if (lead_ == 0) {
-            LOG_INFO("%lu no leader at term %lu; dropping leader transfer msg", id_, term_);
-            return Status::ok();
+        case proto::MsgSnap: {
+            election_elapsed_ = 0;
+            lead_ = msg->from;
+            handle_snapshot(msg);
+            break;
         }
-        msg->to = lead_;
-        send(msg);
-        break;
-    case proto::MsgTimeoutNow:
-        if (promotable()) {
-            LOG_INFO("%lu [term %lu] received MsgTimeoutNow from %lu and starts an election to get leadership.",
-                     id_,
-                     term_,
-                     msg->from);
-            // Leadership transfers never use pre-vote even if r.preVote is true; we
-            // know we are not recovering from a partition so there is no need for the
-            // extra round trip.
-            campaign(kCampaignTransfer);
-        }
-        else {
-            LOG_INFO("%lu received MsgTimeoutNow from %lu but is not promotable", id_, msg->from);
-        }
-        break;
-    case proto::MsgReadIndex:
-        if (lead_ == 0) {
-            LOG_INFO("%lu no leader at term %lu; dropping index reading msg", id_, term_);
-            return Status::ok();
-        }
-        msg->to = lead_;
-        send(msg);
-        break;
-    case proto::MsgReadIndexResp:
-        if (msg->entries.size() != 1) {
-            LOG_ERROR("%lu invalid format of MsgReadIndexResp from %lu, entries count: %lu",
-                      id_,
-                      msg->from,
-                      msg->entries.size());
-            return Status::ok();
-        }
-        ReadState rs;
-        rs.index = msg->index;
-        rs.request_ctx = std::move(msg->entries[0].data);
-        read_states_.push_back(std::move(rs));
-        break;
+        case proto::MsgTransferLeader:
+            if (lead_ == 0) {
+                LOG_INFO("%lu no leader at term %lu; dropping leader transfer msg", id_, term_);
+                return Status::ok();
+            }
+            msg->to = lead_;
+            send(msg);
+            break;
+        case proto::MsgTimeoutNow:
+            if (promotable()) {
+                LOG_INFO("%lu [term %lu] received MsgTimeoutNow from %lu and starts an election to get leadership.",
+                         id_,
+                         term_,
+                         msg->from);
+                // Leadership transfers never use pre-vote even if r.preVote is true; we
+                // know we are not recovering from a partition so there is no need for the
+                // extra round trip.
+                campaign(kCampaignTransfer);
+            }
+            else {
+                LOG_INFO("%lu received MsgTimeoutNow from %lu but is not promotable", id_, msg->from);
+            }
+            break;
+        case proto::MsgReadIndex:
+            if (lead_ == 0) {
+                LOG_INFO("%lu no leader at term %lu; dropping index reading msg", id_, term_);
+                return Status::ok();
+            }
+            msg->to = lead_;
+            send(msg);
+            break;
+        case proto::MsgReadIndexResp:
+            if (msg->entries.size() != 1) {
+                LOG_ERROR("%lu invalid format of MsgReadIndexResp from %lu, entries count: %lu",
+                          id_,
+                          msg->from,
+                          msg->entries.size());
+                return Status::ok();
+            }
+            ReadState rs;
+            rs.index = msg->index;
+            rs.request_ctx = std::move(msg->entries[0].data);
+            read_states_.push_back(std::move(rs));
+            break;
     }
     return Status::ok();
 }
@@ -1342,15 +1360,17 @@ bool Raft::maybe_send_append(uint64_t to, bool send_if_empty)
         if (!msg->entries.empty()) {
             switch (pr->state) {
                 // optimistically increase the next when in ProgressStateReplicate
-            case ProgressStateReplicate: {
-                uint64_t last = msg->entries.back().index;
-                pr->optimistic_update(last);
-                pr->inflights->add(last);
-                break;
-            }
-            case ProgressStateProbe:pr->set_pause();
-                break;
-            default:LOG_FATAL("%lu is sending append in unhandled state %s", id_, progress_state_to_string(pr->state));
+                case ProgressStateReplicate: {
+                    uint64_t last = msg->entries.back().index;
+                    pr->optimistic_update(last);
+                    pr->inflights->add(last);
+                    break;
+                }
+                case ProgressStateProbe:
+                    pr->set_pause();
+                    break;
+                default:
+                    LOG_FATAL("%lu is sending append in unhandled state %s", id_, progress_state_to_string(pr->state));
             }
         }
     }

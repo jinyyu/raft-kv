@@ -7,18 +7,18 @@ namespace kvd
 const char* progress_state_to_string(ProgressState state)
 {
     switch (state) {
-    case ProgressStateProbe: {
-        return "ProgressStateProbe";
-    }
-    case ProgressStateReplicate: {
-        return "ProgressStateReplicate";
-    }
-    case ProgressStateSnapshot: {
-        return "ProgressStateSnapshot";
-    }
-    default:{
-        LOG_FATAL("unknown state %d", state);
-    }
+        case ProgressStateProbe: {
+            return "ProgressStateProbe";
+        }
+        case ProgressStateReplicate: {
+            return "ProgressStateReplicate";
+        }
+        case ProgressStateSnapshot: {
+            return "ProgressStateSnapshot";
+        }
+        default: {
+            LOG_FATAL("unknown state %d", state);
+        }
     }
 }
 
@@ -136,10 +136,18 @@ std::string Progress::string() const
 bool Progress::is_paused() const
 {
     switch (state) {
-    case ProgressStateProbe:return paused;
-    case ProgressStateReplicate:return inflights->is_full();
-    case ProgressStateSnapshot:return true;
-    default:LOG_FATAL("unexpected state");
+        case ProgressStateProbe: {
+            return paused;
+        }
+        case ProgressStateReplicate: {
+            return inflights->is_full();
+        }
+        case ProgressStateSnapshot: {
+            return true;
+        }
+        default: {
+            LOG_FATAL("unexpected state");
+        }
     }
 }
 
@@ -182,7 +190,6 @@ bool Progress::maybe_decreases_to(uint64_t rejected, uint64_t last)
     resume();
     return true;
 }
-
 
 bool Progress::need_snapshot_abort() const
 {
