@@ -112,9 +112,91 @@ TEST(raft, ProgressPaused)
     ASSERT_TRUE(r->msgs().size() == 1);
 }
 
+TEST(raft, ProgressFlowControl)
+{
+    auto c = newTestConfig(1, {1, 2}, 5, 1, std::make_shared<MemoryStorage>());
+    c.max_inflight_msgs = 3;
+    c.max_size_per_msg = 2048;
+    RaftPtr r(new Raft(c));
+    r->become_candidate();
+    r->become_leader();
+
+    // Throw away all the messages relating to the initial election.
+    r->msgs().clear();
+
+    // While node 2 is in probe state, propose a bunch of entries.
+    r->get_progress(2)->become_probe();
+
+
+    for (size_t i = 0; i < 10; i++) {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data.resize(1000, 'a');
+        msg->entries.push_back(e);
+        r->step(msg);
+    }
+    auto ms = r->msgs();
+    r->msgs().clear();
+
+    // First append has two entries: the empty entry to confirm the
+    // election, and the first proposal (only one proposal gets sent
+    // because we're in probe state).
+    ASSERT_TRUE(ms.size() == 1);
+    ASSERT_TRUE(ms[0]->type == proto::MsgApp);
+
+    ASSERT_TRUE(ms[0]->entries.size() == 2);
+    ASSERT_TRUE(ms[0]->entries[0].data.empty());
+    ASSERT_TRUE(ms[0]->entries[1].data.size() == 1000);
+
+    // When this append is acked, we change to replicate state and can
+    // send multiple messages at once.
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 2;
+        msg->to = 1;
+        msg->type = proto::MsgAppResp;
+        msg->index = ms[0]->entries[1].index;
+        r->step(msg);
+    }
+    ms = r->msgs();
+    r->msgs().clear();
+    LOG_DEBUG("---------------------%lu", ms.size());
+    ASSERT_TRUE(ms.size() == 3);
+
+    for (size_t i = 0; i < ms.size(); ++i) {
+        ASSERT_TRUE(ms[i]->type == proto::MsgApp);
+        ASSERT_TRUE(ms[i]->entries.size() == 2);
+    }
+
+    // Ack all three of those messages together and get the last two
+    // messages (containing three entries).
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 2;
+        msg->to = 1;
+        msg->type = proto::MsgAppResp;
+        msg->index = ms[2]->entries[1].index;
+        r->step(msg);
+    }
+
+    ms = r->msgs();
+    r->msgs().clear();
+
+    ASSERT_TRUE(ms.size() == 2);
+    for (size_t i = 0; i < ms.size(); ++i) {
+        ASSERT_TRUE(ms[i]->type == proto::MsgApp);
+    }
+
+    ASSERT_TRUE(ms[0]->entries.size() == 2);
+    ASSERT_TRUE(ms[1]->entries.size() == 1);
+}
+
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(output) = "raft.ProgressPaused";
+    testing::GTEST_FLAG(output) = "raft.ProgressFlowControl";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

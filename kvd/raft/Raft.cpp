@@ -583,6 +583,7 @@ Status Raft::step_leader(proto::MessagePtr msg)
             return Status::invalid_argument("raft proposal dropped");
         }
         bcast_append();
+        LOG_DEBUG("RET");
         return Status::ok();
     }
     case proto::MsgReadIndex: {
@@ -683,10 +684,7 @@ Status Raft::step_leader(proto::MessagePtr msg)
                 // replicate, or when freeTo() covers multiple messages). If
                 // we have more entries to send, send as many messages as we
                 // can (without sending empty messages for the commit index)
-                while (true) {
-                    if (maybe_send_append(msg->from, false)) {
-                        break;
-                    }
+                while (maybe_send_append(msg->from, false)) {
                 }
                 // Transfer leadership is in progress.
                 if (msg->from == lead_transferee_ && pr->match == raft_log_->last_index()) {
@@ -1409,7 +1407,6 @@ void Raft::bcast_append()
         if (id == id_) {
             return;
         }
-
         this->send_append(id);
     });
 }
