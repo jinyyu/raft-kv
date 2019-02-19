@@ -583,7 +583,6 @@ Status Raft::step_leader(proto::MessagePtr msg)
             return Status::invalid_argument("raft proposal dropped");
         }
         bcast_append();
-        LOG_DEBUG("RET");
         return Status::ok();
     }
     case proto::MsgReadIndex: {

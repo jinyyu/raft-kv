@@ -16,6 +16,8 @@ static Config newTestConfig(uint64_t id,
     c.election_tick = election;
     c.heartbeat_tick = heartbeat;
     c.storage = storage;
+    c.max_uncommitted_entries_size = std::numeric_limits<uint32_t>::max();
+    c.max_inflight_msgs = 256;
     return c;
 }
 
@@ -163,7 +165,6 @@ TEST(raft, ProgressFlowControl)
     }
     ms = r->msgs();
     r->msgs().clear();
-    LOG_DEBUG("---------------------%lu", ms.size());
     ASSERT_TRUE(ms.size() == 3);
 
     for (size_t i = 0; i < ms.size(); ++i) {
