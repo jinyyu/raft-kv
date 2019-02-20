@@ -195,9 +195,101 @@ TEST(raft, ProgressFlowControl)
     ASSERT_TRUE(ms[1]->entries.size() == 1);
 }
 
+TEST(raft, UncommittedEntryLimit)
+{
+    // Use a relatively large number of entries here to prevent regression of a
+    // bug which computed the size before it was fixed. This test would fail
+    // with the bug, either because we'd get dropped proposals earlier than we
+    // expect them, or because the final tally ends up nonzero. (At the time of
+    // writing, the former).
+    uint64_t maxEntries = 1024;
+    proto::Entry testEntry;
+    testEntry.data.resize(8, 'a');
+    uint64_t maxEntrySize = maxEntries * testEntry.payload_size();
+
+    auto cfg = newTestConfig(1, {1, 2, 3}, 5, 1, std::make_shared<MemoryStorage>());
+    cfg.max_uncommitted_entries_size = maxEntrySize;
+    cfg.max_inflight_msgs = 2 * 1024; // avoid interference
+    RaftPtr r(new Raft(cfg));
+    r->become_candidate();
+    r->become_leader();
+
+    ASSERT_TRUE(r->uncommitted_size() == 0);
+
+    // Set the two followers to the replicate state. Commit to tail of log.
+    uint64_t numFollowers = 2;
+    r->get_progress(2)->become_replicate();
+    r->get_progress(3)->become_replicate();
+    r->uncommitted_size() = 0;
+
+    proto::MessagePtr propMsg(new proto::Message());
+    propMsg->from = 1;
+    propMsg->to = 1;
+    propMsg->type = proto::MsgProp;
+    propMsg->entries.push_back(testEntry);
+
+    // Send proposals to r1. The first 5 entries should be appended to the log.
+    std::vector<proto::EntryPtr> propEnts;
+
+    for (uint64_t i = 0; i < maxEntries; i++) {
+        Status status = r->step_leader(propMsg);
+        ASSERT_TRUE(status.is_ok());
+        propEnts.push_back(std::make_shared<proto::Entry>(testEntry));
+    }
+
+    // Send one more proposal to r1. It should be rejected.
+    Status status = r->step(propMsg);
+    ASSERT_FALSE(status.is_ok());
+    fprintf(stderr, "status :%s\n", status.to_string().c_str());
+
+    auto ms = r->msgs();
+    r->msgs().clear();
+    // Read messages and reduce the uncommitted size as if we had committed
+    // these entries.
+
+    ASSERT_TRUE(ms.size() == maxEntries * numFollowers);
+
+    r->reduce_uncommitted_size(propEnts);
+    ASSERT_TRUE(r->uncommitted_size() == 0);
+
+    // Send a single large proposal to r1. Should be accepted even though it
+    // pushes us above the limit because we were beneath it before the proposal.
+
+    propEnts.resize(2*maxEntries);
+
+    for (size_t i = 0; i < propEnts.size(); ++i) {
+        propEnts[i] = std::make_shared<proto::Entry>(testEntry);
+    }
+
+    proto::MessagePtr propMsgLarge(new proto::Message());
+    propMsgLarge->from = 1;
+    propMsgLarge->to = 1;
+    propMsgLarge->type = proto::MsgProp;
+    for (size_t i = 0; i < propEnts.size(); ++i) {
+        propMsgLarge->entries.push_back(*propEnts[i]);
+    }
+
+    status = r->step(propMsgLarge);
+    ASSERT_TRUE(status.is_ok());
+
+
+    // Send one more proposal to r1. It should be rejected, again.
+    status = r->step(propMsg);
+    ASSERT_FALSE(status.is_ok());
+    fprintf(stderr, "status :%s\n", status.to_string().c_str());
+
+
+    // Read messages and reduce the uncommitted size as if we had committed
+    // these entries.
+    ms =r->msgs();
+    r->msgs().clear();
+    ASSERT_TRUE(ms.size() == numFollowers*1);
+    r->reduce_uncommitted_size(propEnts);
+    ASSERT_TRUE(r->uncommitted_size() == 0);
+}
+
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(output) = "raft.ProgressFlowControl";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

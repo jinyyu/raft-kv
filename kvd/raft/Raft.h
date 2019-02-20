@@ -175,6 +175,11 @@ public:
 
     void add_node(uint64_t id);
 
+    uint64_t& uncommitted_size()
+    {
+        return uncommitted_size_;
+    }
+
 private:
     uint64_t id_;
 

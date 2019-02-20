@@ -1230,6 +1230,7 @@ void Raft::load_state(const proto::HardState& state)
     }
     raft_log_->committed() = state.commit;
     term_ = state.term;
+    LOG_DEBUG("--------------------%lu", term_);
     vote_ = state.vote;
 }
 
