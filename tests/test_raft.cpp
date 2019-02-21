@@ -1,25 +1,12 @@
 #include <gtest/gtest.h>
 #include <kvd/raft/Raft.h>
 #include <kvd/common/log.h>
+#include "network.hpp"
+
+
 
 using namespace kvd;
 
-static Config newTestConfig(uint64_t id,
-                            std::vector<uint64_t> peers,
-                            uint32_t election,
-                            uint32_t heartbeat,
-                            StoragePtr storage)
-{
-    Config c;
-    c.id = id;
-    c.peers = peers;
-    c.election_tick = election;
-    c.heartbeat_tick = heartbeat;
-    c.storage = storage;
-    c.max_uncommitted_entries_size = std::numeric_limits<uint32_t>::max();
-    c.max_inflight_msgs = 256;
-    return c;
-}
 
 static RaftPtr newTestRaft(uint64_t id,
                            std::vector<uint64_t> peers,
@@ -255,7 +242,7 @@ TEST(raft, UncommittedEntryLimit)
     // Send a single large proposal to r1. Should be accepted even though it
     // pushes us above the limit because we were beneath it before the proposal.
 
-    propEnts.resize(2*maxEntries);
+    propEnts.resize(2 * maxEntries);
 
     for (size_t i = 0; i < propEnts.size(); ++i) {
         propEnts[i] = std::make_shared<proto::Entry>(testEntry);
@@ -281,11 +268,21 @@ TEST(raft, UncommittedEntryLimit)
 
     // Read messages and reduce the uncommitted size as if we had committed
     // these entries.
-    ms =r->msgs();
+    ms = r->msgs();
     r->msgs().clear();
-    ASSERT_TRUE(ms.size() == numFollowers*1);
+    ASSERT_TRUE(ms.size() == numFollowers * 1);
     r->reduce_uncommitted_size(propEnts);
     ASSERT_TRUE(r->uncommitted_size() == 0);
+}
+
+void testLeaderElection(bool preVote)
+{
+
+}
+
+TEST(raft, LeaderElection)
+{
+
 }
 
 int main(int argc, char* argv[])
