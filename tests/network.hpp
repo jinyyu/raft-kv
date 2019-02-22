@@ -141,8 +141,8 @@ struct Network
             if (bh == nullptr) {
                 LOG_DEBUG("Raft instance")
                 std::unordered_map<uint64_t, bool> learners;
-                for (size_t i = 0; i < p->learner_prs_.size(); ++i) {
-                    learners[i] = true;
+                for (auto it = p->learner_prs_.begin(); it != p->learner_prs_.end(); ++it) {
+                    learners[it->first] = true;
                 }
                 p->id_ = id;
                 p->prs_.clear();

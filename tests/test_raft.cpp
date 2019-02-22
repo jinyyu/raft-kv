@@ -347,7 +347,7 @@ void testLeaderElection(bool preVote)
         std::vector<RaftPtr> peers{nullptr,
                                    entsWithConfig(cfg, std::vector<uint64_t>{1}),
                                    entsWithConfig(cfg, std::vector<uint64_t>{1}),
-                                   entsWithConfig(cfg, std::vector<uint64_t>{1,1}),
+                                   entsWithConfig(cfg, std::vector<uint64_t>{1, 1}),
                                    nullptr};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Follower, .expTerm = 1};
         tests.push_back(t);
@@ -384,23 +384,101 @@ TEST(raft, LeaderElectionPreVote)
 // when times out.
 TEST(raft, LearnerElectionTimeout)
 {
-auto n1 = newTestLearnerRaft(1, std::vector<uint64_t>{1}, std::vector<uint64_t>{2}, 10, 1, std::make_shared<MemoryStorage>());
-auto n2 = newTestLearnerRaft(2, std::vector<uint64_t>{1}, std::vector<uint64_t>{2}, 10, 1, std::make_shared<MemoryStorage>());
+    auto n1 = newTestLearnerRaft(1,
+                                 std::vector<uint64_t>{1},
+                                 std::vector<uint64_t>{2},
+                                 10,
+                                 1,
+                                 std::make_shared<MemoryStorage>());
+    auto n2 = newTestLearnerRaft(2,
+                                 std::vector<uint64_t>{1},
+                                 std::vector<uint64_t>{2},
+                                 10,
+                                 1,
+                                 std::make_shared<MemoryStorage>());
 
     n1->become_follower(1, 0);
     n2->become_follower(1, 0);
 
     // n2 is learner. Learner should not start election even when times out.
     n2->randomized_election_timeout_ = n2->election_timeout_;
-    for (uint64_t i = 0; i <  n2->election_timeout_; i++) {
+    for (uint64_t i = 0; i < n2->election_timeout_; i++) {
         n2->tick();
     }
 
     ASSERT_TRUE(n2->state_ == RaftState::Follower);
 }
 
+// TestLearnerPromotion verifies that the learner should not election until
+// it is promoted to a normal peer.
+TEST(raft, LearnerPromotion)
+{
+    auto n1 = newTestLearnerRaft(1,
+                                 std::vector<uint64_t>{1},
+                                 std::vector<uint64_t>{2},
+                                 10,
+                                 1,
+                                 std::make_shared<MemoryStorage>());
+    auto n2 = newTestLearnerRaft(2,
+                                 std::vector<uint64_t>{1},
+                                 std::vector<uint64_t>{2},
+                                 10,
+                                 1,
+                                 std::make_shared<MemoryStorage>());
+
+    n1->become_follower(1, 0);
+    n2->become_follower(1, 0);
+
+    Network nt(std::vector<RaftPtr>{n1, n2});
+
+    ASSERT_FALSE(n1->state_ == RaftState::Leader);
+
+    n1->randomized_election_timeout_ = n1->election_timeout_;
+    // n1 should become leader
+
+    for (uint64_t i = 0; i < n1->election_timeout_; i++) {
+        n1->tick();
+    }
+
+    ASSERT_TRUE(n1->state_ == RaftState::Leader);
+    ASSERT_TRUE(n2->state_ == RaftState::Follower);
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgBeat;
+        std::vector<proto::MessagePtr> msgs{msg};
+        nt.send(msgs);
+    }
+
+
+    n1->add_node(2);
+    n2->add_node(2);
+    ASSERT_TRUE(!n2->is_learner_);
+
+    // n2 start election, should become leader
+    n2->randomized_election_timeout_ = n2->election_timeout_;
+    for (uint64_t i = 0; i < n2->election_timeout_; i++) {
+        n2->tick();
+    }
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 2;
+        msg->to = 2;
+        msg->type = proto::MsgBeat;
+        std::vector<proto::MessagePtr> msgs{msg};
+        nt.send(msgs);
+    }
+
+    ASSERT_TRUE(n1->state_ == RaftState::Follower);
+    ASSERT_TRUE(n2->state_ == RaftState::Leader);
+}
+
 int main(int argc, char* argv[])
 {
+    testing::GTEST_FLAG(filter) = "raft.LearnerPromotion";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

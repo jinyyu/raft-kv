@@ -115,6 +115,8 @@ Raft::Raft(const Config& c)
         node_str = boost::join(nodes_strs, ",");
     }
 
+    LOG_DEBUG("---------------prs %lu", prs_.size());
+
     LOG_INFO("raft %lu [peers: [%s], term: %lu, commit: %lu, applied: %lu, last_index: %lu, last_term: %lu]",
              id_,
              node_str.c_str(),
@@ -231,7 +233,6 @@ void Raft::campaign(const std::string& campaign_type)
         become_candidate();
         vote_msg = proto::MsgVote;
         term = term_;
-        //LOG_DEBUG("-----------------------TERM %lu", term);
     }
 
     if (quorum() == poll(id_, vote_msg, true)) {
@@ -1236,7 +1237,6 @@ void Raft::load_state(const proto::HardState& state)
     }
     raft_log_->committed() = state.commit;
     term_ = state.term;
-    LOG_DEBUG("--------------------%lu", term_);
     vote_ = state.vote;
 }
 
