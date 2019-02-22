@@ -13,11 +13,6 @@ namespace kvd
 
 class Raft
 {
-protected:
-    explicit Raft()
-        : random_device_(0, 100)
-    {}
-
 public:
     explicit Raft(const Config& c);
 

@@ -7,6 +7,8 @@
 
 using namespace kvd;
 
+typedef std::function<void(Config& c)> ConfigFunc;
+
 Config newTestConfig(uint64_t id,
                      std::vector<uint64_t> peers,
                      uint32_t election,
@@ -21,7 +23,31 @@ Config newTestConfig(uint64_t id,
     c.storage = storage;
     c.max_uncommitted_entries_size = std::numeric_limits<uint32_t>::max();
     c.max_inflight_msgs = 256;
+    c.validate();
     return c;
+}
+
+RaftPtr entsWithConfig(ConfigFunc configFunc, std::vector<uint64_t> terms)
+{
+    MemoryStoragePtr storage(new MemoryStorage());
+    for (size_t i = 0; i < terms.size(); ++i) {
+        uint64_t term = terms[i];
+        std::vector<proto::EntryPtr> entries;
+        proto::EntryPtr e(new proto::Entry());
+        e->index = i + 1;
+        e->term = term;
+        entries.push_back(e);
+        storage->append(entries);
+    }
+    auto
+    cfg = newTestConfig(1, std::vector<uint64_t>(), 5, 1, storage);
+    if (configFunc) {
+        configFunc(cfg);
+    }
+
+    RaftPtr sm(new Raft(cfg));
+    sm->reset(terms.size() - 1);
+    return sm;
 }
 
 struct connem
@@ -65,8 +91,9 @@ void preVoteConfig(Config& c)
 
 class BlackHole: public Raft
 {
+public:
     explicit BlackHole()
-        : Raft()
+        : Raft(newTestConfig(0, std::vector<uint64_t>{1, 2, 3}, 1, 2, std::make_shared<MemoryStorage>()))
     {}
 
     virtual std::vector<proto::MessagePtr> read_messages()
@@ -81,7 +108,6 @@ class BlackHole: public Raft
     }
 
 };
-typedef std::function<void(Config& c)> ConfigFunc;
 
 struct Network
 {

@@ -25,9 +25,12 @@ static uint32_t num_of_pending_conf(const std::vector<proto::EntryPtr>& entries)
 
 Raft::Raft(const Config& c)
     : id_(c.id),
+      term_(0),
+      vote_(0),
       max_msg_size_(c.max_size_per_msg),
       max_uncommitted_size_(c.max_uncommitted_entries_size),
       max_inflight_(c.max_inflight_msgs),
+      state_(RaftState::Follower),
       is_learner_(false),
       lead_(0),
       lead_transferee_(0),
@@ -137,6 +140,8 @@ void Raft::become_follower(uint64_t term, uint64_t lead)
     lead_ = lead;
     state_ = RaftState::Follower;
 
+    if (term_ > 100)
+    assert(false);
     LOG_INFO("%lu became follower at term %lu", id_, term_);
 }
 

@@ -296,10 +296,45 @@ void testLeaderElection(bool preVote)
     };
 
     std::vector<Test> tests;
+    std::shared_ptr<BlackHole> nopStepper(new BlackHole());
 
     {
         std::vector<RaftPtr> peers{nullptr, nullptr, nullptr};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
+        tests.push_back(t);
+    }
+
+    {
+        std::vector<RaftPtr> peers{nullptr, nullptr, nopStepper};
+        Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
+        tests.push_back(t);
+    }
+
+    {
+        std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper};
+        Test t{.network = std::make_shared<Network>(cfg, peers), .state = candState, .expTerm = candTerm};
+        tests.push_back(t);
+    }
+    {
+        std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper, nullptr};
+        Test t{.network = std::make_shared<Network>(cfg, peers), .state = candState, .expTerm = candTerm};
+        tests.push_back(t);
+    }
+    {
+        std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper, nullptr, nullptr};
+        Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
+        tests.push_back(t);
+    }
+
+    {
+        // three logs further along than 0, but in the same term so rejections
+        // are returned instead of the votes being ignored.
+        std::vector<RaftPtr> peers{nullptr,
+                                   entsWithConfig(cfg, std::vector<uint64_t>{1}),
+                                   entsWithConfig(cfg, std::vector<uint64_t>{1}),
+                                   entsWithConfig(cfg, std::vector<uint64_t>{1,1}),
+                                   nullptr};
+        Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Follower, .expTerm = 1};
         tests.push_back(t);
     }
 
@@ -323,6 +358,11 @@ void testLeaderElection(bool preVote)
 TEST(raft, LeaderElection)
 {
     testLeaderElection(false);
+}
+
+TEST(raft, LeaderElectionPreVote)
+{
+    testLeaderElection(true);
 }
 
 int main(int argc, char* argv[])
