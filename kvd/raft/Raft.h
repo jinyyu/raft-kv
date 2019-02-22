@@ -179,6 +179,15 @@ public:
     {
         return uncommitted_size_;
     }
+
+    std::vector<proto::MessagePtr> read_messages()
+    {
+        std::vector<proto::MessagePtr> ret;
+        ret.swap(msgs_);
+        return ret;
+    }
+
+
 public:
     uint64_t id_;
 

@@ -58,6 +58,11 @@ std::vector<uint64_t> idsBySize(size_t size)
     return ids;
 }
 
+void preVoteConfig(Config& c)
+{
+    c.pre_vote = true;
+}
+
 struct Network
 {
     explicit Network(const std::vector<RaftPtr>& peers)
@@ -112,6 +117,25 @@ struct Network
         }
     }
 
+    void drop(uint64_t from, uint64_t to, float perc)
+    {
+        connem cn;
+        cn.to = to;
+        cn.from = from;
+        dropm[cn] = perc;
+    }
+    void isolate(uint64_t id)
+    {
+        for (size_t i = 0; i < peers.size(); ++i) {
+            uint64_t nid = i + 1;
+            if (nid != id) {
+
+                drop(id, nid, 1.0); // always drop
+                drop(nid, id, 1.0); // always drop
+            }
+        }
+    }
+
     void ignore(proto::MessageType t)
     {
         ignorem[t] = true;
@@ -123,12 +147,16 @@ struct Network
         ignorem.clear();
     }
 
-    void send(std::vector<proto::MessagePtr> msgs)
+    void send(std::vector<proto::MessagePtr>& msgs)
     {
         if (msgs.size() > 0) {
             auto m = msgs[0];
             auto p = peers[m->to];
             p->step(m);
+            auto ms = p->read_messages();
+            ms = filter(ms);
+            msgs.erase(msgs.begin(), msgs.begin() + 1);
+            msgs.insert(msgs.end(), ms.begin(), ms.end());
         }
     }
 
