@@ -13,10 +13,15 @@ namespace kvd
 
 class Raft
 {
+protected:
+    explicit Raft()
+        : random_device_(0, 100)
+    {}
+
 public:
     explicit Raft(const Config& c);
 
-    ~Raft();
+    virtual ~Raft();
 
     void tick();
 
@@ -35,7 +40,7 @@ public:
 
     uint32_t poll(uint64_t id, proto::MessageType type, bool v);
 
-    Status step(proto::MessagePtr msg);
+    virtual Status step(proto::MessagePtr msg);
 
     Status step_leader(proto::MessagePtr msg);
 
@@ -180,7 +185,7 @@ public:
         return uncommitted_size_;
     }
 
-    std::vector<proto::MessagePtr> read_messages()
+    virtual std::vector<proto::MessagePtr> read_messages()
     {
         std::vector<proto::MessagePtr> ret;
         ret.swap(msgs_);

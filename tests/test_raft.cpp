@@ -4,7 +4,6 @@
 #include "network.hpp"
 
 
-
 using namespace kvd;
 
 
@@ -277,12 +276,53 @@ TEST(raft, UncommittedEntryLimit)
 
 void testLeaderElection(bool preVote)
 {
+    ConfigFunc cfg = [](Config&) {};
+    RaftState candState = RaftState::Candidate;
+    uint64_t candTerm = 1;
+    if (preVote) {
+        cfg = preVoteConfig;
+        // In pre-vote mode, an election that fails to complete
+        // leaves the node in pre-candidate state without advancing
+        // the term.
+        candState = RaftState::PreCandidate;
+        candTerm = 0;
+    }
 
+    struct Test
+    {
+        NetworkPtr network;
+        RaftState state;
+        uint64_t expTerm;
+    };
+
+    std::vector<Test> tests;
+
+    {
+        std::vector<RaftPtr> peers{nullptr, nullptr, nullptr};
+        Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
+        tests.push_back(t);
+    }
+
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        Test& test = tests[i];
+        std::vector<proto::MessagePtr> msgs;
+        proto::MessagePtr m(new proto::Message());
+        m->from = 1;
+        m->to = 1;
+        m->type = proto::MsgHup;
+        msgs.push_back(m);
+        test.network->send(msgs);
+
+        auto sm = test.network->peers[1];
+        ASSERT_TRUE(sm->state_ == test.state);
+        ASSERT_TRUE(sm->term_ == test.expTerm);
+    }
 }
 
 TEST(raft, LeaderElection)
 {
-
+    testLeaderElection(false);
 }
 
 int main(int argc, char* argv[])

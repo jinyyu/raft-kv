@@ -226,6 +226,7 @@ void Raft::campaign(const std::string& campaign_type)
         become_candidate();
         vote_msg = proto::MsgVote;
         term = term_;
+        //LOG_DEBUG("-----------------------TERM %lu", term);
     }
 
     if (quorum() == poll(id_, vote_msg, true)) {
@@ -262,9 +263,8 @@ void Raft::campaign(const std::string& campaign_type)
         msg->to = it->first;
         msg->type = vote_msg;
         msg->index = raft_log_->last_index();
-        msg->term = raft_log_->last_term();
+        msg->log_term = raft_log_->last_term();
         msg->context = std::move(ctx);
-
         send(std::move(msg));
     }
 }
@@ -890,7 +890,7 @@ void Raft::send(proto::MessagePtr msg)
             // - MsgPreVoteResp: m.Term is the term received in the original
             //   MsgPreVote if the pre-vote was granted, non-zero for the
             //   same reasons MsgPreVote is
-            LOG_FATAL("term should be set when sending %d", msg->type);
+            LOG_FATAL("term should be set when sending %s", proto::msg_type_to_string(msg->type));
         }
     }
     else {

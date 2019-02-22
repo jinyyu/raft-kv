@@ -63,6 +63,26 @@ void preVoteConfig(Config& c)
     c.pre_vote = true;
 }
 
+class BlackHole: public Raft
+{
+    explicit BlackHole()
+        : Raft()
+    {}
+
+    virtual std::vector<proto::MessagePtr> read_messages()
+    {
+        std::vector<proto::MessagePtr> ret;
+        return ret;
+    }
+
+    virtual Status step(proto::MessagePtr msg)
+    {
+        return Status::ok();
+    }
+
+};
+typedef std::function<void(Config& c)> ConfigFunc;
+
 struct Network
 {
     explicit Network(const std::vector<RaftPtr>& peers)
@@ -71,14 +91,14 @@ struct Network
 
     }
 
-    explicit Network(const std::function<void(Config& c)> configFunc, const std::vector<RaftPtr>& peers)
+    explicit Network(const ConfigFunc& configFunc, const std::vector<RaftPtr>& peers)
         : dev(0, 100)
     {
         size_t size = peers.size();
         auto peerAddrs = idsBySize(size);
 
         for (size_t j = 0; j < peers.size(); ++j) {
-            auto p = peers[j];
+            RaftPtr p = peers[j];
             uint64_t id = peerAddrs[j];
 
             if (p == nullptr) {
@@ -88,9 +108,12 @@ struct Network
                 configFunc(cfg);
                 RaftPtr sm(new Raft(cfg));
                 this->peers[id] = sm;
-
+                continue;
             }
-            else {
+
+            std::shared_ptr<BlackHole> bh = std::dynamic_pointer_cast<BlackHole>(p);
+            if (bh == nullptr) {
+                LOG_DEBUG("Raft instance")
                 std::unordered_map<uint64_t, bool> learners;
                 for (size_t i = 0; i < p->learner_prs_.size(); ++i) {
                     learners[i] = true;
@@ -113,8 +136,15 @@ struct Network
                     }
                 }
                 p->reset(p->term_);
+                this->peers[id] = p;
+            }
+
+            else {
+                LOG_DEBUG("BlackHole instance")
+                this->peers[id] = bh;
             }
         }
+
     }
 
     void drop(uint64_t from, uint64_t to, float perc)
@@ -149,7 +179,7 @@ struct Network
 
     void send(std::vector<proto::MessagePtr>& msgs)
     {
-        if (msgs.size() > 0) {
+        while (!msgs.empty()) {
             auto m = msgs[0];
             auto p = peers[m->to];
             p->step(m);
@@ -208,3 +238,4 @@ struct Network
 
     std::function<bool(proto::MessagePtr)> msgHook;
 };
+typedef std::shared_ptr<Network> NetworkPtr;
