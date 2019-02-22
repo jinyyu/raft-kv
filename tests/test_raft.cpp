@@ -502,9 +502,55 @@ TEST(raft, LearnerCannotVote)
     ASSERT_TRUE(n2->msgs_.empty());
 }
 
+// testLeaderCycle verifies that each node in a cluster can campaign
+// and be elected in turn. This ensures that elections (including
+// pre-vote) work when not starting from a clean slate (as they do in
+// TestLeaderElection)
+void testLeaderCycle(bool preVote)
+{
+    ConfigFunc cfg = [](Config& c) {};
+    if (preVote) {
+        cfg = preVoteConfig;
+    }
+
+    Network n(cfg, std::vector<RaftPtr>{nullptr, nullptr, nullptr});
+    for (uint64_t campaignerID = 1; campaignerID <= 3; campaignerID++) {
+
+        {
+            proto::MessagePtr msg(new proto::Message());
+            msg->from = campaignerID;
+            msg->to = campaignerID;
+            msg->type = proto::MsgHup;
+            std::vector<proto::MessagePtr> msgs{msg};
+            n.send(msgs);
+        }
+
+        for (auto it = n.peers.begin(); it != n.peers.end(); ++it) {
+            auto sm = it->second;
+
+            if (sm->id_ == campaignerID && sm->state_ != RaftState::Leader) {
+                ASSERT_FALSE(true);
+            }
+            else if (sm->id_ != campaignerID && sm->state_ != RaftState::Leader) {
+                ASSERT_FALSE(true);
+            }
+        }
+    }
+}
+
+TEST(raft, LeaderCycle)
+{
+    testLeaderCycle(false);
+}
+
+TEST(raft, LeaderCyclePreVote)
+{
+    testLeaderCycle(true);
+}
+
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(filter) = "raft.LearnerPromotion";
+    //testing::GTEST_FLAG(filter) = "raft.LearnerPromotion";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
