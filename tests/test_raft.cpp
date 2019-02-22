@@ -476,6 +476,32 @@ TEST(raft, LearnerPromotion)
     ASSERT_TRUE(n2->state_ == RaftState::Leader);
 }
 
+// TestLearnerCannotVote checks that a learner can't vote even it receives a valid Vote request.
+TEST(raft, LearnerCannotVote)
+{
+    auto n2 = newTestLearnerRaft(2,
+                                 std::vector<uint64_t>{1},
+                                 std::vector<uint64_t>{2},
+                                 10,
+                                 1,
+                                 std::make_shared<MemoryStorage>());
+
+    n2->become_follower(1, 0);
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 2;
+        msg->term = 2;
+        msg->type = proto::MsgVote;
+        msg->log_term = 1;
+        msg->index = 11;
+        n2->step(msg);
+    }
+
+    ASSERT_TRUE(n2->msgs_.empty());
+}
+
 int main(int argc, char* argv[])
 {
     testing::GTEST_FLAG(filter) = "raft.LearnerPromotion";
