@@ -20,6 +20,21 @@ static RaftPtr newTestRaft(uint64_t id,
     return std::make_shared<Raft>(c);
 }
 
+static RaftPtr newTestLearnerRaft(uint64_t id,
+                                  std::vector<uint64_t> peers,
+                                  std::vector<uint64_t> learners,
+                                  uint64_t election,
+                                  uint64_t heartbeat,
+                                  StoragePtr storage)
+{
+    Config c = newTestConfig(id, peers, election, heartbeat, storage);
+    c.learners = learners;
+    c.max_inflight_msgs = 256;
+    Status status = c.validate();
+    assert(status.is_ok());
+    return std::make_shared<Raft>(c);
+}
+
 TEST(raft, ProgressLeader)
 {
     auto r = newTestRaft(1, {1, 2}, 5, 1, std::make_shared<MemoryStorage>());
@@ -301,29 +316,29 @@ void testLeaderElection(bool preVote)
     {
         std::vector<RaftPtr> peers{nullptr, nullptr, nullptr};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
-        //tests.push_back(t);
+        tests.push_back(t);
     }
 
     {
         std::vector<RaftPtr> peers{nullptr, nullptr, nopStepper};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
-        //tests.push_back(t);
+        tests.push_back(t);
     }
 
     {
         std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = candState, .expTerm = candTerm};
-        //tests.push_back(t);
+        tests.push_back(t);
     }
     {
         std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper, nullptr};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = candState, .expTerm = candTerm};
-        //tests.push_back(t);
+        tests.push_back(t);
     }
     {
         std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper, nullptr, nullptr};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
-        //tests.push_back(t);
+        tests.push_back(t);
     }
 
     {
@@ -363,6 +378,25 @@ TEST(raft, LeaderElection)
 TEST(raft, LeaderElectionPreVote)
 {
     testLeaderElection(true);
+}
+
+// TestLearnerElectionTimeout verfies that the leader should not start election even
+// when times out.
+TEST(raft, LearnerElectionTimeout)
+{
+auto n1 = newTestLearnerRaft(1, std::vector<uint64_t>{1}, std::vector<uint64_t>{2}, 10, 1, std::make_shared<MemoryStorage>());
+auto n2 = newTestLearnerRaft(2, std::vector<uint64_t>{1}, std::vector<uint64_t>{2}, 10, 1, std::make_shared<MemoryStorage>());
+
+    n1->become_follower(1, 0);
+    n2->become_follower(1, 0);
+
+    // n2 is learner. Learner should not start election even when times out.
+    n2->randomized_election_timeout_ = n2->election_timeout_;
+    for (uint64_t i = 0; i <  n2->election_timeout_; i++) {
+        n2->tick();
+    }
+
+    ASSERT_TRUE(n2->state_ == RaftState::Follower);
 }
 
 int main(int argc, char* argv[])
