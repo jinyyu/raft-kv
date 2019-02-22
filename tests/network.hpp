@@ -46,7 +46,7 @@ RaftPtr entsWithConfig(ConfigFunc configFunc, std::vector<uint64_t> terms)
     }
 
     RaftPtr sm(new Raft(cfg));
-    sm->reset(terms.size() - 1);
+    sm->reset(terms.back());
     return sm;
 }
 
@@ -180,6 +180,7 @@ struct Network
         cn.from = from;
         dropm[cn] = perc;
     }
+
     void isolate(uint64_t id)
     {
         for (size_t i = 0; i < peers.size(); ++i) {

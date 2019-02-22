@@ -510,7 +510,7 @@ Status Raft::step(proto::MessagePtr msg)
                 msg->from,
                 msg->log_term,
                 msg->index,
-                msg->term);
+                term_);
 
             proto::MessagePtr m(new proto::Message());
             m->to = msg->from;
@@ -896,6 +896,7 @@ void Raft::send(proto::MessagePtr msg)
             //   MsgPreVote if the pre-vote was granted, non-zero for the
             //   same reasons MsgPreVote is
             LOG_FATAL("term should be set when sending %s", proto::msg_type_to_string(msg->type));
+
         }
     }
     else {

@@ -301,29 +301,29 @@ void testLeaderElection(bool preVote)
     {
         std::vector<RaftPtr> peers{nullptr, nullptr, nullptr};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
-        tests.push_back(t);
+        //tests.push_back(t);
     }
 
     {
         std::vector<RaftPtr> peers{nullptr, nullptr, nopStepper};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
-        tests.push_back(t);
+        //tests.push_back(t);
     }
 
     {
         std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = candState, .expTerm = candTerm};
-        tests.push_back(t);
+        //tests.push_back(t);
     }
     {
         std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper, nullptr};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = candState, .expTerm = candTerm};
-        tests.push_back(t);
+        //tests.push_back(t);
     }
     {
         std::vector<RaftPtr> peers{nullptr, nopStepper, nopStepper, nullptr, nullptr};
         Test t{.network = std::make_shared<Network>(cfg, peers), .state = RaftState::Leader, .expTerm = 1};
-        tests.push_back(t);
+        //tests.push_back(t);
     }
 
     {
