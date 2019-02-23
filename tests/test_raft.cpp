@@ -548,6 +548,76 @@ TEST(raft, LeaderCyclePreVote)
     testLeaderCycle(true);
 }
 
+void testLeaderElectionOverwriteNewerLogs(bool preVote)
+{
+    ConfigFunc cfg = [](Config& c) {};
+    if (preVote) {
+        cfg = preVoteConfig;
+    }
+    // This network represents the results of the following sequence of
+    // events:
+    // - Node 1 won the election in term 1.
+    // - Node 1 replicated a log entry to node 2 but died before sending
+    //   it to other nodes.
+    // - Node 3 won the second election in term 2.
+    // - Node 3 wrote an entry to its logs but died without sending it
+    //   to any other nodes.
+    //
+    // At this point, nodes 1, 2, and 3 all have uncommitted entries in
+    // their logs and could win an election at term 3. The winner's log
+    // entry overwrites the losers'. (TestLeaderSyncFollowerLog tests
+    // the case where older log entries are overwritten, so this test
+    // focuses on the case where the newer entries are lost).
+    std::vector<RaftPtr> peers;
+    peers.push_back(entsWithConfig(cfg, std::vector<uint64_t>{1}));// Node 1: Won first election
+    peers.push_back(entsWithConfig(cfg, std::vector<uint64_t>{1}));// Node 2: Got logs from node 1
+    peers.push_back(entsWithConfig(cfg, std::vector<uint64_t>{2})); // Node 3: Won second election
+    peers.push_back(votedWithConfig(cfg, 3, 2)); // Node 4: Voted but didn't get logs
+    peers.push_back(votedWithConfig(cfg, 3, 2)); // Node 5: Voted but didn't get logs
+    Network n(cfg, peers);
+
+    // Node 1 campaigns. The election fails because a quorum of nodes
+    // know about the election that already happened at term 2. Node 1's
+    // term is pushed ahead to 2.
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgHup;
+        std::vector<proto::MessagePtr> msgs{msg};
+        n.send(msgs);
+    };
+
+    auto sm1 = n.peers[1];
+    ASSERT_TRUE(sm1->state_ == RaftState::Follower);
+    ASSERT_TRUE(sm1->term_ = 2);
+
+    // Node 1 campaigns again with a higher term. This time it succeeds.
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgHup;
+        std::vector<proto::MessagePtr> msgs{msg};
+        n.send(msgs);
+    }
+
+    ASSERT_TRUE(sm1->state_ == RaftState::Leader);
+    ASSERT_TRUE(sm1->term_ = 3);
+
+    // Now all nodes agree on a log entry with term 1 at index 1 (and
+    // term 3 at index 2).
+
+    for (auto it = n.peers.begin(); it != n.peers.end(); ++it) {
+        auto sm = it->second;
+        std::vector<proto::EntryPtr> entries;
+        sm->raft_log_->all_entries(entries);
+        ASSERT_TRUE(entries.size() == 2);
+        ASSERT_TRUE(entries[0]->term = 1);
+        ASSERT_TRUE(entries[1]->term = 3);
+    }
+}
+
 int main(int argc, char* argv[])
 {
     //testing::GTEST_FLAG(filter) = "raft.LearnerPromotion";

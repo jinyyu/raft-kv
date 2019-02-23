@@ -65,11 +65,6 @@ public:
 
     void remove_node(uint64_t id);
 
-    RaftLogPtr& raft_log()
-    {
-        return raft_log_;
-    }
-
     bool has_leader() const
     {
         return lead_ != 0;

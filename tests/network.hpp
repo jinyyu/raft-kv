@@ -40,13 +40,31 @@ RaftPtr entsWithConfig(ConfigFunc configFunc, std::vector<uint64_t> terms)
         storage->append(entries);
     }
     auto
-    cfg = newTestConfig(1, std::vector<uint64_t>(), 5, 1, storage);
+        cfg = newTestConfig(1, std::vector<uint64_t>(), 5, 1, storage);
     if (configFunc) {
         configFunc(cfg);
     }
 
     RaftPtr sm(new Raft(cfg));
     sm->reset(terms.back());
+    return sm;
+}
+
+RaftPtr votedWithConfig(ConfigFunc configFunc, uint64_t vote, uint64_t term)
+{
+    MemoryStoragePtr storage(new MemoryStorage());
+    proto::HardState hs;
+    hs.term = term;
+    hs.vote = vote;
+
+    storage->set_hard_state(hs);
+    Config cfg = newTestConfig(1, std::vector<uint64_t>(), 5, 1, storage);
+    if (configFunc) {
+        configFunc(cfg);
+    }
+    cfg.validate();
+    RaftPtr sm(new Raft(cfg));
+    sm->reset(term);
     return sm;
 }
 

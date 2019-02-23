@@ -18,11 +18,11 @@ static bool is_must_sync(const proto::HardState& st, const proto::HardState& pre
 }
 
 Ready::Ready(std::shared_ptr<Raft> raft, SoftStatePtr pre_soft_state, const proto::HardState& pre_hard_state)
-    : entries(raft->raft_log()->unstable_entries())
+    : entries(raft->raft_log_->unstable_entries())
 {
     std::swap(this->messages, raft->msgs());
 
-    raft->raft_log()->next_entries(committed_entries);
+    raft->raft_log_->next_entries(committed_entries);
 
     SoftStatePtr st = raft->soft_state();
     if (!st->equal(*pre_soft_state)) {
@@ -35,7 +35,7 @@ Ready::Ready(std::shared_ptr<Raft> raft, SoftStatePtr pre_soft_state, const prot
     }
 
 
-    proto::SnapshotPtr snapshot = raft->raft_log()->unstable()->ref_snapshot();
+    proto::SnapshotPtr snapshot = raft->raft_log_->unstable()->ref_snapshot();
     if (snapshot) {
         //copy
         this->snapshot = *snapshot;

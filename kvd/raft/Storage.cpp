@@ -14,6 +14,12 @@ Status MemoryStorage::initial_state(proto::HardState& hard_state, proto::ConfSta
     return Status::ok();
 }
 
+void MemoryStorage::set_hard_state(proto::HardState& hard_state)
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    hard_state_ = hard_state;
+}
+
 Status MemoryStorage::entries(uint64_t low,
                               uint64_t high,
                               uint64_t max_size,
@@ -30,7 +36,7 @@ Status MemoryStorage::entries(uint64_t low,
     this->last_index_impl(last);
 
     if (high > last + 1) {
-        LOG_FATAL("entries' hi(%lu) is out of bound lastindex(%lu)", high, last);
+        LOG_FATAL("entries' hi(%lu) is out of bound last_index(%lu)", high, last);
     }
     // only contains dummy entries.
     if (entries_.size() == 1) {

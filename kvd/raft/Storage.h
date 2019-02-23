@@ -63,6 +63,8 @@ public:
 
     virtual Status initial_state(proto::HardState& hard_state, proto::ConfState& conf_state);
 
+    void set_hard_state(proto::HardState& hard_state);
+
     virtual Status entries(uint64_t low,
                            uint64_t high,
                            uint64_t max_size,

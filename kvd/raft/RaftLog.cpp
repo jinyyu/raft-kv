@@ -290,6 +290,21 @@ uint64_t RaftLog::last_index() const
     return index;
 }
 
+void RaftLog::all_entries(std::vector<proto::EntryPtr>& entries)
+{
+    entries.clear();
+    Status status = this->entries(last_index(), RaftLog::unlimited(), entries);
+    if (status.is_ok()) {
+        return;
+    }
+
+    // try again if there was a racing compaction
+    if (status.to_string() == Status::invalid_argument("requested index is unavailable due to compaction").to_string()) {
+        this->all_entries(entries);
+    }
+    LOG_FATAL("%s", status.to_string().c_str());
+}
+
 Status RaftLog::must_check_out_of_bounds(uint64_t low, uint64_t high) const
 {
     assert(high >= low);

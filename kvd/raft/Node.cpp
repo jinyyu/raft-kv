@@ -42,8 +42,8 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boos
             entries.push_back(entry);
         }
 
-        raft_->raft_log()->append(entries);
-        raft_->raft_log()->committed() = entries.size();
+        raft_->raft_log_->append(entries);
+        raft_->raft_log_->committed() = entries.size();
 
         for (auto& peer : peers) {
             raft_->add_node(peer.id);
@@ -128,13 +128,13 @@ bool RawNode::has_ready()
         return true;
     }
 
-    proto::SnapshotPtr snapshot = raft_->raft_log()->unstable()->ref_snapshot();
+    proto::SnapshotPtr snapshot = raft_->raft_log_->unstable()->ref_snapshot();
 
     if (snapshot && !snapshot->is_empty()) {
         return true;
     }
-    if (!raft_->msgs().empty() || !raft_->raft_log()->unstable_entries().empty()
-        || raft_->raft_log()->has_next_entries()) {
+    if (!raft_->msgs().empty() || !raft_->raft_log_->unstable_entries().empty()
+        || raft_->raft_log_->has_next_entries()) {
         return true;
     }
 
@@ -151,17 +151,17 @@ void RawNode::must_not_ready() const
     }
     proto::HardState hs = raft_->hard_state();
     if (!hs.is_empty_state() && !hs.equal(prev_hard_state_)) {
-        LOG_ERROR("--------------------%d, %d", hs.is_empty_state(), hs.equal(prev_hard_state_));
+        LOG_ERROR("%d, %d", hs.is_empty_state(), hs.equal(prev_hard_state_));
         assert(false);
     }
 
-    proto::SnapshotPtr snapshot = raft_->raft_log()->unstable()->ref_snapshot();
+    proto::SnapshotPtr snapshot = raft_->raft_log_->unstable()->ref_snapshot();
 
     if (snapshot && !snapshot->is_empty()) {
         assert(false);
     }
-    if (!raft_->msgs().empty() || !raft_->raft_log()->unstable_entries().empty()
-        || raft_->raft_log()->has_next_entries()) {
+    if (!raft_->msgs().empty() || !raft_->raft_log_->unstable_entries().empty()
+        || raft_->raft_log_->has_next_entries()) {
         assert(false);
     }
 
@@ -185,16 +185,16 @@ void RawNode::advance(ReadyPtr ready)
     // all of the new entries due to commit pagination by size.
     uint64_t index = ready->applied_cursor();
     if (index > 0) {
-        raft_->raft_log()->applied_to(index);
+        raft_->raft_log_->applied_to(index);
     }
 
     if (!ready->entries.empty()) {
         auto& entry = ready->entries.back();
-        raft_->raft_log()->stable_to(entry->index, entry->term);
+        raft_->raft_log_->stable_to(entry->index, entry->term);
     }
 
     if (!ready->snapshot.is_empty()) {
-        raft_->raft_log()->stable_snap_to(ready->snapshot.metadata.index);
+        raft_->raft_log_->stable_snap_to(ready->snapshot.metadata.index);
     }
 
     if (!ready->read_states.empty()) {
