@@ -8,6 +8,13 @@
 using namespace kvd;
 
 
+std::vector<uint8_t> str_to_vector(const char* str)
+{
+    size_t len = strlen(str);
+    std::vector<uint8_t> data(str, str + len);
+    return data;
+}
+
 static RaftPtr newTestRaft(uint64_t id,
                            std::vector<uint64_t> peers,
                            uint64_t election,
@@ -706,9 +713,76 @@ TEST(raft, PreVoteFromAnyState)
     testVoteFromAnyState(proto::MsgPreVote);
 }
 
+TEST(raft, LogReplication)
+{
+    LOG_WARN("--------------");
+}
+
+// TestLearnerLogReplication tests that a learner can receive entries from the leader.
+TEST(raft, LearnerLogReplication)
+{
+    auto n1 = newTestLearnerRaft(1,
+                                 std::vector<uint64_t>{1},
+                                 std::vector<uint64_t>{2},
+                                 10,
+                                 1,
+                                 std::make_shared<MemoryStorage>());
+    auto n2 = newTestLearnerRaft(2,
+                                 std::vector<uint64_t>{1},
+                                 std::vector<uint64_t>{2},
+                                 10,
+                                 1,
+                                 std::make_shared<MemoryStorage>());
+
+    Network nt(std::vector<RaftPtr>{n1, n2});
+
+    n1->become_follower(1, 0);
+    n2->become_follower(1, 0);
+
+    n1->randomized_election_timeout_ = n1->election_timeout_;
+
+    for (size_t i = 0; i < n1->election_timeout_; i++) {
+        n1->tick();
+    }
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgBeat;
+        std::vector<proto::MessagePtr> msgs{msg};
+        nt.send(msgs);
+    }
+
+
+    // n1 is leader and n2 is learner
+    ASSERT_TRUE(n1->state_ == RaftState::Leader);
+    ASSERT_TRUE(n2->is_learner_);
+
+    auto nextCommitted = n1->raft_log_->committed() + 1;
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        std::vector<proto::MessagePtr> msgs{msg};
+        nt.send(msgs);
+    }
+
+    ASSERT_TRUE(n1->raft_log_->committed() == nextCommitted);
+    ASSERT_TRUE(n1->raft_log_->committed() == n2->raft_log_->committed());
+
+
+    auto match = n1->get_progress(2)->match;
+    ASSERT_TRUE(match == n2->raft_log_->committed());
+}
+
 int main(int argc, char* argv[])
 {
-    //testing::GTEST_FLAG(filter) = "raft.LeaderCycle";
+    testing::GTEST_FLAG(filter) = "raft.LearnerLogReplication";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
