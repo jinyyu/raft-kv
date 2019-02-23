@@ -224,19 +224,27 @@ struct Network
 
     void send(std::vector<proto::MessagePtr>& msgs)
     {
-        while (!msgs.empty()) {
-            auto m = msgs[0];
+        std::deque<proto::MessagePtr> queue;
+        for(proto::MessagePtr m: msgs) {
+            queue.push_back(m);
+        }
+        while (!queue.empty()) {
+            auto m = queue.front();
+            queue.pop_front();
+            LOG_DEBUG("-------------%lu->%lu, %s", m->from, m->to, proto::msg_type_to_string(m->type));
             auto p = peers[m->to];
             p->step(m);
             auto ms = p->read_messages();
             ms = filter(ms);
-            msgs.erase(msgs.begin(), msgs.begin() + 1);
-            msgs.insert(msgs.end(), ms.begin(), ms.end());
+            for(proto::MessagePtr m: ms) {
+                queue.push_back(m);
+            }
         }
     }
 
     std::vector<proto::MessagePtr> filter(const std::vector<proto::MessagePtr>& msgs)
     {
+        return msgs;
         std::vector<proto::MessagePtr> mm;
 
         for (proto::MessagePtr m :  msgs) {

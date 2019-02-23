@@ -179,6 +179,7 @@ public:
     {
         std::vector<proto::MessagePtr> ret;
         ret.swap(msgs_);
+        msgs_.clear();
         return ret;
     }
 

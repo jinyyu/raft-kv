@@ -514,7 +514,7 @@ void testLeaderCycle(bool preVote)
     }
 
     Network n(cfg, std::vector<RaftPtr>{nullptr, nullptr, nullptr});
-    for (uint64_t campaignerID = 1; campaignerID <= 3; campaignerID++) {
+    for (uint64_t campaignerID = 1; campaignerID <= 1; campaignerID++) {
 
         {
             proto::MessagePtr msg(new proto::Message());
@@ -620,7 +620,7 @@ void testLeaderElectionOverwriteNewerLogs(bool preVote)
 
 int main(int argc, char* argv[])
 {
-    //testing::GTEST_FLAG(filter) = "raft.LearnerPromotion";
+    testing::GTEST_FLAG(filter) = "raft.LeaderCyclePreVote";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

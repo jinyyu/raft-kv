@@ -115,8 +115,6 @@ Raft::Raft(const Config& c)
         node_str = boost::join(nodes_strs, ",");
     }
 
-    LOG_DEBUG("---------------prs %lu", prs_.size());
-
     LOG_INFO("raft %lu [peers: [%s], term: %lu, commit: %lu, applied: %lu, last_index: %lu, last_term: %lu]",
              id_,
              node_str.c_str(),
@@ -235,7 +233,7 @@ void Raft::campaign(const std::string& campaign_type)
         term = term_;
     }
 
-    if (quorum() == poll(id_, vote_msg, true)) {
+    if (quorum() == poll(id_, vote_resp_msg_type(vote_msg), true)) {
         // We won the election after voting for ourselves (which must mean that
         // this is a single-node cluster). Advance to the next state.
         if (campaign_type == kCampaignPreElection) {
@@ -477,7 +475,7 @@ Status Raft::step(proto::MessagePtr msg)
                 msg->from,
                 msg->log_term,
                 msg->index,
-                msg->term);
+                term_);
             // When responding to Msg{Pre,}Vote messages we include the term
             // from the message, not the local term. To see why consider the
             // case where a single node was previously partitioned away and
@@ -881,6 +879,7 @@ Status Raft::step_candidate(proto::MessagePtr msg)
 void Raft::send(proto::MessagePtr msg)
 {
     msg->from = id_;
+    LOG_DEBUG("send -----------------%lu-> %lu, %s", msg->from, msg->to, proto::msg_type_to_string(msg->type));
     if (msg->type == proto::MsgVote || msg->type == proto::MsgVoteResp || msg->type == proto::MsgPreVote
         || msg->type == proto::MsgPreVoteResp) {
         if (msg->term == 0) {
