@@ -225,18 +225,17 @@ struct Network
     void send(std::vector<proto::MessagePtr>& msgs)
     {
         std::deque<proto::MessagePtr> queue;
-        for(proto::MessagePtr m: msgs) {
+        for (proto::MessagePtr m: msgs) {
             queue.push_back(m);
         }
         while (!queue.empty()) {
             auto m = queue.front();
             queue.pop_front();
-            LOG_DEBUG("-------------%lu->%lu, %s", m->from, m->to, proto::msg_type_to_string(m->type));
             auto p = peers[m->to];
             p->step(m);
             auto ms = p->read_messages();
             ms = filter(ms);
-            for(proto::MessagePtr m: ms) {
+            for (proto::MessagePtr m: ms) {
                 queue.push_back(m);
             }
         }
@@ -244,7 +243,7 @@ struct Network
 
     std::vector<proto::MessagePtr> filter(const std::vector<proto::MessagePtr>& msgs)
     {
-        return msgs;
+        //return msgs;
         std::vector<proto::MessagePtr> mm;
 
         for (proto::MessagePtr m :  msgs) {
@@ -253,20 +252,21 @@ struct Network
             }
 
             switch (m->type) {
-            case proto::MsgHup:
-                // hups never go over the network, so don't drop them but panic
-                LOG_FATAL("unexpected msgHup");
-            default: {
-                connem c;
-                c.from = m->from;
-                c.to = m->to;
-                auto perc = dropm[c];
+                case proto::MsgHup:
+                    // hups never go over the network, so don't drop them but panic
+                    LOG_FATAL("unexpected msgHup");
+                default: {
+                    connem c;
+                    c.from = m->from;
+                    c.to = m->to;
+                    auto perc = dropm[c];
 
-                auto n = (float) dev.gen();
-                if (n < perc * 100) {
-                    continue;
+                    auto n = (float) dev.gen();
+                    if (n < perc * 100) {
+                        LOG_DEBUG("drop message");
+                        continue;
+                    }
                 }
-            }
             }
 
             if (this->msgHook) {

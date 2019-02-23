@@ -79,17 +79,17 @@ public:
     {
 
         switch (method) {
-        case http_method::HTTP_GET: {
-            handle_get();
-            break;
-        }
-        case http_method::HTTP_PUT: {
-            handle_put();
-            break;
-        }
-        default: {
-            handle_invalid_method();
-        }
+            case http_method::HTTP_GET: {
+                handle_get();
+                break;
+            }
+            case http_method::HTTP_PUT: {
+                handle_put();
+                break;
+            }
+            default: {
+                handle_invalid_method();
+            }
         }
     }
 

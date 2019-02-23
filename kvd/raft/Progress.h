@@ -116,7 +116,6 @@ public:
         pending_snapshot = 0;
     }
 
-
     uint64_t match;
     uint64_t next;
     // state defines how the leader should interact with the follower.

@@ -1,7 +1,6 @@
 #include <boost/algorithm/string.hpp>
 #include <future>
 #include <kvd/KvdServer.h>
-#include <kvd/transport/Transport.h>
 #include <kvd/common/log.h>
 
 namespace kvd
@@ -128,44 +127,44 @@ bool KvdServer::publish_entries(const std::vector<proto::EntryPtr>& entries)
 {
     for (const proto::EntryPtr& entry : entries) {
         switch (entry->type) {
-        case proto::EntryNormal: {
-            if (entry->data.empty()) {
-                // ignore empty messages
+            case proto::EntryNormal: {
+                if (entry->data.empty()) {
+                    // ignore empty messages
+                    break;
+                }
+                LOG_DEBUG("commit data %lu", entry->data.size());
                 break;
             }
-            LOG_DEBUG("commit data %lu", entry->data.size());
-            break;
-        }
 
-        case proto::EntryConfChange: {
-            proto::ConfChange cc;
-            msgpack::object_handle oh = msgpack::unpack((const char*) entry->data.data(), entry->data.size());
-            oh.get().convert(cc);
-            switch (cc.conf_change_type) {
-            case proto::ConfChangeAddNode: {
-                if (!cc.context.empty()) {
-                    std::string str((const char*) cc.context.data(), cc.context.size());
-                    transport_->add_peer(cc.node_id, str);
+            case proto::EntryConfChange: {
+                proto::ConfChange cc;
+                msgpack::object_handle oh = msgpack::unpack((const char*) entry->data.data(), entry->data.size());
+                oh.get().convert(cc);
+                switch (cc.conf_change_type) {
+                    case proto::ConfChangeAddNode: {
+                        if (!cc.context.empty()) {
+                            std::string str((const char*) cc.context.data(), cc.context.size());
+                            transport_->add_peer(cc.node_id, str);
+                        }
+                        break;
+                        case proto::ConfChangeRemoveNode: {
+                            if (cc.node_id == id_) {
+                                LOG_INFO("I've been removed from the cluster! Shutting down.");
+                                return false;
+                            }
+                            transport_->remove_peer(cc.node_id);
+                            default: {
+                                LOG_INFO("configure change %d", cc.conf_change_type);
+                            }
+                        }
+                    }
                 }
                 break;
-            case proto::ConfChangeRemoveNode: {
-                if (cc.node_id == id_) {
-                    LOG_INFO("I've been removed from the cluster! Shutting down.");
-                    return false;
-                }
-                transport_->remove_peer(cc.node_id);
+            }
             default: {
-                LOG_INFO("configure change %d", cc.conf_change_type);
+                LOG_FATAL("unknown type %d", entry->type);
+                return false;
             }
-            }
-            }
-            }
-            break;
-        }
-        default: {
-            LOG_FATAL("unknown type %d", entry->type);
-            return false;
-        }
         }
 
         // after commit, update appliedIndex

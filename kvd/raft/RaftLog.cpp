@@ -299,7 +299,8 @@ void RaftLog::all_entries(std::vector<proto::EntryPtr>& entries)
     }
 
     // try again if there was a racing compaction
-    if (status.to_string() == Status::invalid_argument("requested index is unavailable due to compaction").to_string()) {
+    if (status.to_string()
+        == Status::invalid_argument("requested index is unavailable due to compaction").to_string()) {
         this->all_entries(entries);
     }
     LOG_FATAL("%s", status.to_string().c_str());

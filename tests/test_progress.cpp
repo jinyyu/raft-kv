@@ -233,12 +233,15 @@ TEST(progress, MaybeDecr)
     std::vector<Test> tests;
 
     // state replicate and rejected is not greater than match
-    tests.push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 5, .last = 5, .w = false, .wn = 10});
+    tests
+        .push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 5, .last = 5, .w = false, .wn = 10});
     // state replicate and rejected is not greater than match
-    tests.push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 4, .last = 5, .w = false, .wn = 10});
+    tests
+        .push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 4, .last = 5, .w = false, .wn = 10});
     // state replicate and rejected is greater than match
     // directly decrease to match+1
-    tests.push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 9, .last = 9, .w = true, .wn = 6});
+    tests
+        .push_back(Test{.state = ProgressStateReplicate, .m = 5, .n = 10, .rejected = 9, .last = 9, .w = true, .wn = 6});
     // next-1 != rejected is always false
     tests.push_back(Test{.state = ProgressStateProbe, .m = 0, .n = 0, .rejected = 0, .last = 0, .w = false, .wn = 0});
     // next-1 != rejected is always false

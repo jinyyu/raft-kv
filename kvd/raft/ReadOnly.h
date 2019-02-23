@@ -24,7 +24,6 @@ struct ReadIndexStatus
     uint64_t index;
     std::unordered_set<uint64_t> acks;
 
-
 };
 typedef std::shared_ptr<ReadIndexStatus> ReadIndexStatusPtr;
 

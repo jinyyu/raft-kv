@@ -212,25 +212,25 @@ proto::ConfStatePtr RawNode::apply_conf_change(proto::ConfChangePtr cs)
     }
 
     switch (cs->conf_change_type) {
-    case proto::ConfChangeAddNode: {
-        raft_->add_node_or_learner(cs->node_id, false);
-        break;
-    }
-    case proto::ConfChangeAddLearnerNode: {
-        raft_->add_node_or_learner(cs->node_id, true);
-        break;
-    }
-    case proto::ConfChangeRemoveNode: {
-        raft_->remove_node(cs->node_id);
-        break;
-    }
-    case proto::ConfChangeUpdateNode: {
-        LOG_DEBUG("ConfChangeUpdate");
-        break;
-    }
-    default: {
-        LOG_FATAL("unexpected conf type");
-    }
+        case proto::ConfChangeAddNode: {
+            raft_->add_node_or_learner(cs->node_id, false);
+            break;
+        }
+        case proto::ConfChangeAddLearnerNode: {
+            raft_->add_node_or_learner(cs->node_id, true);
+            break;
+        }
+        case proto::ConfChangeRemoveNode: {
+            raft_->remove_node(cs->node_id);
+            break;
+        }
+        case proto::ConfChangeUpdateNode: {
+            LOG_DEBUG("ConfChangeUpdate");
+            break;
+        }
+        default: {
+            LOG_FATAL("unexpected conf type");
+        }
     }
     raft_->nodes(state->nodes);
     raft_->learner_nodes(state->learners);

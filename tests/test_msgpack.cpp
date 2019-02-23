@@ -1,6 +1,4 @@
 #include <msgpack.hpp>
-#include <vector>
-#include <string>
 #include <gtest/gtest.h>
 #include <kvd/raft/proto.h>
 
@@ -122,14 +120,14 @@ TEST(msgpack, entry_size)
     }
 
     {
-        entry.data.resize(std::numeric_limits<uint8_t>::max() -1);
+        entry.data.resize(std::numeric_limits<uint8_t>::max() - 1);
         msgpack::sbuffer sbuf;
         msgpack::pack(sbuf, entry);
         ASSERT_TRUE(entry.serialize_size() == sbuf.size());
     }
 
     {
-        entry.data.resize(std::numeric_limits<uint16_t>::max() -1);
+        entry.data.resize(std::numeric_limits<uint16_t>::max() - 1);
         msgpack::sbuffer sbuf;
         msgpack::pack(sbuf, entry);
         ASSERT_TRUE(entry.serialize_size() == sbuf.size());

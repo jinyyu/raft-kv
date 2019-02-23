@@ -54,20 +54,25 @@ std::string Status::to_string() const
     char tmp[30];
     Code c = code();
     switch (c) {
-    case Code::OK :str = "ok";
-        break;
-    case Code::NotFound :str = "not found:";
-        break;
-    case Code::NotSupported :str = "not supported:";
-        break;
-    case Code::InvalidArgument :str = "invalid argument:";
-        break;
-    case Code::IOError :str = "io error:";
-        break;
-    default: {
-        snprintf(tmp, sizeof(tmp), "Unknown code(%d):", c);
-        str = tmp;
-    }
+        case Code::OK :
+            str = "ok";
+            break;
+        case Code::NotFound :
+            str = "not found:";
+            break;
+        case Code::NotSupported :
+            str = "not supported:";
+            break;
+        case Code::InvalidArgument :
+            str = "invalid argument:";
+            break;
+        case Code::IOError :
+            str = "io error:";
+            break;
+        default: {
+            snprintf(tmp, sizeof(tmp), "Unknown code(%d):", c);
+            str = tmp;
+        }
     }
 
     std::string ret(str);

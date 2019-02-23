@@ -531,7 +531,7 @@ void testLeaderCycle(bool preVote)
             if (sm->id_ == campaignerID && sm->state_ != RaftState::Leader) {
                 ASSERT_FALSE(true);
             }
-            else if (sm->id_ != campaignerID && sm->state_ != RaftState::Leader) {
+            else if (sm->id_ != campaignerID && sm->state_ != RaftState::Follower) {
                 ASSERT_FALSE(true);
             }
         }
@@ -620,7 +620,7 @@ void testLeaderElectionOverwriteNewerLogs(bool preVote)
 
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(filter) = "raft.LeaderCyclePreVote";
+    //testing::GTEST_FLAG(filter) = "raft.LeaderCycle";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -1,7 +1,6 @@
-#include <assert.h>
+
 #include <string.h>
 #include <kvd/common/ByteBuffer.h>
-#include <kvd/common/log.h>
 
 namespace kvd
 {

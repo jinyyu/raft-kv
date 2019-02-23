@@ -68,7 +68,6 @@ public:
     // slice returns a slice of log entries from low through high-1, inclusive.
     Status slice(uint64_t low, uint64_t high, uint64_t max_size, std::vector<proto::EntryPtr>& entries) const;
 
-
     // is_up_to_date determines if the given (lastIndex,term) log is more up-to-date
     // by comparing the index and term of the last entries in the existing logs.
     // If the logs have last entries with different terms, then the log with the

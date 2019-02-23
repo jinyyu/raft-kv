@@ -1,9 +1,7 @@
 #include <boost/algorithm/string.hpp>
 #include <kvd/transport/Server.h>
 #include <kvd/common/log.h>
-#include <kvd/common/ByteBuffer.h>
 #include <kvd/transport/proto.h>
-#include <kvd/raft/proto.h>
 #include <kvd/transport/Transport.h>
 
 namespace kvd
@@ -73,24 +71,24 @@ public:
     void decode_message(uint32_t len)
     {
         switch (meta_.type) {
-        case TransportTypeDebug: {
-            assert(len == sizeof(DebugMessage));
-            DebugMessage* dbg = (DebugMessage*) buffer_.data();
-            assert(dbg->a + 1 == dbg->b);
-            //LOG_DEBUG("tick ok");
-            break;
-        }
-        case TransportTypeStream: {
-            proto::MessagePtr msg(new proto::Message());
-            msgpack::object_handle oh = msgpack::unpack((const char*) buffer_.data(), buffer_.size());
-            oh.get().convert(*msg);
-            on_receive_stream_message(std::move(msg));
-            break;
-        }
-        default: {
-            LOG_DEBUG("unknown msg type %d, len = %d", meta_.type, ntohl(meta_.len));
-            return;
-        }
+            case TransportTypeDebug: {
+                assert(len == sizeof(DebugMessage));
+                DebugMessage* dbg = (DebugMessage*) buffer_.data();
+                assert(dbg->a + 1 == dbg->b);
+                //LOG_DEBUG("tick ok");
+                break;
+            }
+            case TransportTypeStream: {
+                proto::MessagePtr msg(new proto::Message());
+                msgpack::object_handle oh = msgpack::unpack((const char*) buffer_.data(), buffer_.size());
+                oh.get().convert(*msg);
+                on_receive_stream_message(std::move(msg));
+                break;
+            }
+            default: {
+                LOG_DEBUG("unknown msg type %d, len = %d", meta_.type, ntohl(meta_.len));
+                return;
+            }
         }
 
         start_read_meta();
