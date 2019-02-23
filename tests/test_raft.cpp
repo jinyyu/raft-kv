@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <kvd/raft/Raft.h>
 #include <kvd/common/log.h>
+#include <kvd/raft/util.h>
 #include "network.hpp"
 
 
@@ -630,6 +631,79 @@ TEST(raft, LeaderElectionOverwriteNewerLogs)
 TEST(raft, LeaderElectionOverwriteNewerLogsPreVote)
 {
     testLeaderElectionOverwriteNewerLogs(true);
+}
+
+void testVoteFromAnyState(proto::MessageType vt)
+{
+    for (auto st = (size_t) RaftState::Follower; st <= RaftState::PreCandidate; st++) {
+        auto r = newTestRaft(1, std::vector<uint64_t>{1, 2, 3}, 10, 1, std::make_shared<MemoryStorage>());
+        r->term_ = 1;
+
+        switch (st) {
+            case RaftState::Follower: {
+                r->become_follower(r->term_, 3);
+                break;
+            }
+            case RaftState::PreCandidate: {
+                r->become_pre_candidate();
+                break;
+            }
+
+            case RaftState::Candidate: {
+                r->become_candidate();
+                break;
+            }
+            case RaftState::Leader: {
+                r->become_candidate();
+                r->become_leader();
+            }
+        }
+
+        // Note that setting our state above may have advanced r.Term
+        // past its initial value.
+        auto origTerm = r->term_;
+        auto newTerm = r->term_ + 1;
+
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 2;
+        msg->to = 1;
+        msg->type = vt;
+        msg->term = newTerm;
+        msg->log_term = newTerm;
+        msg->index = 42;
+
+        Status status = r->step(msg);
+        ASSERT_TRUE(status.is_ok());
+        ASSERT_TRUE(r->msgs_.size() == 1);
+
+        auto resp = r->msgs_[0];
+        ASSERT_TRUE(resp->type == vote_resp_msg_type(vt));
+        ASSERT_FALSE(resp->reject);
+
+        if (vt == proto::MsgVote) {
+            ASSERT_TRUE(r->state_ == RaftState::Follower);
+            ASSERT_TRUE(r->term_ == newTerm);
+            ASSERT_TRUE(r->vote_ == 2);
+        }
+        else {
+            // In a prevote, nothing changes.
+            ASSERT_TRUE(r->state_ == st);
+            ASSERT_TRUE(r->term_ == origTerm);
+            // if st == StateFollower or StatePreCandidate, r hasn't voted yet.
+            // In StateCandidate or StateLeader, it's voted for itself.
+            ASSERT_FALSE(r->vote_ != 0 && r->vote_ != 1);
+        }
+    }
+}
+
+TEST(raft, VoteFromAnyState)
+{
+    testVoteFromAnyState(proto::MsgVote);
+}
+
+TEST(raft, PreVoteFromAnyState)
+{
+    testVoteFromAnyState(proto::MsgPreVote);
 }
 
 int main(int argc, char* argv[])
