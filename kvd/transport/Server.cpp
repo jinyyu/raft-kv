@@ -83,7 +83,7 @@ public:
         case TransportTypeStream: {
             proto::MessagePtr msg(new proto::Message());
             msgpack::object_handle oh = msgpack::unpack((const char*) buffer_.data(), buffer_.size());
-            oh.get().convert(&*msg);
+            oh.get().convert(*msg);
             on_receive_stream_message(std::move(msg));
             break;
         }

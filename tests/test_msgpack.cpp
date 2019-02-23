@@ -31,8 +31,7 @@ TEST(test_msgpack, test_msgpack)
 
     msgpack::object obj = oh.get();
     std::vector<MyClass> rvec;
-    bool success = obj.convert(&rvec);
-    ASSERT_TRUE(success);
+    obj.convert(rvec);
 
     ASSERT_TRUE(rvec.size() == 1);
     MyClass& out = rvec[0];
@@ -61,7 +60,7 @@ TEST(test_msgpack, test_error)
 
     msgpack::object obj = oh.get();
     std::string out;
-    ASSERT_ANY_THROW(obj.convert(&out));
+    ASSERT_ANY_THROW(obj.convert(out));
 
 }
 
