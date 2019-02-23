@@ -140,8 +140,6 @@ void Raft::become_follower(uint64_t term, uint64_t lead)
     lead_ = lead;
     state_ = RaftState::Follower;
 
-    if (term_ > 100)
-        assert(false);
     LOG_INFO("%lu became follower at term %lu", id_, term_);
 }
 

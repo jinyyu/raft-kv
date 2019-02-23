@@ -293,7 +293,7 @@ uint64_t RaftLog::last_index() const
 void RaftLog::all_entries(std::vector<proto::EntryPtr>& entries)
 {
     entries.clear();
-    Status status = this->entries(last_index(), RaftLog::unlimited(), entries);
+    Status status = this->entries(first_index(), RaftLog::unlimited(), entries);
     if (status.is_ok()) {
         return;
     }

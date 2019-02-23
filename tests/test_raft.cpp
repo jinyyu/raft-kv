@@ -618,6 +618,20 @@ void testLeaderElectionOverwriteNewerLogs(bool preVote)
     }
 }
 
+// LeaderElectionOverwriteNewerLogs tests a scenario in which a
+// newly-elected leader does *not* have the newest (i.e. highest term)
+// log entries, and must overwrite higher-term log entries with
+// lower-term ones.
+TEST(raft, LeaderElectionOverwriteNewerLogs)
+{
+    testLeaderElectionOverwriteNewerLogs(false);
+}
+
+TEST(raft, LeaderElectionOverwriteNewerLogsPreVote)
+{
+    testLeaderElectionOverwriteNewerLogs(true);
+}
+
 int main(int argc, char* argv[])
 {
     //testing::GTEST_FLAG(filter) = "raft.LeaderCycle";
