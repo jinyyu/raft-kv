@@ -1118,12 +1118,13 @@ TEST(raft, DuelingCandidates)
 
     MemoryStoragePtr ms(new MemoryStorage());
     {
+        ms->ref_entries().clear();
         proto::EntryPtr e1(new proto::Entry());
         ms->ref_entries().push_back(e1);
 
         proto::EntryPtr e2(new proto::Entry());
         e2->index = 1;
-        e2->term = 2;
+        e2->term = 1;
         ms->ref_entries().push_back(e2);
     }
 
@@ -1140,20 +1141,37 @@ TEST(raft, DuelingCandidates)
     };
 
     std::vector<Test> tests;
+    tests.push_back(Test{.sm = a, .state = RaftState::Follower, .term = 2, .raftLog = wlog});
+    tests.push_back(Test{.sm = b, .state = RaftState::Follower, .term = 2, .raftLog = wlog});
+    {
+        RaftLogPtr log(new RaftLog(std::make_shared<MemoryStorage>(), 1024));
+        tests.push_back(Test{.sm = c, .state = RaftState::Follower, .term = 2, .raftLog =log});
+    }
 
     for (size_t i = 0; i < tests.size(); ++i) {
         Test& tt = tests[i];
         ASSERT_TRUE(tt.sm->state_ == tt.state);
         ASSERT_TRUE(tt.sm->term_ == tt.term);
 
-        ASSERT_TRUE(cmp_raft_log(tt.raftLog, sm->raft_log_));
+        sm = nt.peers[i +1];
+
+        ASSERT_TRUE(tt.raftLog->committed_ == sm->raft_log_->committed_);
+        ASSERT_TRUE(tt.raftLog->applied_ == sm->raft_log_->applied_);
+
+        std::vector<proto::EntryPtr> tt_entries;
+        tt.raftLog->all_entries(tt_entries);
+
+        std::vector<proto::EntryPtr> sm_entries;
+        sm->raft_log_->all_entries(sm_entries);
+
+        ASSERT_TRUE(entry_cmp(tt_entries, sm_entries));
 
     }
 }
 
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(filter) = "raft.LeaderElectionOverwriteNewerLogs";
+    testing::GTEST_FLAG(filter) = "raft.DuelingCandidates";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

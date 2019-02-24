@@ -32,24 +32,6 @@ bool entry_cmp(const std::vector<proto::EntryPtr>& left, const std::vector<proto
     return true;
 }
 
-bool cmp_raft_log(RaftLogPtr l, RaftLogPtr r)
-{
-    if (l->committed_ != r->committed_) {
-        return false;
-    }
-
-    if (l->applied_ != r->applied_) {
-        return false;
-    }
-
-    std::vector<proto::EntryPtr> le;
-    l->all_entries(le);
-    std::vector<proto::EntryPtr> re;
-    r->all_entries(re);
-    return entry_cmp(le, re);
-
-}
-
 std::vector<proto::EntryPtr> nextEnts(RaftPtr r, MemoryStoragePtr s)
 {
     s->append(r->raft_log_->unstable_entries());
