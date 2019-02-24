@@ -88,7 +88,7 @@ Status RawNode::propose(std::vector<uint8_t> data)
     return raft_->step(std::move(msg));
 }
 
-Status RawNode::propose_conf_change(proto::ConfChange cs)
+Status RawNode::propose_conf_change(const proto::ConfChange& cs)
 {
     proto::MessagePtr msg(new proto::Message());
     msg->type = proto::MsgProp;

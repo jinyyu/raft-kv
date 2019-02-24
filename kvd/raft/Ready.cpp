@@ -30,7 +30,7 @@ Ready::Ready(std::shared_ptr<Raft> raft, SoftStatePtr pre_soft_state, const prot
     }
 
     proto::HardState hs = raft->hard_state();
-    if (!hs.equal(hard_state)) {
+    if (!hs.equal(pre_hard_state)) {
         this->hard_state = hs;
     }
 
