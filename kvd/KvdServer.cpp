@@ -64,7 +64,7 @@ KvdServer::~KvdServer()
 void KvdServer::start_timer()
 {
     auto self = shared_from_this();
-    timer_.expires_from_now(boost::posix_time::millisec(500));
+    timer_.expires_from_now(boost::posix_time::millisec(100));
     timer_.async_wait([self](const boost::system::error_code& err) {
         if (err) {
             LOG_ERROR("timer waiter error %s", err.message().c_str());
@@ -84,8 +84,6 @@ void KvdServer::check_raft_ready()
             return;
         }
 
-        LOG_DEBUG("ready");
-
         auto rd = node_->ready();
         if (!rd->contains_updates()) {
             LOG_WARN("ready not contains updates");
@@ -93,7 +91,7 @@ void KvdServer::check_raft_ready()
         }
 
         if (!rd->snapshot.is_empty()) {
-            LOG_WARN("no impl yet");
+            //LOG_WARN("no impl yet");
         }
 
         if (!rd->entries.empty()) {
@@ -112,7 +110,6 @@ void KvdServer::check_raft_ready()
         }
         maybe_trigger_snapshot();
         node_->advance(rd);
-        node_->must_not_ready();
     };
 
     if (raft_loop_id_ == pthread_self()) {
@@ -195,7 +192,7 @@ void KvdServer::entries_to_apply(const std::vector<proto::EntryPtr>& entries, st
 
 void KvdServer::maybe_trigger_snapshot()
 {
-    LOG_WARN("not impl yet");
+    //LOG_WARN("not impl yet");
 }
 
 void KvdServer::post_ready(ReadyPtr ready)

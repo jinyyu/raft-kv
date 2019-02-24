@@ -154,7 +154,6 @@ void AsioServer::start()
 
 void AsioServer::on_message(proto::MessagePtr msg)
 {
-    LOG_DEBUG("receive %s from %lu", proto::msg_type_to_string(msg->type), msg->from);
     auto raft = raft_.lock();
     if (raft) {
         Status status = raft->process(std::move(msg));
