@@ -297,7 +297,7 @@ uint32_t Raft::poll(uint64_t id, proto::MessageType type, bool v)
 Status Raft::step(proto::MessagePtr msg)
 {
     if (msg->term == 0) {
-        LOG_DEBUG("local msg %s", proto::msg_type_to_string(msg->type));
+
     }
     else if (msg->term > term_) {
         if (msg->type == proto::MsgVote || msg->type == proto::MsgPreVote) {

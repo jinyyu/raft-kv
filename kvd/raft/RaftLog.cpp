@@ -237,7 +237,6 @@ Status RaftLog::term(uint64_t index, uint64_t& t) const
     uint64_t dummy_index = first_index() - 1;
     if (index < dummy_index || index > last_index()) {
         // TODO: return an error instead?
-        LOG_ERROR("invalid index %lu, %lu, %lu", dummy_index, index, last_index());
         t = 0;
         return Status::ok();
     }

@@ -855,7 +855,7 @@ TEST(raft, LearnerLogReplication)
 
 int main(int argc, char* argv[])
 {
-    //testing::GTEST_FLAG(filter) = "raft.LearnerLogReplication";
+    testing::GTEST_FLAG(filter) = "raft.LogReplication";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
