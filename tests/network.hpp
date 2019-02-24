@@ -5,7 +5,50 @@
 #include <kvd/raft/Raft.h>
 #include <kvd/common/RandomDevice.h>
 
+
 using namespace kvd;
+
+bool entry_cmp(const std::vector<proto::EntryPtr>& left, const std::vector<proto::EntryPtr>& right)
+{
+    if (left.size() != right.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < left.size(); ++i) {
+        if (left[i]->index != right[i]->index) {
+            return false;
+        }
+
+        if (left[i]->term != right[i]->term) {
+            return false;
+        }
+        if (left[i]->type != right[i]->type) {
+            return false;
+        }
+        if (left[i]->data != right[i]->data) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool cmp_raft_log(RaftLogPtr l, RaftLogPtr r)
+{
+    if (l->committed_ != r->committed_) {
+        return false;
+    }
+
+    if (l->applied_ != r->applied_) {
+        return false;
+    }
+
+    std::vector<proto::EntryPtr> le;
+    l->all_entries(le);
+    std::vector<proto::EntryPtr> re;
+    r->all_entries(re);
+    return entry_cmp(le, re);
+
+}
 
 std::vector<proto::EntryPtr> nextEnts(RaftPtr r, MemoryStoragePtr s)
 {
@@ -285,7 +328,7 @@ struct Network
 
                     auto n = (float) dev.gen();
                     if (n < perc * 100) {
-                        LOG_DEBUG("drop message");
+                        LOG_DEBUG("drop message, %lu, %lu, %s",  m->from, m->to, proto::msg_type_to_string(m->type));
                         continue;
                     }
                 }

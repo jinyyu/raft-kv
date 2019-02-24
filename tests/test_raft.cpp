@@ -1071,9 +1071,89 @@ TEST(raft, CommitWithoutNewTermEntry)
     ASSERT_TRUE(sm->raft_log_->committed() == 4);
 }
 
+TEST(raft, DuelingCandidates)
+{
+    auto a = newTestRaft(1, std::vector<uint64_t>{1, 2, 3}, 10, 1, std::make_shared<MemoryStorage>());
+    auto b = newTestRaft(2, std::vector<uint64_t>{1, 2, 3}, 10, 1, std::make_shared<MemoryStorage>());
+    auto c = newTestRaft(3, std::vector<uint64_t>{1, 2, 3}, 10, 1, std::make_shared<MemoryStorage>());
+    std::vector<RaftPtr> peers{a, b, c};
+    Network nt(peers);
+    nt.cut(1, 3);
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgHup;
+        nt.send(msg);
+    }
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 3;
+        msg->to = 3;
+        msg->type = proto::MsgHup;
+        nt.send(msg);
+    }
+
+    RaftPtr sm = nt.peers[1];
+    // 1 becomes leader since it receives votes from 1 and 2
+    ASSERT_TRUE(sm->state_ == RaftState::Leader);
+
+    // 3 stays as candidate since it receives a vote from 3 and a rejection from 2
+    sm = nt.peers[3];
+    ASSERT_TRUE(sm->state_ == RaftState::Candidate);
+
+    nt.recover();
+
+    // candidate 3 now increases its term and tries to vote again
+    // we expect it to disrupt the leader 1 since it has a higher term
+    // 3 will be follower again since both 1 and 2 rejects its vote request since 3 does not have a long enough log
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 3;
+        msg->to = 3;
+        msg->type = proto::MsgHup;
+        nt.send(msg);
+    }
+
+    MemoryStoragePtr ms(new MemoryStorage());
+    {
+        proto::EntryPtr e1(new proto::Entry());
+        ms->ref_entries().push_back(e1);
+
+        proto::EntryPtr e2(new proto::Entry());
+        e2->index = 1;
+        e2->term = 2;
+        ms->ref_entries().push_back(e2);
+    }
+
+    RaftLogPtr wlog(new RaftLog(ms, RaftLog::unlimited()));
+    wlog->committed() = 1;
+    wlog->unstable_->offset_ = 2;
+
+    struct Test
+    {
+        RaftPtr sm;
+        RaftState state;
+        uint64_t term;
+        RaftLogPtr raftLog;
+    };
+
+    std::vector<Test> tests;
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        Test& tt = tests[i];
+        ASSERT_TRUE(tt.sm->state_ == tt.state);
+        ASSERT_TRUE(tt.sm->term_ == tt.term);
+
+        ASSERT_TRUE(cmp_raft_log(tt.raftLog, sm->raft_log_));
+
+    }
+}
+
 int main(int argc, char* argv[])
 {
-    //testing::GTEST_FLAG(filter) = "raft.LogReplication";
+    testing::GTEST_FLAG(filter) = "raft.LeaderElectionOverwriteNewerLogs";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

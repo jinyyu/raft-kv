@@ -55,7 +55,7 @@ public:
 
     void slice(uint64_t low, uint64_t high, std::vector<proto::EntryPtr>& entries);
 
-private:
+public:
     // the incoming unstable snapshot, if any.
     proto::SnapshotPtr snapshot_;
     // all entries that have not yet been written to storage.

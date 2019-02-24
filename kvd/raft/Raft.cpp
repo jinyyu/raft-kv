@@ -462,7 +462,7 @@ Status Raft::step(proto::MessagePtr msg)
                 // ...or this is a PreVote for a future term...
                 (msg->type == proto::MsgPreVote && msg->term > term_);
             // ...and we believe the candidate is up to date.
-            if (can_vote && this->raft_log_->is_up_to_date(msg->index, msg->term)) {
+            if (can_vote && this->raft_log_->is_up_to_date(msg->index, msg->log_term)) {
                 LOG_INFO(
                     "%lu [log_term: %lu, index: %lu, vote: %lu] cast %s for %lu [log_term: %lu, index: %lu] at term %lu",
                     id_,
@@ -851,7 +851,7 @@ Status Raft::step_candidate(proto::MessagePtr msg)
                      gr,
                      proto::msg_type_to_string(msg->type),
                      votes_.size() - gr);
-            if (gr == quorum()) {
+            if (quorum() == gr) {
                 if (state_ == RaftState::PreCandidate) {
                     campaign(kCampaignElection);
                 }
@@ -861,7 +861,7 @@ Status Raft::step_candidate(proto::MessagePtr msg)
                     bcast_append();
                 }
             }
-            else if (gr == votes_.size() - gr) {
+            else if (quorum() == votes_.size() - gr) {
                 // pb.MsgPreVoteResp contains future term of pre-candidate
                 // m.Term > r.Term; reuse r.Term
                 become_follower(term_, 0);

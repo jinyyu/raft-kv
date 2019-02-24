@@ -143,7 +143,7 @@ public:
 
     void all_entries(std::vector<proto::EntryPtr>& entries);
 
-private:
+public:
     // storage contains all stable entries since the last snapshot.
     StoragePtr storage_;
 
