@@ -889,9 +889,50 @@ TEST(raft, LearnerLogReplication)
     ASSERT_TRUE(match == n2->raft_log_->committed());
 }
 
+TEST(raft, SingleNodeCommit)
+{
+    std::vector<RaftPtr> peers{nullptr};
+    Network tt(peers);
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgHup;
+        std::vector<proto::MessagePtr> msgs{msg};
+        tt.send(msgs);
+    }
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        std::vector<proto::MessagePtr> msgs{msg};
+        tt.send(msgs);
+    }
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        std::vector<proto::MessagePtr> msgs{msg};
+        tt.send(msgs);
+    }
+
+    RaftPtr r = tt.peers[1];
+    ASSERT_TRUE(r->raft_log_->committed() == 3);
+
+}
+
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(filter) = "raft.LogReplication";
+    //testing::GTEST_FLAG(filter) = "raft.LogReplication";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
