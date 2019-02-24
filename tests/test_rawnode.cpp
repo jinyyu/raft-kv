@@ -85,6 +85,80 @@ TEST(node, RawNodeProposeAndConfChange)
     ASSERT_TRUE(entries[1]->data == ccdata);
 }
 
+TEST(raft, RawNodeProposeAddDuplicateNode)
+{
+    boost::asio::io_service service;
+    MemoryStoragePtr s(new MemoryStorage());
+    auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
+    std::vector<PeerContext> peer{PeerContext{.id = 1}};
+    RawNode rawNode(c, peer, service);
+
+    auto rd = rawNode.ready();
+    s->append(rd->entries);
+    rawNode.advance(rd);
+
+    rawNode.campaign();
+    while (true) {
+        rd = rawNode.ready();
+        s->append(rd->entries);
+
+        if (rd->soft_state->lead == rawNode.raft_->id_) {
+            rawNode.advance(rd);
+            break;
+        }
+        rawNode.advance(rd);
+    }
+
+    auto proposeConfChangeAndApply = [&rawNode, s](const proto::ConfChange& cc) {
+        rawNode.propose_conf_change(cc);
+        auto rd = rawNode.ready();
+        s->append(rd->entries);
+
+        for (auto entry : rd->committed_entries) {
+            if (entry->type == proto::EntryConfChange) {
+                proto::ConfChangePtr confChange(new proto::ConfChange());
+                proto::ConfChange::from_data(entry->data, *confChange);
+                rawNode.apply_conf_change(confChange);
+            }
+        }
+        rawNode.advance(rd);
+    };
+
+    proto::ConfChange cc1;
+    cc1.conf_change_type = proto::ConfChangeAddNode;
+    cc1.node_id = 1;
+    auto ccdata1 = cc1.serialize();
+
+    proposeConfChangeAndApply(cc1);
+
+    // try to add the same node again
+    proposeConfChangeAndApply(cc1);
+
+    // the new node join should be ok
+    proto::ConfChange cc2;
+    cc2.conf_change_type = proto::ConfChangeAddNode;
+    cc2.node_id = 2;
+    auto ccdata2 = cc2.serialize();
+
+    proposeConfChangeAndApply(cc2);
+
+    uint64_t lastIndex;
+    Status status = s->last_index(lastIndex);
+    ASSERT_TRUE(status.is_ok());
+
+    // the last three entries should be: ConfChange cc1, cc1, cc2
+
+    std::vector<proto::EntryPtr> entries;
+    status = s->entries(lastIndex - 2, lastIndex + 1, RaftLog::unlimited(), entries);
+    ASSERT_TRUE(status.is_ok());
+
+    ASSERT_TRUE(entries.size() == 3);
+
+    ASSERT_TRUE(entries[0]->data == ccdata1);
+
+    ASSERT_TRUE(entries[2]->data == ccdata2);
+}
+
 int main(int argc, char* argv[])
 {
     //testing::GTEST_FLAG(filter) = "raft.OldMessages";

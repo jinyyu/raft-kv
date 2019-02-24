@@ -36,7 +36,7 @@ public:
     // propose_conf_change proposes config change.
     // At most one ConfChange can be in the process of going through consensus.
     // Application needs to call apply_conf_change when applying EntryConfChange type entry.
-    virtual Status propose_conf_change(const proto::ConfChange& cs) = 0;
+    virtual Status propose_conf_change(const proto::ConfChange& cc) = 0;
     // step advances the state machine using the given message. ctx.Err() will be returned, if any.
     virtual Status step(proto::MessagePtr msg) = 0;
 
@@ -104,7 +104,7 @@ public:
     virtual void tick();
     virtual Status campaign();
     virtual Status propose(std::vector<uint8_t> data);
-    virtual Status propose_conf_change(const proto::ConfChange& cs);
+    virtual Status propose_conf_change(const proto::ConfChange& cc);
     virtual Status step(proto::MessagePtr msg);
     virtual ReadyPtr ready();
     virtual bool has_ready();

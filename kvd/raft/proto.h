@@ -195,6 +195,7 @@ const uint8_t ConfChangeAddLearnerNode = 3;
 
 struct ConfChange
 {
+    static void from_data(const std::vector<uint8_t>& data, ConfChange& cc);
     uint64_t id;
     uint8_t conf_change_type;
     uint64_t node_id;

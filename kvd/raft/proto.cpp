@@ -167,6 +167,12 @@ uint32_t Entry::serialize_size() const
         + data_serialize_size(static_cast<uint32_t>(data.size()));
 }
 
+void ConfChange::from_data(const std::vector<uint8_t>& data, ConfChange& cc)
+{
+    msgpack::object_handle oh = msgpack::unpack((const char*)data.data(), data.size());
+    oh.get().convert(cc);
+}
+
 std::vector<uint8_t> ConfChange::serialize() const
 {
     msgpack::sbuffer sbuf;

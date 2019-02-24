@@ -88,11 +88,11 @@ Status RawNode::propose(std::vector<uint8_t> data)
     return raft_->step(std::move(msg));
 }
 
-Status RawNode::propose_conf_change(const proto::ConfChange& cs)
+Status RawNode::propose_conf_change(const proto::ConfChange& cc)
 {
     proto::MessagePtr msg(new proto::Message());
     msg->type = proto::MsgProp;
-    msg->entries.emplace_back(proto::EntryConfChange, 0, 0, cs.serialize());
+    msg->entries.emplace_back(proto::EntryConfChange, 0, 0, cc.serialize());
     return raft_->step(std::move(msg));
 }
 
