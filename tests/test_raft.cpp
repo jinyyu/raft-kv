@@ -715,7 +715,80 @@ TEST(raft, PreVoteFromAnyState)
 
 TEST(raft, LogReplication)
 {
-    LOG_WARN("--------------");
+    struct Test
+    {
+        NetworkPtr network;
+        std::vector<proto::MessagePtr> msgs;
+        uint64_t wcommitted;
+    };
+
+    std::vector<Test> tests;
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        std::vector<proto::MessagePtr> msgs{msg};
+
+        std::vector<RaftPtr> peers{nullptr, nullptr, nullptr};
+
+
+        tests.push_back(Test{.network = std::make_shared<Network>(peers),
+            .msgs = msgs,
+            .wcommitted = 2,
+        });
+    }
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        auto tt = tests[i];
+
+        {
+            proto::MessagePtr msg(new proto::Message());
+            msg->from = 1;
+            msg->to = 1;
+            msg->type = proto::MsgHup;
+            std::vector<proto::MessagePtr> msgs{msg};
+            tt.network->send(msgs);
+        }
+
+        for (proto::MessagePtr msg : tt.msgs) {
+            std::vector<proto::MessagePtr> msgs{msg};
+            tt.network->send(msgs);
+        }
+
+
+        for (auto it = tt.network->peers.begin(); it != tt.network->peers.end(); ++it) {
+            RaftPtr sm = it->second;
+
+            ASSERT_TRUE(sm->raft_log_->committed() == tt.wcommitted);
+
+            std::vector<proto::EntryPtr> ents;
+            auto out = nextEnts(sm, tt.network->storage[it->first]);
+            for (proto::EntryPtr ent : out) {
+                if (!ent->data.empty()) {
+                    ents.push_back(ent);
+                }
+
+            }
+
+            std::vector<proto::MessagePtr> props;
+            for (proto::MessagePtr msg : tt.msgs) {
+                if (msg->type == proto::MsgProp) {
+                    props.push_back(msg);
+                }
+            }
+
+            for (size_t k = 0; k < props.size(); ++k) {
+                proto::MessagePtr m = props[k];
+                ASSERT_TRUE(ents[k]->data == m->entries[0].data);
+            }
+        }
+
+    }
 }
 
 // TestLearnerLogReplication tests that a learner can receive entries from the leader.
@@ -782,7 +855,7 @@ TEST(raft, LearnerLogReplication)
 
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(filter) = "raft.LearnerLogReplication";
+    //testing::GTEST_FLAG(filter) = "raft.LearnerLogReplication";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

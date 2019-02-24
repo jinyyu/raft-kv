@@ -7,6 +7,17 @@
 
 using namespace kvd;
 
+std::vector<proto::EntryPtr> nextEnts(RaftPtr r, MemoryStoragePtr s)
+{
+    s->append(r->raft_log_->unstable_entries());
+    r->raft_log_->stable_to(r->raft_log_->last_index(), r->raft_log_->last_term());
+
+    std::vector<proto::EntryPtr> ents;
+    r->raft_log_->next_entries(ents);
+    r->raft_log_->applied_to(r->raft_log_->committed());
+    return ents;
+}
+
 typedef std::function<void(Config& c)> ConfigFunc;
 
 Config newTestConfig(uint64_t id,
@@ -21,7 +32,7 @@ Config newTestConfig(uint64_t id,
     c.election_tick = election;
     c.heartbeat_tick = heartbeat;
     c.storage = storage;
-    c.max_uncommitted_entries_size = std::numeric_limits<uint32_t>::max();
+    c.max_size_per_msg = std::numeric_limits<uint32_t>::max();
     c.max_inflight_msgs = 256;
     c.validate();
     return c;
