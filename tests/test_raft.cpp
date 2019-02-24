@@ -736,11 +736,47 @@ TEST(raft, LogReplication)
 
         std::vector<RaftPtr> peers{nullptr, nullptr, nullptr};
 
-
         tests.push_back(Test{.network = std::make_shared<Network>(peers),
             .msgs = msgs,
             .wcommitted = 2,
         });
+    }
+
+    {
+        std::vector<proto::MessagePtr> msgs;
+        {
+            proto::MessagePtr msg(new proto::Message());
+            msg->from = 1;
+            msg->to = 1;
+            msg->type = proto::MsgProp;
+            proto::Entry e;
+            e.data = str_to_vector("somedata");
+            msg->entries.push_back(e);
+            msgs.push_back(msg);
+        }
+        {
+            proto::MessagePtr msg(new proto::Message());
+            msg->from = 1;
+            msg->to = 2;
+            msg->type = proto::MsgHup;;
+            msgs.push_back(msg);
+        }
+        {
+            proto::MessagePtr msg(new proto::Message());
+            msg->from = 1;
+            msg->to = 2;
+            msg->type = proto::MsgProp;
+            proto::Entry e;
+            e.data = str_to_vector("somedata");
+            msg->entries.push_back(e);
+            msgs.push_back(msg);
+        }
+        std::vector<RaftPtr> peers{nullptr, nullptr, nullptr};
+        tests.push_back(Test{.network = std::make_shared<Network>(peers),
+            .msgs = msgs,
+            .wcommitted = 4,
+        });
+
     }
 
     for (size_t i = 0; i < tests.size(); ++i) {
