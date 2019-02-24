@@ -1015,6 +1015,62 @@ TEST(raft, CannotCommitWithoutNewTermEntry)
     ASSERT_TRUE(sm->raft_log_->committed() == 5);
 }
 
+TEST(raft, CommitWithoutNewTermEntry)
+{
+    std::vector<RaftPtr> peers{nullptr, nullptr, nullptr, nullptr, nullptr};
+    Network tt(peers);
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgHup;
+        tt.send(msg);
+    }
+
+    // 0 cannot reach 2,3,4
+    tt.cut(1, 3);
+    tt.cut(1, 4);
+    tt.cut(1, 5);
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        tt.send(msg);
+    }
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        tt.send(msg);
+    }
+
+    RaftPtr sm = tt.peers[1];
+
+    ASSERT_TRUE(sm->raft_log_->committed() == 1);
+    // network recovery
+    tt.recover();
+
+    // elect 2 as the new leader with term 2
+    // after append a ChangeTerm entry from the current term, all entries
+    // should be committed
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 2;
+        msg->to = 2;
+        msg->type = proto::MsgHup;
+        tt.send(msg);
+    }
+    ASSERT_TRUE(sm->raft_log_->committed() == 4);
+}
+
 int main(int argc, char* argv[])
 {
     //testing::GTEST_FLAG(filter) = "raft.LogReplication";
