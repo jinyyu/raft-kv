@@ -80,8 +80,13 @@ public:
             }
             case TransportTypeStream: {
                 proto::MessagePtr msg(new proto::Message());
-                msgpack::object_handle oh = msgpack::unpack((const char*) buffer_.data(), buffer_.size());
-                oh.get().convert(*msg);
+                try {
+                    msgpack::object_handle oh = msgpack::unpack((const char*) buffer_.data(), len);
+                    oh.get().convert(*msg);
+                } catch (std::exception &e) {
+                    LOG_ERROR("bad message %s, size = %lu, type %s", e.what(), buffer_.size(), proto::msg_type_to_string(msg->type));
+                    return;
+                }
                 on_receive_stream_message(std::move(msg));
                 break;
             }

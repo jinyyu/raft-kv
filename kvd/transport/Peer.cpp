@@ -133,6 +133,11 @@ void AsioPeer::send(proto::MessagePtr msg)
 
     msgpack::sbuffer sbuf;
     msgpack::pack(sbuf, *msg);
+
+    if (msg->type== proto::MsgProp) {
+        LOG_ERROR("j00000000000000000000 size = %lu", sbuf.size());
+    }
+
     do_send_data(TransportTypeStream, (const uint8_t*) sbuf.data(), (uint32_t) sbuf.size());
 
 }
