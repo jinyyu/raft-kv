@@ -5,6 +5,24 @@
 
 using namespace kvd;
 
+static bool read_state_cmp(const std::vector<ReadState>& l, const std::vector<ReadState>& r)
+{
+    if (l.size() != r.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < l.size(); ++i) {
+        if (l[i].index != r[i].index) {
+            return false;
+        }
+
+        if (l[i].request_ctx != r[i].request_ctx) {
+            return false;
+        }
+    }
+    return true;
+}
+
 TEST(node, RawNodeStep)
 {
     boost::asio::io_service service;
@@ -85,7 +103,7 @@ TEST(node, RawNodeProposeAndConfChange)
     ASSERT_TRUE(entries[1]->data == ccdata);
 }
 
-TEST(raft, RawNodeProposeAddDuplicateNode)
+TEST(node, RawNodeProposeAddDuplicateNode)
 {
     boost::asio::io_service service;
     MemoryStoragePtr s(new MemoryStorage());
@@ -157,6 +175,58 @@ TEST(raft, RawNodeProposeAddDuplicateNode)
     ASSERT_TRUE(entries[0]->data == ccdata1);
 
     ASSERT_TRUE(entries[2]->data == ccdata2);
+}
+
+TEST(node, RawNodeReadIndex)
+{
+    std::vector<proto::MessagePtr> msgs;
+    auto appendStep = [&msgs](proto::MessagePtr msg) {
+        msgs.push_back(msg);
+        return Status::ok();
+    };
+
+    std::vector<ReadState> wrs;
+    wrs.push_back(ReadState{.index = 1, .request_ctx = str_to_vector("somedata")});
+    boost::asio::io_service service;
+    MemoryStoragePtr s(new MemoryStorage());
+
+    auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
+
+    std::vector<PeerContext> peer{PeerContext{.id = 1}};
+    RawNode rawNode(c, peer, service);
+
+    rawNode.raft_->read_states_ = wrs;
+    // ensure the ReadStates can be read out
+
+    ASSERT_TRUE(rawNode.has_ready());
+    auto rd = rawNode.ready();
+
+    ASSERT_TRUE(read_state_cmp(rd->read_states, wrs));
+
+    s->append(rd->entries);
+    rawNode.advance(rd);
+    // ensure raft.readStates is reset after advance
+    ASSERT_TRUE(rawNode.raft_->read_states().empty());
+
+    auto wrequestCtx = str_to_vector("somedata2");
+    rawNode.campaign();
+    while (true) {
+        rd = rawNode.ready();
+        s->append(rd->entries);
+        if (rd->soft_state->lead == rawNode.raft_->id_) {
+            rawNode.advance(rd);
+
+            // Once we are the leader, issue a ReadIndex request
+            rawNode.raft_->step_ = appendStep;
+            rawNode.read_index(wrequestCtx);
+            break;
+        }
+        rawNode.advance(rd);
+    }
+    // ensure that MsgReadIndex message is sent to the underlying raft
+    ASSERT_TRUE(msgs.size() == 1);
+    ASSERT_TRUE(msgs[0]->type == proto::MsgReadIndex);
+    ASSERT_TRUE(msgs[0]->entries[0].data == wrequestCtx);
 }
 
 int main(int argc, char* argv[])
