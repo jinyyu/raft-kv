@@ -927,7 +927,92 @@ TEST(raft, SingleNodeCommit)
 
     RaftPtr r = tt.peers[1];
     ASSERT_TRUE(r->raft_log_->committed() == 3);
+}
 
+// TestCannotCommitWithoutNewTermEntry tests the entries cannot be committed
+// when leader changes, no new proposal comes in and ChangeTerm proposal is
+// filtered.
+TEST(raft, CannotCommitWithoutNewTermEntry)
+{
+    std::vector<RaftPtr> peers{nullptr, nullptr, nullptr, nullptr, nullptr};
+    Network tt(peers);
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgHup;
+        tt.send(msg);
+    }
+
+    // 0 cannot reach 2,3,4
+    tt.cut(1, 3);
+    tt.cut(1, 4);
+    tt.cut(1, 5);
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        tt.send(msg);
+    }
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        tt.send(msg);
+    }
+
+    RaftPtr sm = tt.peers[1];
+
+    ASSERT_TRUE(sm->raft_log_->committed() == 1);
+
+    // network recovery
+    tt.recover();
+    // avoid committing ChangeTerm proposal
+    tt.ignore(proto::MsgApp);
+
+    // elect 2 as the new leader with term 2
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 2;
+        msg->to = 2;
+        msg->type = proto::MsgHup;
+        tt.send(msg);
+    }
+
+    // no log entries from previous term should be committed
+    sm = tt.peers[2];
+    ASSERT_TRUE(sm->raft_log_->committed() == 1);
+
+    tt.recover();
+    // send heartbeat; reset wait
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 2;
+        msg->to = 2;
+        msg->type = proto::MsgBeat;
+        tt.send(msg);
+    }
+    // append an entry at current term
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 2;
+        msg->to = 2;
+        msg->type = proto::MsgProp;
+        proto::Entry e;
+        e.data = str_to_vector("somedata");
+        msg->entries.push_back(e);
+        tt.send(msg);
+    }
+    // expect the committed to be advanced
+    ASSERT_TRUE(sm->raft_log_->committed() == 5);
 }
 
 int main(int argc, char* argv[])

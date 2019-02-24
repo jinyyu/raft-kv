@@ -201,6 +201,11 @@ struct Network
         }
 
     }
+    void cut(uint64_t one, uint64_t other)
+    {
+        drop(one, other, 2.0); // always drop
+        drop(other, one, 2.0); // always drop
+    }
 
     void drop(uint64_t from, uint64_t to, float perc)
     {
@@ -231,6 +236,12 @@ struct Network
     {
         dropm.clear();
         ignorem.clear();
+    }
+
+    void send(proto::MessagePtr msg)
+    {
+        std::vector<proto::MessagePtr> msgs{msg};
+        this->send(msgs);
     }
 
     void send(std::vector<proto::MessagePtr>& msgs)
