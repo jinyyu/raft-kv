@@ -185,7 +185,7 @@ void KvdServer::entries_to_apply(const std::vector<proto::EntryPtr>& entries, st
     }
 
     uint64_t first = entries[0]->index;
-    if (first > snapshot_index_ + 1) {
+    if (first > applied_index_ + 1) {
         LOG_FATAL("first index of committed entry[%lu] should <= progress.appliedIndex[%lu]+1", first, applied_index_);
     }
     if (applied_index_ - first + 1 < entries.size()) {
