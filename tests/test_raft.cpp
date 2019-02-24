@@ -1153,7 +1153,7 @@ TEST(raft, DuelingCandidates)
         ASSERT_TRUE(tt.sm->state_ == tt.state);
         ASSERT_TRUE(tt.sm->term_ == tt.term);
 
-        sm = nt.peers[i +1];
+        sm = nt.peers[i + 1];
 
         ASSERT_TRUE(tt.raftLog->committed_ == sm->raft_log_->committed_);
         ASSERT_TRUE(tt.raftLog->applied_ == sm->raft_log_->applied_);
@@ -1165,13 +1165,119 @@ TEST(raft, DuelingCandidates)
         sm->raft_log_->all_entries(sm_entries);
 
         ASSERT_TRUE(entry_cmp(tt_entries, sm_entries));
+    }
+}
 
+TEST(raft, DuelingPreCandidates)
+{
+    auto cfgA = newTestConfig(1, std::vector<uint64_t>{1, 2, 3}, 10, 1, std::make_shared<MemoryStorage>());
+    auto cfgB = newTestConfig(2, std::vector<uint64_t>{1, 2, 3}, 10, 1, std::make_shared<MemoryStorage>());
+    auto cfgC = newTestConfig(3, std::vector<uint64_t>{1, 2, 3}, 10, 1, std::make_shared<MemoryStorage>());
+    cfgA.pre_vote = true;
+    cfgB.pre_vote = true;
+    cfgC.pre_vote = true;
+
+
+    RaftPtr a(new Raft(cfgA));
+    RaftPtr b(new Raft(cfgB));
+    RaftPtr c(new Raft(cfgC));
+
+    std::vector<RaftPtr> peers{a, b, c};
+    Network nt(peers);
+    nt.cut(1, 3);
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgHup;
+        nt.send(msg);
+    }
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 3;
+        msg->to = 3;
+        msg->type = proto::MsgHup;
+        nt.send(msg);
+    }
+
+
+    RaftPtr sm = nt.peers[1];
+    // 1 becomes leader since it receives votes from 1 and 2
+    ASSERT_TRUE(sm->state_ == RaftState::Leader);
+
+    // 3 campaigns then reverts to follower when its PreVote is rejected
+    sm = nt.peers[3];
+    ASSERT_TRUE(sm->state_ == RaftState::Follower);
+
+    nt.recover();
+
+    // Candidate 3 now increases its term and tries to vote again.
+    // With PreVote, it does not disrupt the leader.
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 3;
+        msg->to = 3;
+        msg->type = proto::MsgHup;
+        nt.send(msg);
+    }
+
+    MemoryStoragePtr ms(new MemoryStorage());
+    {
+        ms->ref_entries().clear();
+        proto::EntryPtr e1(new proto::Entry());
+        ms->ref_entries().push_back(e1);
+
+        proto::EntryPtr e2(new proto::Entry());
+        e2->index = 1;
+        e2->term = 1;
+        ms->ref_entries().push_back(e2);
+    }
+
+    RaftLogPtr wlog(new RaftLog(ms, RaftLog::unlimited()));
+    wlog->committed() = 1;
+    wlog->unstable_->offset_ = 2;
+
+    struct Test
+    {
+        RaftPtr sm;
+        RaftState state;
+        uint64_t term;
+        RaftLogPtr raftLog;
+    };
+
+    std::vector<Test> tests;
+    tests.push_back(Test{.sm = a, .state = RaftState::Leader, .term = 1, .raftLog = wlog});
+    tests.push_back(Test{.sm = b, .state = RaftState::Follower, .term = 1, .raftLog = wlog});
+    {
+        RaftLogPtr log(new RaftLog(std::make_shared<MemoryStorage>(), 1024));
+        tests.push_back(Test{.sm = c, .state = RaftState::Follower, .term = 1, .raftLog =log});
+    }
+
+
+    for (size_t i = 0; i < tests.size(); ++i) {
+        Test& tt = tests[i];
+        ASSERT_TRUE(tt.sm->state_ == tt.state);
+        ASSERT_TRUE(tt.sm->term_ == tt.term);
+
+        sm = nt.peers[i + 1];
+
+        ASSERT_TRUE(tt.raftLog->committed_ == sm->raft_log_->committed_);
+        ASSERT_TRUE(tt.raftLog->applied_ == sm->raft_log_->applied_);
+
+        std::vector<proto::EntryPtr> tt_entries;
+        tt.raftLog->all_entries(tt_entries);
+
+        std::vector<proto::EntryPtr> sm_entries;
+        sm->raft_log_->all_entries(sm_entries);
+
+        ASSERT_TRUE(entry_cmp(tt_entries, sm_entries));
     }
 }
 
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(filter) = "raft.DuelingCandidates";
+    //testing::GTEST_FLAG(filter) = "raft.DuelingCandidates";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
