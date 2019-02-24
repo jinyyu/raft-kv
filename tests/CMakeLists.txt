@@ -32,3 +32,6 @@ target_link_libraries(progress ${LIBS})
 
 add_executable(raft test_raft.cpp network.hpp)
 target_link_libraries(raft ${LIBS})
+
+add_executable(raft2 test_raft2.cpp network.hpp)
+target_link_libraries(raft2 ${LIBS})

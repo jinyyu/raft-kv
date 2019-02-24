@@ -7,42 +7,6 @@
 
 using namespace kvd;
 
-
-std::vector<uint8_t> str_to_vector(const char* str)
-{
-    size_t len = strlen(str);
-    std::vector<uint8_t> data(str, str + len);
-    return data;
-}
-
-static RaftPtr newTestRaft(uint64_t id,
-                           std::vector<uint64_t> peers,
-                           uint64_t election,
-                           uint64_t heartbeat,
-                           StoragePtr storage)
-{
-    Config c = newTestConfig(id, peers, election, heartbeat, storage);
-    c.max_inflight_msgs = 256;
-    Status status = c.validate();
-    assert(status.is_ok());
-    return std::make_shared<Raft>(c);
-}
-
-static RaftPtr newTestLearnerRaft(uint64_t id,
-                                  std::vector<uint64_t> peers,
-                                  std::vector<uint64_t> learners,
-                                  uint64_t election,
-                                  uint64_t heartbeat,
-                                  StoragePtr storage)
-{
-    Config c = newTestConfig(id, peers, election, heartbeat, storage);
-    c.learners = learners;
-    c.max_inflight_msgs = 256;
-    Status status = c.validate();
-    assert(status.is_ok());
-    return std::make_shared<Raft>(c);
-}
-
 TEST(raft, ProgressLeader)
 {
     auto r = newTestRaft(1, {1, 2}, 5, 1, std::make_shared<MemoryStorage>());
@@ -1267,6 +1231,104 @@ TEST(raft, DuelingPreCandidates)
 
         std::vector<proto::EntryPtr> tt_entries;
         tt.raftLog->all_entries(tt_entries);
+
+        std::vector<proto::EntryPtr> sm_entries;
+        sm->raft_log_->all_entries(sm_entries);
+
+        ASSERT_TRUE(entry_cmp(tt_entries, sm_entries));
+    }
+}
+
+TEST(raft, CandidateConcede)
+{
+    std::vector<RaftPtr> peers{nullptr, nullptr, nullptr};
+    Network tt(peers);
+    tt.isolate(1);
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 1;
+        msg->to = 1;
+        msg->type = proto::MsgHup;
+        tt.send(msg);
+    }
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 3;
+        msg->to = 3;
+        msg->type = proto::MsgHup;
+        tt.send(msg);
+    }
+
+    // heal the partition
+    tt.recover();
+
+    // send heartbeat; reset wait
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 3;
+        msg->to = 3;
+        msg->type = proto::MsgBeat;
+        tt.send(msg);
+    }
+
+    // send a proposal to 3 to flush out a MsgApp to 1
+
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 3;
+        msg->to = 3;
+        msg->type = proto::MsgProp;
+
+        proto::Entry e;
+        e.data = str_to_vector("force follower");
+        msg->entries.push_back(e);
+        tt.send(msg);
+    }
+
+    // send heartbeat; flush out commit
+    {
+        proto::MessagePtr msg(new proto::Message());
+        msg->from = 3;
+        msg->to = 3;
+        msg->type = proto::MsgBeat;
+        tt.send(msg);
+    }
+
+    auto a = tt.peers[1];
+    ASSERT_TRUE(a->state_ == RaftState::Follower);
+    ASSERT_TRUE(a->term_ == 1);
+
+    MemoryStoragePtr ms(new MemoryStorage());
+    {
+        ms->ref_entries().clear();
+        proto::EntryPtr e1(new proto::Entry());
+        ms->ref_entries().push_back(e1);
+
+        proto::EntryPtr e2(new proto::Entry());
+        e2->index = 1;
+        e2->term = 1;
+        ms->ref_entries().push_back(e2);
+
+        proto::EntryPtr e3(new proto::Entry());
+        e3->index = 2;
+        e3->term = 1;
+        e3->data = str_to_vector("force follower");
+        ms->ref_entries().push_back(e3);
+    }
+
+    RaftLogPtr wlog(new RaftLog(ms, RaftLog::unlimited()));
+    wlog->committed() = 2;
+    wlog->unstable_->offset_ = 3;
+
+    for (auto it = tt.peers.begin(); it != tt.peers.end(); ++it) {
+        auto sm = it->second;
+
+        ASSERT_TRUE(sm->raft_log_->committed_ == wlog->committed_);
+        ASSERT_TRUE(sm->raft_log_->applied_ == wlog->applied_);
+
+        std::vector<proto::EntryPtr> tt_entries;
+        wlog->all_entries(tt_entries);
 
         std::vector<proto::EntryPtr> sm_entries;
         sm->raft_log_->all_entries(sm_entries);

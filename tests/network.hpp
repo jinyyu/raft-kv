@@ -8,6 +8,7 @@
 
 using namespace kvd;
 
+
 bool entry_cmp(const std::vector<proto::EntryPtr>& left, const std::vector<proto::EntryPtr>& right)
 {
     if (left.size() != right.size()) {
@@ -84,6 +85,41 @@ RaftPtr entsWithConfig(ConfigFunc configFunc, std::vector<uint64_t> terms)
     RaftPtr sm(new Raft(cfg));
     sm->reset(terms.back());
     return sm;
+}
+
+std::vector<uint8_t> str_to_vector(const char* str)
+{
+    size_t len = strlen(str);
+    std::vector<uint8_t> data(str, str + len);
+    return data;
+}
+
+RaftPtr newTestRaft(uint64_t id,
+                    std::vector<uint64_t> peers,
+                    uint64_t election,
+                    uint64_t heartbeat,
+                    StoragePtr storage)
+{
+    Config c = newTestConfig(id, peers, election, heartbeat, storage);
+    c.max_inflight_msgs = 256;
+    Status status = c.validate();
+    assert(status.is_ok());
+    return std::make_shared<Raft>(c);
+}
+
+RaftPtr newTestLearnerRaft(uint64_t id,
+                           std::vector<uint64_t> peers,
+                           std::vector<uint64_t> learners,
+                           uint64_t election,
+                           uint64_t heartbeat,
+                           StoragePtr storage)
+{
+    Config c = newTestConfig(id, peers, election, heartbeat, storage);
+    c.learners = learners;
+    c.max_inflight_msgs = 256;
+    Status status = c.validate();
+    assert(status.is_ok());
+    return std::make_shared<Raft>(c);
 }
 
 RaftPtr votedWithConfig(ConfigFunc configFunc, uint64_t vote, uint64_t term)
@@ -310,7 +346,7 @@ struct Network
 
                     auto n = (float) dev.gen();
                     if (n < perc * 100) {
-                        LOG_DEBUG("drop message, %lu, %lu, %s",  m->from, m->to, proto::msg_type_to_string(m->type));
+                        LOG_DEBUG("drop message, %lu, %lu, %s", m->from, m->to, proto::msg_type_to_string(m->type));
                         continue;
                     }
                 }
