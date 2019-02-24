@@ -119,7 +119,7 @@ public:
 
     void must_not_ready() const;
 
-private:
+public:
     RaftPtr raft_;
     SoftStatePtr prev_soft_state_;
     proto::HardState prev_hard_state_;

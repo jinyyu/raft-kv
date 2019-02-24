@@ -35,3 +35,6 @@ target_link_libraries(raft ${LIBS})
 
 add_executable(raft2 test_raft2.cpp network.hpp)
 target_link_libraries(raft2 ${LIBS})
+
+add_executable(rawnode test_rawnode.cpp)
+target_link_libraries(rawnode ${LIBS})

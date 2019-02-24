@@ -35,5 +35,11 @@ proto::MessageType vote_resp_msg_type(proto::MessageType type)
     }
 }
 
+bool is_local_msg(proto::MessageType type)
+{
+    return type == proto::MsgHup || type ==  proto::MsgBeat || type == proto::MsgUnreachable ||
+        type ==  proto::MsgSnapStatus || type ==  proto::MsgCheckQuorum;
+}
+
 }
 

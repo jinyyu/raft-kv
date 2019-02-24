@@ -31,6 +31,8 @@ const MessageType MsgReadIndexResp = 16;
 const MessageType MsgPreVote = 17;
 const MessageType MsgPreVoteResp = 18;
 
+const MessageType MsgTypeSize = 19;
+
 const char* msg_type_to_string(MessageType type);
 
 typedef uint8_t EntryType;
