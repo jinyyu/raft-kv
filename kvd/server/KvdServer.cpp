@@ -239,23 +239,18 @@ Status KvdServer::propose(std::vector<uint8_t> data)
     return future.get();
 }
 
-Status KvdServer::process(proto::MessagePtr msg)
+void KvdServer::process(proto::MessagePtr msg, const std::function<void(const Status&)>& callback)
 {
-    std::promise<Status> promise;
-    std::future<Status> future = promise.get_future();
-    raft_loop_.post([this, &promise, msg]() {
+    raft_loop_.post([this,msg, callback]() {
         Status status = this->node_->step(msg);
-        promise.set_value(status);
+        callback(status);
     });
-    future.wait();
-    check_raft_ready();
-    return future.get();
 }
 
-bool KvdServer::is_id_removed(uint64_t id)
+void KvdServer::is_id_removed(uint64_t id, const std::function<void(bool)>& callback)
 {
     LOG_DEBUG("no impl yet");
-    return false;
+    callback(false);
 }
 
 void KvdServer::report_unreachable(uint64_t id)

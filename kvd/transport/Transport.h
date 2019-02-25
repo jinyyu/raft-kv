@@ -43,9 +43,9 @@ class RaftServer
 public:
     virtual ~RaftServer() = default;
 
-    virtual Status process(proto::MessagePtr msg) = 0;
+    virtual void process(proto::MessagePtr msg, const std::function<void(const Status&)>& callback) = 0;
 
-    virtual bool is_id_removed(uint64_t id) = 0;
+    virtual void is_id_removed(uint64_t id, const std::function<void(bool)>& callback) = 0;
 
     virtual void report_unreachable(uint64_t id) = 0;
 

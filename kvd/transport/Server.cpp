@@ -161,10 +161,11 @@ void AsioServer::on_message(proto::MessagePtr msg)
 {
     auto raft = raft_.lock();
     if (raft) {
-        Status status = raft->process(std::move(msg));
-        if (!status.is_ok()) {
-            LOG_WARN("process error %s", status.to_string().c_str());
-        }
+        raft->process(std::move(msg),[](const Status& status) {
+            if (!status.is_ok()) {
+                LOG_ERROR("process error %s", status.to_string().c_str());
+            }
+        });
     }
 }
 

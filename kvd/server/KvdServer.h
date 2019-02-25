@@ -23,9 +23,9 @@ public:
 
     Status propose(std::vector<uint8_t> data);
 
-    virtual Status process(proto::MessagePtr msg);
+    virtual void process(proto::MessagePtr msg, const std::function<void(const Status&)>& callback);
 
-    virtual bool is_id_removed(uint64_t id);
+    virtual void is_id_removed(uint64_t id, const std::function<void(bool)>& callback);
 
     virtual void report_unreachable(uint64_t id);
 
