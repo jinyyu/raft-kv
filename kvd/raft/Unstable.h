@@ -38,23 +38,7 @@ public:
 
     void truncate_and_append(std::vector<proto::EntryPtr> entries);
 
-    // getter && setter
-    proto::SnapshotPtr& ref_snapshot()
-    {
-        return snapshot_;
-    }
-    std::vector<proto::EntryPtr>& ref_entries()
-    {
-        return entries_;
-    }
-
-    uint64_t offset() const
-    {
-        return offset_;
-    }
-
     void slice(uint64_t low, uint64_t high, std::vector<proto::EntryPtr>& entries);
-
 public:
     // the incoming unstable snapshot, if any.
     proto::SnapshotPtr snapshot_;

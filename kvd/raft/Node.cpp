@@ -43,7 +43,7 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boos
         }
 
         raft_->raft_log_->append(entries);
-        raft_->raft_log_->committed() = entries.size();
+        raft_->raft_log_->committed_ = entries.size();
 
         for (auto& peer : peers) {
             raft_->add_node(peer.id);
@@ -82,7 +82,7 @@ Status RawNode::propose(std::vector<uint8_t> data)
 {
     proto::MessagePtr msg(new proto::Message());
     msg->type = proto::MsgProp;
-    msg->from = raft_->id();
+    msg->from = raft_->id_;
     msg->entries.emplace_back(proto::EntryNormal, 0, 0, std::move(data));
 
     return raft_->step(std::move(msg));
@@ -113,7 +113,7 @@ Status RawNode::step(proto::MessagePtr msg)
 ReadyPtr RawNode::ready()
 {
     ReadyPtr rd = std::make_shared<Ready>(raft_, prev_soft_state_, prev_hard_state_);
-    assert(raft_->msgs().empty());
+    assert(raft_->msgs_.empty());
     raft_->reduce_uncommitted_size(rd->committed_entries);
     return rd;
 }
@@ -128,17 +128,17 @@ bool RawNode::has_ready()
         return true;
     }
 
-    proto::SnapshotPtr snapshot = raft_->raft_log_->unstable()->ref_snapshot();
+    proto::SnapshotPtr snapshot = raft_->raft_log_->unstable_->snapshot_;
 
     if (snapshot && !snapshot->is_empty()) {
         return true;
     }
-    if (!raft_->msgs().empty() || !raft_->raft_log_->unstable_entries().empty()
+    if (!raft_->msgs_.empty() || !raft_->raft_log_->unstable_entries().empty()
         || raft_->raft_log_->has_next_entries()) {
         return true;
     }
 
-    if (!raft_->read_states().empty()) {
+    if (!raft_->read_states_.empty()) {
         return true;
     }
     return false;
@@ -173,7 +173,7 @@ void RawNode::advance(ReadyPtr ready)
     }
 
     if (!ready->read_states.empty()) {
-        raft_->read_states().clear();
+        raft_->read_states_.clear();
     }
 }
 

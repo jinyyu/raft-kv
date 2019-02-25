@@ -40,7 +40,7 @@ std::vector<proto::EntryPtr> nextEnts(RaftPtr r, MemoryStoragePtr s)
 
     std::vector<proto::EntryPtr> ents;
     r->raft_log_->next_entries(ents);
-    r->raft_log_->applied_to(r->raft_log_->committed());
+    r->raft_log_->applied_to(r->raft_log_->committed_);
     return ents;
 }
 

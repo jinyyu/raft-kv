@@ -141,8 +141,8 @@ void RaftLog::restore(proto::SnapshotPtr snapshot)
 
 Status RaftLog::snapshot(proto::SnapshotPtr& snap) const
 {
-    if (unstable_->ref_snapshot()) {
-        snap = unstable_->ref_snapshot();
+    if (unstable_->snapshot_) {
+        snap = unstable_->snapshot_;
     }
 
     proto::SnapshotPtr s;
@@ -175,23 +175,23 @@ Status RaftLog::slice(uint64_t low, uint64_t high, uint64_t max_size, std::vecto
     }
 
     //slice from storage_
-    if (low < unstable_->offset()) {
-        status = storage_->entries(low, std::min(high, unstable_->offset()), max_size, entries);
+    if (low < unstable_->offset_) {
+        status = storage_->entries(low, std::min(high, unstable_->offset_), max_size, entries);
         if (!status.is_ok()) {
             return status;
         }
 
         // check if ents has reached the size limitation
-        if (entries.size() < std::min(high, unstable_->offset()) - low) {
+        if (entries.size() < std::min(high, unstable_->offset_) - low) {
             return Status::ok();
         }
 
     }
 
     //slice unstable
-    if (high > unstable_->offset()) {
+    if (high > unstable_->offset_) {
         std::vector<proto::EntryPtr> unstable;
-        unstable_->slice(std::max(low, unstable_->offset()), high, entries);
+        unstable_->slice(std::max(low, unstable_->offset_), high, entries);
         entries.insert(entries.end(), unstable.begin(), unstable.end());
     }
     entry_limit_size(max_size, entries);

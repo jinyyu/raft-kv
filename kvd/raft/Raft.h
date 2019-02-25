@@ -61,14 +61,11 @@ public:
     // which is true when its own id is in progress list.
     bool promotable() const;
 
+    void add_node(uint64_t id);
+
     void add_node_or_learner(uint64_t id, bool is_learner);
 
     void remove_node(uint64_t id);
-
-    bool has_leader() const
-    {
-        return lead_ != 0;
-    }
 
     uint32_t quorum() const
     {
@@ -153,28 +150,6 @@ public:
     // the uncommitted entry size limit.
     void reduce_uncommitted_size(const std::vector<proto::EntryPtr>& entries);
 
-    std::vector<proto::MessagePtr>& msgs()
-    {
-        return msgs_;
-    };
-
-    std::vector<ReadState>& read_states()
-    {
-        return read_states_;
-    }
-
-    uint64_t id() const
-    {
-        return id_;
-    }
-
-    void add_node(uint64_t id);
-
-    uint64_t& uncommitted_size()
-    {
-        return uncommitted_size_;
-    }
-
     virtual std::vector<proto::MessagePtr> read_messages()
     {
         std::vector<proto::MessagePtr> ret;
@@ -182,7 +157,6 @@ public:
         msgs_.clear();
         return ret;
     }
-
 
 public:
     uint64_t id_;

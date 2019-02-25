@@ -51,8 +51,8 @@ TEST(unstable, first_index)
         uint64_t windex = 0;
 
         Unstable unstable(5);
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
         uint64_t index;
         bool ok;
@@ -65,8 +65,8 @@ TEST(unstable, first_index)
         uint64_t windex = 0;
 
         Unstable unstable(5);
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().clear();
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.clear();
 
         uint64_t index;
         bool ok;
@@ -79,9 +79,9 @@ TEST(unstable, first_index)
         uint64_t windex = 5;
 
         Unstable unstable(5);
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(5, 1));
 
         uint64_t index;
         bool ok;
@@ -94,9 +94,9 @@ TEST(unstable, first_index)
         uint64_t windex = 5;
 
         Unstable unstable(5);
-        unstable.ref_snapshot() = newSnapshot(4, 1);;
+        unstable.snapshot_ = newSnapshot(4, 1);;
 
-        unstable.ref_entries().clear();
+        unstable.entries_.clear();
 
         uint64_t index;
         bool ok;
@@ -112,9 +112,9 @@ TEST(unstable, last_index)
         uint64_t windex = 5;
 
         Unstable unstable(5);
-        unstable.ref_snapshot() = newSnapshot(4, 1);;
+        unstable.snapshot_ = newSnapshot(4, 1);;
 
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(5, 1));
 
         uint64_t index;
         bool ok;
@@ -127,12 +127,12 @@ TEST(unstable, last_index)
         uint64_t windex = 5;
 
         Unstable unstable(5);
-        unstable.ref_snapshot() = nullptr;
+        unstable.snapshot_ = nullptr;
 
         proto::EntryPtr entry(new proto::Entry());
         entry->index = 5;
         entry->term = 1;
-        unstable.ref_entries().push_back(entry);
+        unstable.entries_.push_back(entry);
 
         uint64_t index;
         bool ok;
@@ -145,9 +145,9 @@ TEST(unstable, last_index)
         uint64_t windex = 4;
 
         Unstable unstable(5);
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
-        unstable.ref_entries().clear();
+        unstable.entries_.clear();
 
         uint64_t index;
         bool ok;
@@ -176,7 +176,7 @@ TEST(unstalbe, term)
 
         Unstable unstable(5);
 
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(5, 1));
 
         uint64_t term;
         bool ok;
@@ -193,7 +193,7 @@ TEST(unstalbe, term)
         proto::EntryPtr entry(new proto::Entry());
         entry->index = 5;
         entry->term = 1;
-        unstable.ref_entries().push_back(entry);
+        unstable.entries_.push_back(entry);
 
 
         uint64_t term;
@@ -208,7 +208,7 @@ TEST(unstalbe, term)
 
         Unstable unstable(5);
 
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(5, 1));
 
 
         uint64_t term;
@@ -226,9 +226,9 @@ TEST(unstalbe, term)
         proto::EntryPtr entry(new proto::Entry());
         entry->index = 5;
         entry->term = 1;
-        unstable.ref_entries().push_back(entry);
+        unstable.entries_.push_back(entry);
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         uint64_t term;
         bool ok;
@@ -240,9 +240,9 @@ TEST(unstalbe, term)
     {
         Unstable unstable(5);
 
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(5, 1));
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         uint64_t term;
         bool ok;
@@ -254,9 +254,9 @@ TEST(unstalbe, term)
     {
         Unstable unstable(5);
 
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(5, 1));
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         uint64_t term;
         bool ok;
@@ -268,9 +268,9 @@ TEST(unstalbe, term)
     {
         Unstable unstable(5);
 
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(5, 1));
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         uint64_t term;
         bool ok;
@@ -282,9 +282,9 @@ TEST(unstalbe, term)
     {
         Unstable unstable(5);
 
-        unstable.ref_entries().clear();
+        unstable.entries_.clear();
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         uint64_t term;
         bool ok;
@@ -296,9 +296,9 @@ TEST(unstalbe, term)
     {
         Unstable unstable(5);
 
-        unstable.ref_entries().clear();
+        unstable.entries_.clear();
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         uint64_t term;
         bool ok;
@@ -310,7 +310,7 @@ TEST(unstalbe, term)
     {
         Unstable unstable(5);
 
-        unstable.ref_entries().clear();
+        unstable.entries_.clear();
 
         uint64_t term;
         bool ok;
@@ -324,17 +324,17 @@ TEST(unstable, restore)
 {
     Unstable unstable(5);
 
-    unstable.ref_entries().clear();
+    unstable.entries_.clear();
 
-    unstable.ref_snapshot() = newSnapshot(4, 1);
+    unstable.snapshot_ = newSnapshot(4, 1);
 
     auto s = newSnapshot(6, 2);
 
     unstable.restore(s);
 
-    ASSERT_TRUE(unstable.offset() == s->metadata.index + 1);
-    ASSERT_TRUE(unstable.ref_entries().empty());
-    ASSERT_TRUE(snapshot_cmp(*unstable.ref_snapshot(), *s));
+    ASSERT_TRUE(unstable.offset_ == s->metadata.index + 1);
+    ASSERT_TRUE(unstable.entries_.empty());
+    ASSERT_TRUE(snapshot_cmp(*unstable.snapshot_, *s));
 }
 
 TEST(unstable, stable)
@@ -343,125 +343,125 @@ TEST(unstable, stable)
         Unstable unstable(0);
 
         unstable.stable_to(5, 1);
-        ASSERT_TRUE(unstable.offset() == 0);
-        ASSERT_TRUE(unstable.ref_entries().size() == 0);
+        ASSERT_TRUE(unstable.offset_ == 0);
+        ASSERT_TRUE(unstable.entries_.size() == 0);
     }
 
     {
         // stable to the first entry
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
         unstable.stable_to(5, 1);
-        ASSERT_TRUE(unstable.offset() == 6);
-        ASSERT_TRUE(unstable.ref_entries().size() == 0);
+        ASSERT_TRUE(unstable.offset_ == 6);
+        ASSERT_TRUE(unstable.entries_.size() == 0);
     }
 
     {
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
-        unstable.ref_entries().push_back(newEntry(6, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(6, 1));
 
         unstable.stable_to(5, 1);
-        ASSERT_TRUE(unstable.offset() == 6);
-        ASSERT_TRUE(unstable.ref_entries().size() == 1);
+        ASSERT_TRUE(unstable.offset_ == 6);
+        ASSERT_TRUE(unstable.entries_.size() == 1);
     }
 
     {
         // stable to the first entry and term mismatch
         Unstable unstable(6);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(6, 2));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(6, 2));
 
         unstable.stable_to(6, 1);
-        ASSERT_TRUE(unstable.offset() == 6);
-        ASSERT_TRUE(unstable.ref_entries().size() == 1);
+        ASSERT_TRUE(unstable.offset_ == 6);
+        ASSERT_TRUE(unstable.entries_.size() == 1);
     }
 
     {
         // stable to old entry
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
         unstable.stable_to(4, 1);
-        ASSERT_TRUE(unstable.offset() == 5);
-        ASSERT_TRUE(unstable.ref_entries().size() == 1);
+        ASSERT_TRUE(unstable.offset_ == 5);
+        ASSERT_TRUE(unstable.entries_.size() == 1);
     }
 
     {
         // stable to old entry
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
         unstable.stable_to(4, 2);
-        ASSERT_TRUE(unstable.offset() == 5);
-        ASSERT_TRUE(unstable.ref_entries().size() == 1);
+        ASSERT_TRUE(unstable.offset_ == 5);
+        ASSERT_TRUE(unstable.entries_.size() == 1);
     }
 
     {
         // stable to old entry
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         unstable.stable_to(5, 1);
-        ASSERT_TRUE(unstable.offset() == 6);
-        ASSERT_TRUE(unstable.ref_entries().size() == 0);
+        ASSERT_TRUE(unstable.offset_ == 6);
+        ASSERT_TRUE(unstable.entries_.size() == 0);
     }
 
     {
         // stable to old entry
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
-        unstable.ref_entries().push_back(newEntry(6, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(6, 1));
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         unstable.stable_to(5, 1);
-        ASSERT_TRUE(unstable.offset() == 6);
-        ASSERT_TRUE(unstable.ref_entries().size() == 1);
+        ASSERT_TRUE(unstable.offset_ == 6);
+        ASSERT_TRUE(unstable.entries_.size() == 1);
     }
 
     {
         // stable to snapshot
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
-        unstable.ref_snapshot() = newSnapshot(4, 1);
+        unstable.snapshot_ = newSnapshot(4, 1);
 
         unstable.stable_to(4, 1);
-        ASSERT_TRUE(unstable.offset() == 5);
-        ASSERT_TRUE(unstable.ref_entries().size() == 1);
+        ASSERT_TRUE(unstable.offset_ == 5);
+        ASSERT_TRUE(unstable.entries_.size() == 1);
     }
 
     {
         // stable to old entry
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 2));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 2));
 
-        unstable.ref_snapshot() = newSnapshot(4, 2);
+        unstable.snapshot_ = newSnapshot(4, 2);
 
         unstable.stable_to(4, 1);
-        ASSERT_TRUE(unstable.offset() == 5);
-        ASSERT_TRUE(unstable.ref_entries().size() == 1);
+        ASSERT_TRUE(unstable.offset_ == 5);
+        ASSERT_TRUE(unstable.entries_.size() == 1);
     }
 }
 
@@ -489,8 +489,8 @@ TEST(unstable, append)
         // append to the end
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
         std::vector<proto::EntryPtr> to_append;
         to_append.push_back(newEntry(6, 1));
@@ -503,16 +503,16 @@ TEST(unstable, append)
 
         unstable.truncate_and_append(std::move(to_append));
 
-        ASSERT_TRUE(unstable.offset() == 5);
-        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+        ASSERT_TRUE(unstable.offset_ == 5);
+        ASSERT_TRUE(entry_cmp(unstable.entries_, wentries));
     }
 
     {
         // replace the unstable entries
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
         std::vector<proto::EntryPtr> to_append;
         to_append.push_back(newEntry(5, 2));
@@ -524,8 +524,8 @@ TEST(unstable, append)
 
         unstable.truncate_and_append(std::move(to_append));
 
-        ASSERT_TRUE(unstable.offset() == 5);
-        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+        ASSERT_TRUE(unstable.offset_ == 5);
+        ASSERT_TRUE(entry_cmp(unstable.entries_, wentries));
     }
 
 
@@ -533,8 +533,8 @@ TEST(unstable, append)
         // replace the unstable entries
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
 
         std::vector<proto::EntryPtr> to_append;
         to_append.push_back(newEntry(4, 2));
@@ -548,18 +548,18 @@ TEST(unstable, append)
 
         unstable.truncate_and_append(std::move(to_append));
 
-        ASSERT_TRUE(unstable.offset() == 4);
-        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+        ASSERT_TRUE(unstable.offset_ == 4);
+        ASSERT_TRUE(entry_cmp(unstable.entries_, wentries));
     }
 
     {
         // truncate the existing entries and append
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
-        unstable.ref_entries().push_back(newEntry(6, 1));
-        unstable.ref_entries().push_back(newEntry(7, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(6, 1));
+        unstable.entries_.push_back(newEntry(7, 1));
 
         std::vector<proto::EntryPtr> to_append;
         to_append.push_back(newEntry(6, 2));
@@ -570,8 +570,8 @@ TEST(unstable, append)
 
         unstable.truncate_and_append(std::move(to_append));
 
-        ASSERT_TRUE(unstable.offset() == 5);
-        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+        ASSERT_TRUE(unstable.offset_ == 5);
+        ASSERT_TRUE(entry_cmp(unstable.entries_, wentries));
     }
 
 
@@ -579,10 +579,10 @@ TEST(unstable, append)
         // truncate the existing entries and append
         Unstable unstable(5);
 
-        unstable.ref_snapshot() = nullptr;
-        unstable.ref_entries().push_back(newEntry(5, 1));
-        unstable.ref_entries().push_back(newEntry(6, 1));
-        unstable.ref_entries().push_back(newEntry(7, 1));
+        unstable.snapshot_ = nullptr;
+        unstable.entries_.push_back(newEntry(5, 1));
+        unstable.entries_.push_back(newEntry(6, 1));
+        unstable.entries_.push_back(newEntry(7, 1));
 
         std::vector<proto::EntryPtr> to_append;
         to_append.push_back(newEntry(7, 2));
@@ -596,8 +596,8 @@ TEST(unstable, append)
 
         unstable.truncate_and_append(std::move(to_append));
 
-        ASSERT_TRUE(unstable.offset() == 5);
-        ASSERT_TRUE(entry_cmp(unstable.ref_entries(), wentries));
+        ASSERT_TRUE(unstable.offset_ == 5);
+        ASSERT_TRUE(entry_cmp(unstable.entries_, wentries));
     }
 }
 

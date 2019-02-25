@@ -322,7 +322,7 @@ TEST(raftlog, append)
 
         ASSERT_TRUE(entry_cmp(ents, t.wents));
 
-        ASSERT_TRUE(l.unstable()->offset() == t.wunstable);
+        ASSERT_TRUE(l.unstable_->offset_ == t.wunstable);
 
     }
 }
@@ -567,7 +567,7 @@ TEST(raftlog, maybeAppend)
         MemoryStoragePtr storage(new MemoryStorage());
         RaftLog l(storage, std::numeric_limits<uint64_t>::max());
         l.append(previousEnts);
-        l.committed() = commit;
+        l.committed_ = commit;
 
         auto& test = tests[i];
 
@@ -583,7 +583,7 @@ TEST(raftlog, maybeAppend)
 
             ASSERT_TRUE(last == test.wlasti);
             ASSERT_TRUE(ok == test.wappend);
-            ASSERT_TRUE(test.wcommit == l.committed());
+            ASSERT_TRUE(test.wcommit == l.committed_);
 
             if (ok && !test.ents.empty()) {
                 std::vector<proto::EntryPtr> ents;
@@ -622,7 +622,7 @@ TEST(raftlog, CompactionSideEffects)
     bool ok = l.maybe_commit(lastIndex, lastTerm);
     ASSERT_TRUE(ok);
 
-    l.applied_to(l.committed());
+    l.applied_to(l.committed_);
 
     uint64_t offset = 500;
     Status status = storage->compact(offset);
@@ -817,7 +817,7 @@ TEST(raftlog, UnstableEnts)
         ASSERT_TRUE(entry_cmp(out, test.wentries));
 
         auto w = previousEnts.back()->index + 1;
-        ASSERT_TRUE(l.unstable()->offset() == w);
+        ASSERT_TRUE(l.unstable_->offset_ == w);
     }
 }
 
@@ -850,7 +850,7 @@ TEST(raftlog, committo)
 
         l.append(previousEnts);
 
-        l.committed() = 2;
+        l.committed_ = 2;
 
         if (test.wpanic) {
             ASSERT_ANY_THROW(l.commit_to(test.commit));
@@ -858,7 +858,7 @@ TEST(raftlog, committo)
         }
         else {
             l.commit_to(test.commit);
-            ASSERT_TRUE(test.wcommit == l.committed());
+            ASSERT_TRUE(test.wcommit == l.committed_);
         }
     }
 }
@@ -891,7 +891,7 @@ TEST(raftlog, stableto)
         Test& tt = tests[i];
         l.stable_to(tt.stablei, tt.stablet);
 
-        ASSERT_TRUE(tt.wunstable == l.unstable()->offset());
+        ASSERT_TRUE(tt.wunstable == l.unstable_->offset_);
 
     }
 }
@@ -982,7 +982,7 @@ TEST(raftlog, stabletosnap)
 
         l.stable_to(tt.stablei, tt.stablet);
 
-        ASSERT_TRUE(tt.wunstable == l.unstable()->offset());
+        ASSERT_TRUE(tt.wunstable == l.unstable_->offset_);
 
     }
 }

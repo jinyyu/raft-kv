@@ -91,34 +91,34 @@ TEST(raft, OldMessages)
 
     MemoryStoragePtr ms(new MemoryStorage());
     {
-        ms->ref_entries().clear();
+        ms->entries_.clear();
         proto::EntryPtr e1(new proto::Entry());
-        ms->ref_entries().push_back(e1);
+        ms->entries_.push_back(e1);
 
         proto::EntryPtr e2(new proto::Entry());
         e2->index = 1;
         e2->term = 1;
-        ms->ref_entries().push_back(e2);
+        ms->entries_.push_back(e2);
 
         proto::EntryPtr e3(new proto::Entry());
         e3->index = 2;
         e3->term = 2;
-        ms->ref_entries().push_back(e3);
+        ms->entries_.push_back(e3);
 
         proto::EntryPtr e4(new proto::Entry());
         e4->index = 3;
         e4->term = 3;
-        ms->ref_entries().push_back(e4);
+        ms->entries_.push_back(e4);
 
         proto::EntryPtr e5(new proto::Entry());
         e5->index = 4;
         e5->term = 3;
         e5->data = str_to_vector("somedata");;
-        ms->ref_entries().push_back(e5);
+        ms->entries_.push_back(e5);
     }
 
     RaftLogPtr wlog(new RaftLog(ms, RaftLog::unlimited()));
-    wlog->committed() = 4;
+    wlog->committed_ = 4;
     wlog->unstable_->offset_ = 5;
 
     for (auto it = tt.peers.begin(); it != tt.peers.end(); ++it) {

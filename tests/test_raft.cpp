@@ -26,7 +26,7 @@ TEST(raft, ProgressLeader)
     // Send proposals to r1. The first 5 entries should be appended to the log.
     for (uint32_t i = 0; i < 5; i++) {
         LOG_INFO("ProgressLeader %u", i);
-        auto pr = r->get_progress(r->id());
+        auto pr = r->get_progress(r->id_);
         ASSERT_TRUE(pr->state == ProgressStateReplicate);
         ASSERT_TRUE(pr->match = i + 1);
         ASSERT_TRUE(pr->next == pr->match + 1);
@@ -83,8 +83,8 @@ TEST(raft, ProgressPaused)
     r->step(msg);
     r->step(msg);
 
-    auto msgs = r->msgs();
-    ASSERT_TRUE(r->msgs().size() == 1);
+    auto msgs = r->msgs_;
+    ASSERT_TRUE(r->msgs_.size() == 1);
 }
 
 TEST(raft, ProgressFlowControl)
@@ -97,7 +97,7 @@ TEST(raft, ProgressFlowControl)
     r->become_leader();
 
     // Throw away all the messages relating to the initial election.
-    r->msgs().clear();
+    r->msgs_.clear();
 
     // While node 2 is in probe state, propose a bunch of entries.
     r->get_progress(2)->become_probe();
@@ -113,8 +113,8 @@ TEST(raft, ProgressFlowControl)
         msg->entries.push_back(e);
         r->step(msg);
     }
-    auto ms = r->msgs();
-    r->msgs().clear();
+    auto ms = r->msgs_;
+    r->msgs_.clear();
 
     // First append has two entries: the empty entry to confirm the
     // election, and the first proposal (only one proposal gets sent
@@ -136,8 +136,8 @@ TEST(raft, ProgressFlowControl)
         msg->index = ms[0]->entries[1].index;
         r->step(msg);
     }
-    ms = r->msgs();
-    r->msgs().clear();
+    ms = r->msgs_;
+    r->msgs_.clear();
     ASSERT_TRUE(ms.size() == 3);
 
     for (size_t i = 0; i < ms.size(); ++i) {
@@ -156,8 +156,8 @@ TEST(raft, ProgressFlowControl)
         r->step(msg);
     }
 
-    ms = r->msgs();
-    r->msgs().clear();
+    ms = r->msgs_;
+    r->msgs_.clear();
 
     ASSERT_TRUE(ms.size() == 2);
     for (size_t i = 0; i < ms.size(); ++i) {
@@ -187,13 +187,13 @@ TEST(raft, UncommittedEntryLimit)
     r->become_candidate();
     r->become_leader();
 
-    ASSERT_TRUE(r->uncommitted_size() == 0);
+    ASSERT_TRUE(r->uncommitted_size_ == 0);
 
     // Set the two followers to the replicate state. Commit to tail of log.
     uint64_t numFollowers = 2;
     r->get_progress(2)->become_replicate();
     r->get_progress(3)->become_replicate();
-    r->uncommitted_size() = 0;
+    r->uncommitted_size_ = 0;
 
     proto::MessagePtr propMsg(new proto::Message());
     propMsg->from = 1;
@@ -215,15 +215,15 @@ TEST(raft, UncommittedEntryLimit)
     ASSERT_FALSE(status.is_ok());
     fprintf(stderr, "status :%s\n", status.to_string().c_str());
 
-    auto ms = r->msgs();
-    r->msgs().clear();
+    auto ms = r->msgs_;
+    r->msgs_.clear();
     // Read messages and reduce the uncommitted size as if we had committed
     // these entries.
 
     ASSERT_TRUE(ms.size() == maxEntries * numFollowers);
 
     r->reduce_uncommitted_size(propEnts);
-    ASSERT_TRUE(r->uncommitted_size() == 0);
+    ASSERT_TRUE(r->uncommitted_size_ == 0);
 
     // Send a single large proposal to r1. Should be accepted even though it
     // pushes us above the limit because we were beneath it before the proposal.
@@ -254,11 +254,11 @@ TEST(raft, UncommittedEntryLimit)
 
     // Read messages and reduce the uncommitted size as if we had committed
     // these entries.
-    ms = r->msgs();
-    r->msgs().clear();
+    ms = r->msgs_;
+    r->msgs_.clear();
     ASSERT_TRUE(ms.size() == numFollowers * 1);
     r->reduce_uncommitted_size(propEnts);
-    ASSERT_TRUE(r->uncommitted_size() == 0);
+    ASSERT_TRUE(r->uncommitted_size_ == 0);
 }
 
 void testLeaderElection(bool preVote)
@@ -764,7 +764,7 @@ TEST(raft, LogReplication)
         for (auto it = tt.network->peers.begin(); it != tt.network->peers.end(); ++it) {
             RaftPtr sm = it->second;
 
-            ASSERT_TRUE(sm->raft_log_->committed() == tt.wcommitted);
+            ASSERT_TRUE(sm->raft_log_->committed_ == tt.wcommitted);
 
             std::vector<proto::EntryPtr> ents;
             auto out = nextEnts(sm, tt.network->storage[it->first]);
@@ -832,7 +832,7 @@ TEST(raft, LearnerLogReplication)
     ASSERT_TRUE(n1->state_ == RaftState::Leader);
     ASSERT_TRUE(n2->is_learner_);
 
-    auto nextCommitted = n1->raft_log_->committed() + 1;
+    auto nextCommitted = n1->raft_log_->committed_ + 1;
     {
         proto::MessagePtr msg(new proto::Message());
         msg->from = 1;
@@ -845,12 +845,12 @@ TEST(raft, LearnerLogReplication)
         nt.send(msgs);
     }
 
-    ASSERT_TRUE(n1->raft_log_->committed() == nextCommitted);
-    ASSERT_TRUE(n1->raft_log_->committed() == n2->raft_log_->committed());
+    ASSERT_TRUE(n1->raft_log_->committed_ == nextCommitted);
+    ASSERT_TRUE(n1->raft_log_->committed_ == n2->raft_log_->committed_);
 
 
     auto match = n1->get_progress(2)->match;
-    ASSERT_TRUE(match == n2->raft_log_->committed());
+    ASSERT_TRUE(match == n2->raft_log_->committed_);
 }
 
 TEST(raft, SingleNodeCommit)
@@ -890,7 +890,7 @@ TEST(raft, SingleNodeCommit)
     }
 
     RaftPtr r = tt.peers[1];
-    ASSERT_TRUE(r->raft_log_->committed() == 3);
+    ASSERT_TRUE(r->raft_log_->committed_ == 3);
 }
 
 // TestCannotCommitWithoutNewTermEntry tests the entries cannot be committed
@@ -935,7 +935,7 @@ TEST(raft, CannotCommitWithoutNewTermEntry)
 
     RaftPtr sm = tt.peers[1];
 
-    ASSERT_TRUE(sm->raft_log_->committed() == 1);
+    ASSERT_TRUE(sm->raft_log_->committed_ == 1);
 
     // network recovery
     tt.recover();
@@ -953,7 +953,7 @@ TEST(raft, CannotCommitWithoutNewTermEntry)
 
     // no log entries from previous term should be committed
     sm = tt.peers[2];
-    ASSERT_TRUE(sm->raft_log_->committed() == 1);
+    ASSERT_TRUE(sm->raft_log_->committed_ == 1);
 
     tt.recover();
     // send heartbeat; reset wait
@@ -976,7 +976,7 @@ TEST(raft, CannotCommitWithoutNewTermEntry)
         tt.send(msg);
     }
     // expect the committed to be advanced
-    ASSERT_TRUE(sm->raft_log_->committed() == 5);
+    ASSERT_TRUE(sm->raft_log_->committed_ == 5);
 }
 
 TEST(raft, CommitWithoutNewTermEntry)
@@ -1018,7 +1018,7 @@ TEST(raft, CommitWithoutNewTermEntry)
 
     RaftPtr sm = tt.peers[1];
 
-    ASSERT_TRUE(sm->raft_log_->committed() == 1);
+    ASSERT_TRUE(sm->raft_log_->committed_ == 1);
     // network recovery
     tt.recover();
 
@@ -1032,7 +1032,7 @@ TEST(raft, CommitWithoutNewTermEntry)
         msg->type = proto::MsgHup;
         tt.send(msg);
     }
-    ASSERT_TRUE(sm->raft_log_->committed() == 4);
+    ASSERT_TRUE(sm->raft_log_->committed_ == 4);
 }
 
 TEST(raft, DuelingCandidates)
@@ -1082,18 +1082,18 @@ TEST(raft, DuelingCandidates)
 
     MemoryStoragePtr ms(new MemoryStorage());
     {
-        ms->ref_entries().clear();
+        ms->entries_.clear();
         proto::EntryPtr e1(new proto::Entry());
-        ms->ref_entries().push_back(e1);
+        ms->entries_.push_back(e1);
 
         proto::EntryPtr e2(new proto::Entry());
         e2->index = 1;
         e2->term = 1;
-        ms->ref_entries().push_back(e2);
+        ms->entries_.push_back(e2);
     }
 
     RaftLogPtr wlog(new RaftLog(ms, RaftLog::unlimited()));
-    wlog->committed() = 1;
+    wlog->committed_ = 1;
     wlog->unstable_->offset_ = 2;
 
     struct Test
@@ -1188,18 +1188,18 @@ TEST(raft, DuelingPreCandidates)
 
     MemoryStoragePtr ms(new MemoryStorage());
     {
-        ms->ref_entries().clear();
+        ms->entries_.clear();
         proto::EntryPtr e1(new proto::Entry());
-        ms->ref_entries().push_back(e1);
+        ms->entries_.push_back(e1);
 
         proto::EntryPtr e2(new proto::Entry());
         e2->index = 1;
         e2->term = 1;
-        ms->ref_entries().push_back(e2);
+        ms->entries_.push_back(e2);
     }
 
     RaftLogPtr wlog(new RaftLog(ms, RaftLog::unlimited()));
-    wlog->committed() = 1;
+    wlog->committed_ = 1;
     wlog->unstable_->offset_ = 2;
 
     struct Test
@@ -1301,24 +1301,24 @@ TEST(raft, CandidateConcede)
 
     MemoryStoragePtr ms(new MemoryStorage());
     {
-        ms->ref_entries().clear();
+        ms->entries_.clear();
         proto::EntryPtr e1(new proto::Entry());
-        ms->ref_entries().push_back(e1);
+        ms->entries_.push_back(e1);
 
         proto::EntryPtr e2(new proto::Entry());
         e2->index = 1;
         e2->term = 1;
-        ms->ref_entries().push_back(e2);
+        ms->entries_.push_back(e2);
 
         proto::EntryPtr e3(new proto::Entry());
         e3->index = 2;
         e3->term = 1;
         e3->data = str_to_vector("force follower");
-        ms->ref_entries().push_back(e3);
+        ms->entries_.push_back(e3);
     }
 
     RaftLogPtr wlog(new RaftLog(ms, RaftLog::unlimited()));
-    wlog->committed() = 2;
+    wlog->committed_ = 2;
     wlog->unstable_->offset_ = 3;
 
     for (auto it = tt.peers.begin(); it != tt.peers.end(); ++it) {

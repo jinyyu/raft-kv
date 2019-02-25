@@ -206,7 +206,7 @@ TEST(node, RawNodeReadIndex)
     s->append(rd->entries);
     rawNode.advance(rd);
     // ensure raft.readStates is reset after advance
-    ASSERT_TRUE(rawNode.raft_->read_states().empty());
+    ASSERT_TRUE(rawNode.raft_->read_states_.empty());
 
     auto wrequestCtx = str_to_vector("somedata2");
     rawNode.campaign();

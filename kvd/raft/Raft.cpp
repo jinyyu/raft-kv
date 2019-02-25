@@ -119,8 +119,8 @@ Raft::Raft(const Config& c)
              id_,
              node_str.c_str(),
              term_,
-             raft_log_->committed(),
-             raft_log_->applied(),
+             raft_log_->committed_,
+             raft_log_->applied_,
              raft_log_->last_index(),
              raft_log_->last_term());
 }
@@ -411,13 +411,13 @@ Status Raft::step(proto::MessagePtr msg)
                 std::vector<proto::EntryPtr> entries;
                 Status status =
                     raft_log_
-                        ->slice(raft_log_->applied() + 1, raft_log_->committed() + 1, RaftLog::unlimited(), entries);
+                        ->slice(raft_log_->applied_ + 1, raft_log_->committed_ + 1, RaftLog::unlimited(), entries);
                 if (!status.is_ok()) {
                     LOG_FATAL("unexpected error getting unapplied entries (%s)", status.to_string().c_str());
                 }
 
                 uint32_t pending = num_of_pending_conf(entries);
-                if (pending > 0 && raft_log_->committed() > raft_log_->applied()) {
+                if (pending > 0 && raft_log_->committed_ > raft_log_->applied_) {
                     LOG_WARN(
                         "%lu cannot campaign at term %lu since there are still %u pending configuration changes to apply",
                         id_,
@@ -564,12 +564,12 @@ Status Raft::step_leader(proto::MessagePtr msg)
             for (size_t i = 0; i < msg->entries.size(); ++i) {
                 proto::Entry& e = msg->entries[i];
                 if (e.type == proto::EntryConfChange) {
-                    if (pending_conf_index_ > raft_log_->applied()) {
+                    if (pending_conf_index_ > raft_log_->applied_) {
                         LOG_INFO(
                             "propose conf %s ignored since pending unapplied configuration [index %lu, applied %lu]",
                             proto::entry_type_to_string(e.type),
                             pending_conf_index_,
-                            raft_log_->applied());
+                            raft_log_->applied_);
                         e.type = proto::EntryNormal;
                         e.index = 0;
                         e.term = 0;
@@ -590,7 +590,7 @@ Status Raft::step_leader(proto::MessagePtr msg)
         case proto::MsgReadIndex: {
             if (quorum() > 1) {
                 uint64_t term = 0;
-                raft_log_->term(raft_log_->committed(), term);
+                raft_log_->term(raft_log_->committed_, term);
                 if (term != term_) {
                     return Status::ok();
                 }
@@ -600,20 +600,20 @@ Status Raft::step_leader(proto::MessagePtr msg)
                 // This would allow multiple reads to piggyback on the same message.
                 switch (read_only_->option) {
                     case ReadOnlySafe:
-                        read_only_->add_request(raft_log_->committed(), msg);
+                        read_only_->add_request(raft_log_->committed_, msg);
                         bcast_heartbeat_with_ctx(msg->entries[0].data);
                         break;
                     case ReadOnlyLeaseBased:
                         if (msg->from == 0 || msg->from == id_) { // from local member
                             read_states_
-                                .push_back(ReadState{.index = raft_log_->committed(), .request_ctx = msg->entries[0]
+                                .push_back(ReadState{.index = raft_log_->committed_, .request_ctx = msg->entries[0]
                                     .data});
                         }
                         else {
                             proto::MessagePtr m(new proto::Message());
                             m->to = msg->from;
                             m->type = proto::MsgReadIndexResp;
-                            m->index = raft_log_->committed();
+                            m->index = raft_log_->committed_;
                             m->entries = msg->entries;
                             send(std::move(m));
                         }
@@ -621,7 +621,7 @@ Status Raft::step_leader(proto::MessagePtr msg)
                 }
             }
             else {
-                read_states_.push_back(ReadState{.index = raft_log_->committed(), .request_ctx = msg->entries[0].data});
+                read_states_.push_back(ReadState{.index = raft_log_->committed_, .request_ctx = msg->entries[0].data});
             }
 
             return Status::ok();
@@ -1075,11 +1075,11 @@ Status Raft::step_follower(proto::MessagePtr msg)
 
 void Raft::handle_append_entries(proto::MessagePtr msg)
 {
-    if (msg->index < raft_log_->committed()) {
+    if (msg->index < raft_log_->committed_) {
         proto::MessagePtr m(new proto::Message());
         m->to = msg->from;
         m->type = proto::MsgAppResp;
-        m->index = raft_log_->committed();
+        m->index = raft_log_->committed_;
         send(std::move(m));
         return;
     }
@@ -1134,7 +1134,7 @@ void Raft::handle_snapshot(proto::MessagePtr msg)
 
     if (restore(msg->snapshot)) {
         LOG_INFO("%lu [commit: %lu] restored snapshot [index: %lu, term: %lu]",
-                 id_, raft_log_->committed(), sindex, sterm);
+                 id_, raft_log_->committed_, sindex, sterm);
         proto::MessagePtr m(new proto::Message());
         m->to = msg->from;
         m->type = proto::MsgAppResp;
@@ -1143,11 +1143,11 @@ void Raft::handle_snapshot(proto::MessagePtr msg)
     }
     else {
         LOG_INFO("%lu [commit: %lu] ignored snapshot [index: %lu, term: %lu]",
-                 id_, raft_log_->committed(), sindex, sterm);
+                 id_, raft_log_->committed_, sindex, sterm);
         proto::MessagePtr m(new proto::Message());
         m->to = msg->from;
         m->type = proto::MsgAppResp;
-        msg->index = raft_log_->committed();
+        msg->index = raft_log_->committed_;
         send(std::move(m));
     }
 
@@ -1155,7 +1155,7 @@ void Raft::handle_snapshot(proto::MessagePtr msg)
 
 bool Raft::restore(const proto::Snapshot& s)
 {
-    if (s.metadata.index <= raft_log_->committed()) {
+    if (s.metadata.index <= raft_log_->committed_) {
         return false;
     }
 
@@ -1163,7 +1163,7 @@ bool Raft::restore(const proto::Snapshot& s)
         LOG_INFO(
             "%lu [commit: %lu, last_index: %lu, last_term: %lu] fast-forwarded commit to snapshot [index: %lu, term: %lu]",
             id_,
-            raft_log_->committed(),
+            raft_log_->committed_,
             raft_log_->last_index(),
             raft_log_->last_term(),
             s.metadata.index,
@@ -1188,7 +1188,7 @@ bool Raft::restore(const proto::Snapshot& s)
 
     LOG_INFO("%lu [commit: %lu, last_index: %lu, last_term: %lu] starts to restore snapshot [index: %lu, term: %lu]",
              id_,
-             raft_log_->committed(),
+             raft_log_->committed_,
              raft_log_->last_index(),
              raft_log_->last_term(),
              s.metadata.index,
@@ -1223,20 +1223,20 @@ proto::HardState Raft::hard_state() const
     proto::HardState hs;
     hs.term = term_;
     hs.vote = vote_;
-    hs.commit = raft_log_->committed();
+    hs.commit = raft_log_->committed_;
     return hs;
 }
 
 void Raft::load_state(const proto::HardState& state)
 {
-    if (state.commit < raft_log_->committed() || state.commit > raft_log_->last_index()) {
+    if (state.commit < raft_log_->committed_ || state.commit > raft_log_->last_index()) {
         LOG_FATAL("%lu state.commit %lu is out of range [%lu, %lu]",
                   id_,
                   state.commit,
-                  raft_log_->committed(),
+                  raft_log_->committed_,
                   raft_log_->last_index());
     }
-    raft_log_->committed() = state.commit;
+    raft_log_->committed_ = state.commit;
     term_ = state.term;
     vote_ = state.vote;
 }
@@ -1342,7 +1342,7 @@ bool Raft::maybe_send_append(uint64_t to, bool send_if_empty)
         uint64_t sindex = snap->metadata.index;
         uint64_t sterm = snap->metadata.term;
         LOG_DEBUG("%lu [first_index: %lu, commit: %lu] sent snapshot[index: %lu, term: %lu] to %lu [%s]",
-                  id_, raft_log_->first_index(), raft_log_->committed(), sindex, sterm, to, pr->string().c_str());
+                  id_, raft_log_->first_index(), raft_log_->committed_, sindex, sterm, to, pr->string().c_str());
         pr->become_snapshot(sindex);
         msg->snapshot = *snap;
         LOG_DEBUG("%lu paused sending replication messages to %lu [%s]", id_, to, pr->string().c_str());
@@ -1356,7 +1356,7 @@ bool Raft::maybe_send_append(uint64_t to, bool send_if_empty)
             msg->entries.emplace_back(*entry);
         }
 
-        msg->commit = raft_log_->committed();
+        msg->commit = raft_log_->committed_;
         if (!msg->entries.empty()) {
             switch (pr->state) {
                 // optimistically increase the next when in ProgressStateReplicate
@@ -1388,7 +1388,7 @@ void Raft::send_heartbeat(uint64_t to, std::vector<uint8_t> ctx)
     // or it might not have all the committed entries.
     // The leader MUST NOT forward the follower's commit to
     // an unmatched index.
-    uint64_t commit = std::min(get_progress(to)->match, raft_log_->committed());
+    uint64_t commit = std::min(get_progress(to)->match, raft_log_->committed_);
     proto::MessagePtr msg(new proto::Message());
     msg->to = to;
     msg->type = proto::MsgHeartbeat;

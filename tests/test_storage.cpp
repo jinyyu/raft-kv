@@ -37,10 +37,10 @@ TEST(storage, term)
         uint64_t wterm = 0;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         uint64_t term = 0;
         Status s = m.term(i, term);
@@ -54,10 +54,10 @@ TEST(storage, term)
         uint64_t wterm = 3;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         uint64_t term;
         Status s = m.term(i, term);
@@ -71,10 +71,10 @@ TEST(storage, term)
         uint64_t wterm = 4;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         uint64_t term;
         Status s = m.term(i, term);
@@ -89,10 +89,10 @@ TEST(storage, term)
         uint64_t wterm = 5;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         uint64_t term;
         Status s = m.term(i, term);
@@ -107,10 +107,10 @@ TEST(storage, term)
         uint64_t wterm = 0;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         uint64_t term = 0;
         Status s = m.term(i, term);
@@ -122,10 +122,10 @@ TEST(storage, term)
 TEST(storage, first_index)
 {
     MemoryStorage m;
-    m.ref_entries().clear();
-    m.ref_entries().push_back(newMemoryStorage(3, 3));
-    m.ref_entries().push_back(newMemoryStorage(4, 4));
-    m.ref_entries().push_back(newMemoryStorage(5, 5));
+    m.entries_.clear();
+    m.entries_.push_back(newMemoryStorage(3, 3));
+    m.entries_.push_back(newMemoryStorage(4, 4));
+    m.entries_.push_back(newMemoryStorage(5, 5));
 
     uint64_t first = 0;
     Status status = m.first_index(first);
@@ -139,7 +139,7 @@ TEST(storage, first_index)
 
     status = m.compact(5);
     fprintf(stderr, "%s", status.to_string().c_str());
-    ASSERT_TRUE(m.ref_entries().size() == 1);
+    ASSERT_TRUE(m.entries_.size() == 1);
     m.first_index(first);
     ASSERT_TRUE(first == 6);
 }
@@ -147,10 +147,10 @@ TEST(storage, first_index)
 TEST(storage, last_index)
 {
     MemoryStorage m;
-    m.ref_entries().clear();
-    m.ref_entries().push_back(newMemoryStorage(3, 3));
-    m.ref_entries().push_back(newMemoryStorage(4, 4));
-    m.ref_entries().push_back(newMemoryStorage(5, 5));
+    m.entries_.clear();
+    m.entries_.push_back(newMemoryStorage(3, 3));
+    m.entries_.push_back(newMemoryStorage(4, 4));
+    m.entries_.push_back(newMemoryStorage(5, 5));
 
     uint64_t last;
     m.last_index(last);
@@ -174,16 +174,16 @@ TEST(storage, compact)
         uint64_t wlen = 3;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         auto s = m.compact(i);
         ASSERT_TRUE(s.to_string() == status.to_string());
-        ASSERT_TRUE(m.ref_entries()[0]->index == windex);
-        ASSERT_TRUE(m.ref_entries()[0]->term == wterm);
-        ASSERT_TRUE(m.ref_entries().size() == wlen);
+        ASSERT_TRUE(m.entries_[0]->index == windex);
+        ASSERT_TRUE(m.entries_[0]->term == wterm);
+        ASSERT_TRUE(m.entries_.size() == wlen);
     }
 
     {
@@ -194,16 +194,16 @@ TEST(storage, compact)
         uint64_t wlen = 3;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         auto s = m.compact(i);
         ASSERT_TRUE(s.to_string() == status.to_string());
-        ASSERT_TRUE(m.ref_entries()[0]->index == windex);
-        ASSERT_TRUE(m.ref_entries()[0]->term == wterm);
-        ASSERT_TRUE(m.ref_entries().size() == wlen);
+        ASSERT_TRUE(m.entries_[0]->index == windex);
+        ASSERT_TRUE(m.entries_[0]->term == wterm);
+        ASSERT_TRUE(m.entries_.size() == wlen);
     }
 
 
@@ -215,16 +215,16 @@ TEST(storage, compact)
         uint64_t wlen = 2;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         auto s = m.compact(i);
         ASSERT_TRUE(s.to_string() == status.to_string());
-        ASSERT_TRUE(m.ref_entries()[0]->index == windex);
-        ASSERT_TRUE(m.ref_entries()[0]->term == wterm);
-        ASSERT_TRUE(m.ref_entries().size() == wlen);
+        ASSERT_TRUE(m.entries_[0]->index == windex);
+        ASSERT_TRUE(m.entries_[0]->term == wterm);
+        ASSERT_TRUE(m.entries_.size() == wlen);
     }
 
 
@@ -236,16 +236,16 @@ TEST(storage, compact)
         uint64_t wlen = 1;
 
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         auto s = m.compact(i);
         ASSERT_TRUE(s.to_string() == status.to_string());
-        ASSERT_TRUE(m.ref_entries()[0]->index == windex);
-        ASSERT_TRUE(m.ref_entries()[0]->term == wterm);
-        ASSERT_TRUE(m.ref_entries().size() == wlen);
+        ASSERT_TRUE(m.entries_[0]->index == windex);
+        ASSERT_TRUE(m.entries_[0]->term == wterm);
+        ASSERT_TRUE(m.entries_.size() == wlen);
     }
 }
 
@@ -254,10 +254,10 @@ TEST(storage, append)
     MemoryStorage m;
 
     {
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         std::vector<proto::EntryPtr> add_entries;
         add_entries.push_back(newMemoryStorage(1, 1));
@@ -270,14 +270,14 @@ TEST(storage, append)
 
         m.append(std::move(add_entries));
 
-        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+        ASSERT_TRUE(entry_cmp(m.entries_, out_entries));
     }
 
     {
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         std::vector<proto::EntryPtr> add_entries;
         add_entries.push_back(newMemoryStorage(3, 3));
@@ -291,14 +291,14 @@ TEST(storage, append)
 
         m.append(std::move(add_entries));
 
-        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+        ASSERT_TRUE(entry_cmp(m.entries_, out_entries));
     }
 
     {
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         std::vector<proto::EntryPtr> add_entries;
         add_entries.push_back(newMemoryStorage(3, 3));
@@ -312,13 +312,13 @@ TEST(storage, append)
 
         m.append(std::move(add_entries));
 
-        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+        ASSERT_TRUE(entry_cmp(m.entries_, out_entries));
     }
     {
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         std::vector<proto::EntryPtr> add_entries;
         add_entries.push_back(newMemoryStorage(3, 3));
@@ -334,15 +334,15 @@ TEST(storage, append)
 
         m.append(std::move(add_entries));
 
-        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+        ASSERT_TRUE(entry_cmp(m.entries_, out_entries));
     }
 
     // truncate incoming entries, truncate the existing entries and append
     {
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         std::vector<proto::EntryPtr> add_entries;
         add_entries.push_back(newMemoryStorage(3, 2));
@@ -355,15 +355,15 @@ TEST(storage, append)
 
         m.append(std::move(add_entries));
 
-        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+        ASSERT_TRUE(entry_cmp(m.entries_, out_entries));
     }
 
     // truncate the existing entries and append
     {
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         std::vector<proto::EntryPtr> add_entries;
         add_entries.push_back(newMemoryStorage(5, 4));
@@ -374,15 +374,15 @@ TEST(storage, append)
 
         m.append(std::move(add_entries));
 
-        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+        ASSERT_TRUE(entry_cmp(m.entries_, out_entries));
     }
 
     // direct append
     {
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         std::vector<proto::EntryPtr> add_entries;
         add_entries.push_back(newMemoryStorage(5, 6));
@@ -395,7 +395,7 @@ TEST(storage, append)
 
         m.append(std::move(add_entries));
 
-        ASSERT_TRUE(entry_cmp(m.ref_entries(), out_entries));
+        ASSERT_TRUE(entry_cmp(m.entries_, out_entries));
     }
 }
 
@@ -439,10 +439,10 @@ TEST(storage, create)
 
     {
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         proto::SnapshotPtr snapshot(new proto::Snapshot());
         *snapshot->data = data;
@@ -460,10 +460,10 @@ TEST(storage, create)
 
     {
         MemoryStorage m;
-        m.ref_entries().clear();
-        m.ref_entries().push_back(newMemoryStorage(3, 3));
-        m.ref_entries().push_back(newMemoryStorage(4, 4));
-        m.ref_entries().push_back(newMemoryStorage(5, 5));
+        m.entries_.clear();
+        m.entries_.push_back(newMemoryStorage(3, 3));
+        m.entries_.push_back(newMemoryStorage(4, 4));
+        m.entries_.push_back(newMemoryStorage(5, 5));
 
         proto::SnapshotPtr snapshot(new proto::Snapshot());
         *snapshot->data = data;
@@ -513,11 +513,11 @@ TEST(storage, apply)
 TEST(storage, entry)
 {
     MemoryStorage m;
-    m.ref_entries().clear();
-    m.ref_entries().push_back(newMemoryStorage(3, 3));
-    m.ref_entries().push_back(newMemoryStorage(4, 4));
-    m.ref_entries().push_back(newMemoryStorage(5, 5));
-    m.ref_entries().push_back(newMemoryStorage(6, 6));
+    m.entries_.clear();
+    m.entries_.push_back(newMemoryStorage(3, 3));
+    m.entries_.push_back(newMemoryStorage(4, 4));
+    m.entries_.push_back(newMemoryStorage(5, 5));
+    m.entries_.push_back(newMemoryStorage(6, 6));
 
     {
         uint32_t low = 2;
@@ -605,8 +605,8 @@ TEST(storage, entry)
         uint32_t high = 7;
 
         std::vector<proto::EntryPtr> entries;
-        uint64_t max_size = m.ref_entries()[1]->serialize_size() + m.ref_entries()[2]->serialize_size()
-            + m.ref_entries()[3]->serialize_size() / 2;
+        uint64_t max_size = m.entries_[1]->serialize_size() + m.entries_[2]->serialize_size()
+            + m.entries_[3]->serialize_size() / 2;
 
         auto s = m.entries(low, high, max_size, entries);
         std::vector<proto::EntryPtr> out_entries;
@@ -622,8 +622,8 @@ TEST(storage, entry)
         uint32_t high = 7;
 
         std::vector<proto::EntryPtr> entries;
-        uint64_t max_size = m.ref_entries()[1]->serialize_size() + m.ref_entries()[2]->serialize_size()
-            + m.ref_entries()[3]->serialize_size();
+        uint64_t max_size = m.entries_[1]->serialize_size() + m.entries_[2]->serialize_size()
+            + m.entries_[3]->serialize_size();
 
         auto s = m.entries(low, high, max_size, entries);
         std::vector<proto::EntryPtr> out_entries;

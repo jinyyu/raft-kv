@@ -26,8 +26,8 @@ public:
                          "committed=%lu, applied=%lu, unstable.offset=%lu, unstable.entries=%lu",
                          committed_,
                          applied_,
-                         unstable_->offset(),
-                         unstable_->ref_entries().size());
+                         unstable_->offset_,
+                         unstable_->entries_.size());
         return std::string(buffer, n);
     }
 
@@ -82,7 +82,7 @@ public:
 
     std::vector<proto::EntryPtr>& unstable_entries()
     {
-        return unstable_->ref_entries();
+        return unstable_->entries_;
     }
 
     bool maybe_commit(uint64_t max_index, uint64_t term);
@@ -124,22 +124,6 @@ public:
     uint64_t last_index() const;
 
     Status must_check_out_of_bounds(uint64_t low, uint64_t high) const;
-
-    UnstablePtr& unstable()
-    {
-        return unstable_;
-    }
-
-    // getter && setter
-    uint64_t& committed()
-    {
-        return committed_;
-    }
-
-    uint64_t& applied()
-    {
-        return applied_;
-    }
 
     void all_entries(std::vector<proto::EntryPtr>& entries);
 

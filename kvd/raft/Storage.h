@@ -98,18 +98,7 @@ public:
     // ApplySnapshot overwrites the contents of this Storage object with
     // those of the given snapshot.
     Status apply_snapshot(proto::SnapshotPtr snapshot);
-
-    // getter && setter
-    std::vector<proto::EntryPtr>& ref_entries()
-    {
-        return entries_;
-    }
-    proto::SnapshotPtr& ref_snapshot()
-    {
-        return snapshot_;
-    }
-
-private:
+public:
     Status last_index_impl(uint64_t& index);
     Status first_index_impl(uint64_t& index);
 
