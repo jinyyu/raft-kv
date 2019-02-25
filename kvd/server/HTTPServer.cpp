@@ -2,9 +2,9 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <msgpack.hpp>
-#include <kvd/HTTPServer.h>
+#include <kvd/server/HTTPServer.h>
 #include <kvd/third_party/http_parser.h>
-#include <kvd/KvdServer.h>
+#include <kvd/server/KvdServer.h>
 #include <kvd/common/log.h>
 
 namespace kvd
@@ -281,6 +281,24 @@ void HTTPServer::put(std::string key, std::string value, std::function<void(cons
 
     Status status = server_.lock()->propose(std::move(data));
     callback(status);
+}
+
+void HTTPServer::read_commit(proto::EntryPtr entry)
+{
+    auto cb = [this, entry] {
+        KeyValue kv;
+        try {
+            msgpack::object_handle oh = msgpack::unpack((const char*)entry->data.data(), entry->data.size());
+            oh.get().convert(kv);
+        } catch (std::exception& e) {
+            LOG_ERROR("invalid data commit %s", e.what());
+            return;
+        }
+        LOG_INFO("[%s]:[%s]", kv.key.c_str(), kv.value.c_str());
+        key_values_.insert(std::make_pair(std::move(kv.key), std::move(kv.value)));
+    };
+
+    io_service_.post(cb);
 }
 
 }

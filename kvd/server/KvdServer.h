@@ -5,11 +5,10 @@
 #include <vector>
 #include <kvd/transport/Transport.h>
 #include <kvd/raft/Node.h>
-#include <kvd/HTTPServer.h>
+#include <kvd/server/HTTPServer.h>
 
 namespace kvd
 {
-
 
 class KvdServer: public RaftServer, public std::enable_shared_from_this<KvdServer>
 {
@@ -51,7 +50,7 @@ private:
     uint64_t id_;
     std::vector<std::string> peers_;
     uint64_t last_index_;
-    proto::ConfState conf_state_;
+    proto::ConfStatePtr conf_state_;
     uint64_t snapshot_index_;
     uint64_t applied_index_;
 

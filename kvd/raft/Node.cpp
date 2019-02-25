@@ -177,26 +177,26 @@ void RawNode::advance(ReadyPtr ready)
     }
 }
 
-proto::ConfStatePtr RawNode::apply_conf_change(proto::ConfChangePtr cs)
+proto::ConfStatePtr RawNode::apply_conf_change(const proto::ConfChange& cc)
 {
     proto::ConfStatePtr state(new proto::ConfState());
-    if (cs->node_id == 0) {
+    if (cc.node_id == 0) {
         raft_->nodes(state->nodes);
         raft_->learner_nodes(state->learners);
         return state;
     }
 
-    switch (cs->conf_change_type) {
+    switch (cc.conf_change_type) {
         case proto::ConfChangeAddNode: {
-            raft_->add_node_or_learner(cs->node_id, false);
+            raft_->add_node_or_learner(cc.node_id, false);
             break;
         }
         case proto::ConfChangeAddLearnerNode: {
-            raft_->add_node_or_learner(cs->node_id, true);
+            raft_->add_node_or_learner(cc.node_id, true);
             break;
         }
         case proto::ConfChangeRemoveNode: {
-            raft_->remove_node(cs->node_id);
+            raft_->remove_node(cc.node_id);
             break;
         }
         case proto::ConfChangeUpdateNode: {

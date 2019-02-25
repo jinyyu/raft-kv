@@ -134,9 +134,9 @@ TEST(node, RawNodeProposeAddDuplicateNode)
 
         for (auto entry : rd->committed_entries) {
             if (entry->type == proto::EntryConfChange) {
-                proto::ConfChangePtr confChange(new proto::ConfChange());
-                proto::ConfChange::from_data(entry->data, *confChange);
-                rawNode.apply_conf_change(confChange);
+                proto::ConfChange cc;
+                proto::ConfChange::from_data(entry->data, cc);
+                rawNode.apply_conf_change(cc);
             }
         }
         rawNode.advance(rd);

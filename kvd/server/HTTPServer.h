@@ -4,6 +4,7 @@
 #include <thread>
 #include <future>
 #include <kvd/common/Status.h>
+#include <kvd/raft/proto.h>
 
 namespace kvd
 {
@@ -31,6 +32,8 @@ public:
     }
 
     void put(std::string key, std::string value, std::function<void(const Status&)> callback);
+
+    void read_commit(proto::EntryPtr entry);
 
 private:
     void start_accept();

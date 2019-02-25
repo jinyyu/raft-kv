@@ -2,7 +2,7 @@
 #include <glib.h>
 #include <stdint.h>
 #include <kvd/common/log.h>
-#include <kvd/KvdServer.h>
+#include <kvd/server/KvdServer.h>
 
 static uint64_t g_id = 0;
 static const char* g_cluster = NULL;

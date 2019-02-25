@@ -61,7 +61,7 @@ public:
     // Returns an opaque ConfState protobuf which must be recorded
     // in snapshots. Will never return nil; it returns a pointer only
     // to match MemoryStorage.Compact.
-    virtual proto::ConfStatePtr apply_conf_change(proto::ConfChangePtr cs) = 0;
+    virtual proto::ConfStatePtr apply_conf_change(const proto::ConfChange& cc) = 0;
 
     // transfer_leadership attempts to transfer leadership to the given transferee.
     virtual void transfer_leadership(uint64_t lead, ino64_t transferee) = 0;
@@ -109,7 +109,7 @@ public:
     virtual ReadyPtr ready();
     virtual bool has_ready();
     virtual void advance(ReadyPtr ready);
-    virtual proto::ConfStatePtr apply_conf_change(proto::ConfChangePtr cs);
+    virtual proto::ConfStatePtr apply_conf_change(const proto::ConfChange& cc);
     virtual void transfer_leadership(uint64_t lead, ino64_t transferee);
     virtual Status read_index(std::vector<uint8_t> rctx);
     virtual RaftStatusPtr raft_status();

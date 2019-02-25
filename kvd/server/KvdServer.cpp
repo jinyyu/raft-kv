@@ -1,6 +1,6 @@
 #include <boost/algorithm/string.hpp>
 #include <future>
-#include <kvd/KvdServer.h>
+#include <kvd/server/KvdServer.h>
 #include <kvd/common/log.h>
 
 namespace kvd
@@ -13,6 +13,7 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
       timer_(raft_loop_),
       id_(id),
       last_index_(0),
+      conf_state_(new proto::ConfState()),
       snapshot_index_(0),
       applied_index_(0)
 {
@@ -129,31 +130,37 @@ bool KvdServer::publish_entries(const std::vector<proto::EntryPtr>& entries)
                     // ignore empty messages
                     break;
                 }
-                LOG_DEBUG("commit data %lu", entry->data.size());
+                http_server_->read_commit(entry);
                 break;
             }
 
             case proto::EntryConfChange: {
                 proto::ConfChange cc;
-                msgpack::object_handle oh = msgpack::unpack((const char*) entry->data.data(), entry->data.size());
-                oh.get().convert(cc);
+                try {
+                    msgpack::object_handle oh = msgpack::unpack((const char*) entry->data.data(), entry->data.size());
+                    oh.get().convert(cc);
+                }
+                catch (std::exception& e) {
+                    LOG_ERROR("confert error %s", e.what());
+                    continue;
+                }
+                conf_state_ = node_->apply_conf_change(cc);
+
                 switch (cc.conf_change_type) {
-                    case proto::ConfChangeAddNode: {
+                    case proto::ConfChangeAddNode:
                         if (!cc.context.empty()) {
                             std::string str((const char*) cc.context.data(), cc.context.size());
                             transport_->add_peer(cc.node_id, str);
                         }
                         break;
-                        case proto::ConfChangeRemoveNode: {
-                            if (cc.node_id == id_) {
-                                LOG_INFO("I've been removed from the cluster! Shutting down.");
-                                return false;
-                            }
-                            transport_->remove_peer(cc.node_id);
-                            default: {
-                                LOG_INFO("configure change %d", cc.conf_change_type);
-                            }
+                    case proto::ConfChangeRemoveNode:
+                        if (cc.node_id == id_) {
+                            LOG_INFO("I've been removed from the cluster! Shutting down.");
+                            return false;
                         }
+                        transport_->remove_peer(cc.node_id);
+                    default: {
+                        LOG_INFO("configure change %d", cc.conf_change_type);
                     }
                 }
                 break;
@@ -169,7 +176,7 @@ bool KvdServer::publish_entries(const std::vector<proto::EntryPtr>& entries)
 
         // replay has finished
         if (entry->index == this->last_index_) {
-            break;
+            LOG_DEBUG("replay has finished");
         }
     }
     return true;
