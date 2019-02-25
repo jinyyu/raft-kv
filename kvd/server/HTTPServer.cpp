@@ -295,7 +295,7 @@ void HTTPServer::read_commit(proto::EntryPtr entry)
             return;
         }
         LOG_INFO("[%s]:[%s]", kv.key.c_str(), kv.value.c_str());
-        key_values_.insert(std::make_pair(std::move(kv.key), std::move(kv.value)));
+        key_values_[std::move(kv.key)] = std::move(kv.value);
     };
 
     io_service_.post(cb);
