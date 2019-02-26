@@ -111,7 +111,6 @@ void KvdServer::check_raft_ready()
         }
         maybe_trigger_snapshot();
         node_->advance(rd);
-        assert(!node_->has_ready());
     };
 
     if (raft_loop_id_ == pthread_self()) {

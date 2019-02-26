@@ -108,7 +108,7 @@ public:
     virtual Status step(proto::MessagePtr msg);
     virtual ReadyPtr ready();
     virtual bool has_ready();
-    virtual void advance(ReadyPtr ready);
+    virtual void advance(ReadyPtr rd);
     virtual proto::ConfStatePtr apply_conf_change(const proto::ConfChange& cc);
     virtual void transfer_leadership(uint64_t lead, ino64_t transferee);
     virtual Status read_index(std::vector<uint8_t> rctx);

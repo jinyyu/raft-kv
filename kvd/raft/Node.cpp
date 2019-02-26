@@ -120,7 +120,8 @@ ReadyPtr RawNode::ready()
 
 bool RawNode::has_ready()
 {
-    if (prev_soft_state_ && !prev_soft_state_->equal(*raft_->soft_state())) {
+    assert(prev_soft_state_);
+    if (!raft_->soft_state()->equal(*prev_soft_state_)) {
         return true;
     }
     proto::HardState hs = raft_->hard_state();
@@ -144,35 +145,35 @@ bool RawNode::has_ready()
     return false;
 }
 
-void RawNode::advance(ReadyPtr ready)
+void RawNode::advance(ReadyPtr rd)
 {
-    if (ready->soft_state) {
-        prev_soft_state_ = ready->soft_state;
+    if (rd->soft_state) {
+        prev_soft_state_ = rd->soft_state;
 
     }
-    if (!ready->hard_state.is_empty_state()) {
-        prev_hard_state_ = ready->hard_state;
+    if (!rd->hard_state.is_empty_state()) {
+        prev_hard_state_ = rd->hard_state;
     }
 
     // If entries were applied (or a snapshot), update our cursor for
     // the next Ready. Note that if the current HardState contains a
     // new Commit index, this does not mean that we're also applying
     // all of the new entries due to commit pagination by size.
-    uint64_t index = ready->applied_cursor();
+    uint64_t index = rd->applied_cursor();
     if (index > 0) {
         raft_->raft_log_->applied_to(index);
     }
 
-    if (!ready->entries.empty()) {
-        auto& entry = ready->entries.back();
+    if (!rd->entries.empty()) {
+        auto& entry = rd->entries.back();
         raft_->raft_log_->stable_to(entry->index, entry->term);
     }
 
-    if (!ready->snapshot.is_empty()) {
-        raft_->raft_log_->stable_snap_to(ready->snapshot.metadata.index);
+    if (!rd->snapshot.is_empty()) {
+        raft_->raft_log_->stable_snap_to(rd->snapshot.metadata.index);
     }
 
-    if (!ready->read_states.empty()) {
+    if (!rd->read_states.empty()) {
         raft_->read_states_.clear();
     }
 }
