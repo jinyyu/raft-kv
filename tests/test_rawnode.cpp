@@ -25,13 +25,12 @@ static bool read_state_cmp(const std::vector<ReadState>& l, const std::vector<Re
 
 TEST(node, RawNodeStep)
 {
-    boost::asio::io_service service;
     for (uint8_t i = 0; i < proto::MsgTypeSize; ++i) {
         MemoryStoragePtr s(new MemoryStorage());
         auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
 
         std::vector<PeerContext> nodes{PeerContext{.id = 1}};
-        RawNode node(c, nodes, service);
+        RawNode node(c, nodes);
         proto::MessagePtr msg(new proto::Message());
         msg->type = i;
         Status status = node.step(msg);
@@ -47,11 +46,10 @@ TEST(node, RawNodeStep)
 // send the given proposal and ConfChange to the underlying raft.
 TEST(node, RawNodeProposeAndConfChange)
 {
-    boost::asio::io_service service;
     MemoryStoragePtr s(new MemoryStorage());
     auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
     std::vector<PeerContext> peer{PeerContext{.id = 1}};
-    RawNode rawNode(c, peer, service);
+    RawNode rawNode(c, peer);
     auto rd = rawNode.ready();
     s->append(rd->entries);
     rawNode.advance(rd);
@@ -105,11 +103,10 @@ TEST(node, RawNodeProposeAndConfChange)
 
 TEST(node, RawNodeProposeAddDuplicateNode)
 {
-    boost::asio::io_service service;
     MemoryStoragePtr s(new MemoryStorage());
     auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
     std::vector<PeerContext> peer{PeerContext{.id = 1}};
-    RawNode rawNode(c, peer, service);
+    RawNode rawNode(c, peer);
 
     auto rd = rawNode.ready();
     s->append(rd->entries);
@@ -187,13 +184,12 @@ TEST(node, RawNodeReadIndex)
 
     std::vector<ReadState> wrs;
     wrs.push_back(ReadState{.index = 1, .request_ctx = str_to_vector("somedata")});
-    boost::asio::io_service service;
     MemoryStoragePtr s(new MemoryStorage());
 
     auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
 
     std::vector<PeerContext> peer{PeerContext{.id = 1}};
-    RawNode rawNode(c, peer, service);
+    RawNode rawNode(c, peer);
 
     rawNode.raft_->read_states_ = wrs;
     // ensure the ReadStates can be read out

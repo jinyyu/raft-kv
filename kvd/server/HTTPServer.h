@@ -13,9 +13,17 @@ class KvdServer;
 class HTTPServer: public std::enable_shared_from_this<HTTPServer>
 {
 public:
-    explicit HTTPServer(std::weak_ptr<KvdServer> server, boost::asio::io_service& io_service, uint16_t port);
+    explicit HTTPServer(std::weak_ptr<KvdServer> server, uint16_t port);
 
     ~HTTPServer();
+
+    void stop()
+    {
+        io_service_.stop();
+        if (worker_.joinable()) {
+            worker_.join();
+        }
+    }
 
     void start(std::promise<pthread_t>& promise);
 
@@ -31,7 +39,7 @@ public:
         }
     }
 
-    void put(std::string key, std::string value, std::function<void(const Status&)> callback);
+    void put(std::string key, std::string value,const std::function<void(const Status&)>& callback);
 
     void read_commit(proto::EntryPtr entry);
 
@@ -39,7 +47,7 @@ private:
     void start_accept();
 
     std::weak_ptr<KvdServer> server_;
-    boost::asio::io_service& io_service_;
+    boost::asio::io_service io_service_;
     boost::asio::ip::tcp::acceptor acceptor_;
     std::thread worker_;
     std::unordered_map<std::string, std::string> key_values_;

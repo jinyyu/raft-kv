@@ -5,8 +5,7 @@ namespace kvd
 {
 
 
-RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers, boost::asio::io_service& io_service)
-    : io_service_(io_service)
+RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers)
 {
     raft_ = std::make_shared<Raft>(conf);
 

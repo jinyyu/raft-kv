@@ -216,9 +216,8 @@ static int on_body(http_parser* parser, const char* data, size_t length)
 
 typedef std::shared_ptr<HTTPSession> HTTPSessionPtr;
 
-HTTPServer::HTTPServer(std::weak_ptr<KvdServer> server, boost::asio::io_service& io_service, uint16_t port)
+HTTPServer::HTTPServer(std::weak_ptr<KvdServer> server, uint16_t port)
     : server_(std::move(server)),
-      io_service_(io_service),
       acceptor_(io_service_)
 {
     auto address = boost::asio::ip::address::from_string("0.0.0.0");
@@ -257,7 +256,6 @@ void HTTPServer::start(std::promise<pthread_t>& promise)
 
 void HTTPServer::start_accept()
 {
-
     HTTPSessionPtr session(new HTTPSession(shared_from_this(), io_service_));
     acceptor_.async_accept(session->socket, [this, session](const boost::system::error_code& error) {
         if (error) {
@@ -269,7 +267,7 @@ void HTTPServer::start_accept()
     });
 }
 
-void HTTPServer::put(std::string key, std::string value, std::function<void(const Status&)> callback)
+void HTTPServer::put(std::string key, std::string value, const std::function<void(const Status&)>& callback)
 {
     LOG_DEBUG("put %s:%s", key.c_str(), value.c_str());
     KeyValue kv(std::move(key), std::move(value));
@@ -284,7 +282,7 @@ void HTTPServer::put(std::string key, std::string value, std::function<void(cons
             callback(status);
         });
     };
-    server_.lock()->propose(std::move(data), on_propose);
+    server_.lock()->propose(std::move(data), std::move(on_propose));
 }
 
 void HTTPServer::read_commit(proto::EntryPtr entry)

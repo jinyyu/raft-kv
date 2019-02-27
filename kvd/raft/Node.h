@@ -1,10 +1,8 @@
 #pragma once
-#include <boost/asio.hpp>
 #include <kvd/raft/Raft.h>
 #include <kvd/raft/proto.h>
 #include <kvd/raft/Config.h>
 #include <kvd/raft/RaftStatus.h>
-
 
 namespace kvd
 {
@@ -97,7 +95,7 @@ public:
 class RawNode: public Node
 {
 public:
-    explicit RawNode(const Config& conf, const std::vector<PeerContext>& peers, boost::asio::io_service& io_service);
+    explicit RawNode(const Config& conf, const std::vector<PeerContext>& peers);
 
     ~RawNode();
 
@@ -120,7 +118,6 @@ public:
     RaftPtr raft_;
     SoftStatePtr prev_soft_state_;
     proto::HardState prev_hard_state_;
-    boost::asio::io_service& io_service_;
 };
 typedef std::shared_ptr<RawNode> RawNodePtr;
 

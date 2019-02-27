@@ -8,9 +8,8 @@ namespace kvd
 
 KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),
-      raft_loop_id_(0),
-      server_loop_id_(0),
-      timer_(raft_loop_),
+      pthread_id_(0),
+      timer_(io_servie_),
       id_(id),
       last_index_(0),
       conf_state_(new proto::ConfState()),
@@ -50,7 +49,7 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
     for (size_t i = 0; i < peers_.size(); ++i) {
         peers.push_back(PeerContext{.id = i + 1});
     }
-    node_ = std::make_shared<RawNode>(c, std::move(peers), raft_loop_);
+    node_ = std::make_shared<RawNode>(c, std::move(peers));
 }
 
 KvdServer::~KvdServer()
@@ -71,6 +70,7 @@ void KvdServer::start_timer()
             LOG_ERROR("timer waiter error %s", err.message().c_str());
             return;
         }
+
         self->start_timer();
         self->node_->tick();
         self->check_raft_ready();
@@ -79,6 +79,7 @@ void KvdServer::start_timer()
 
 void KvdServer::check_raft_ready()
 {
+    assert(pthread_id_ == pthread_self());
     while (node_->has_ready()) {
         auto rd = node_->ready();
         if (!rd->contains_updates()) {
@@ -192,21 +193,25 @@ void KvdServer::maybe_trigger_snapshot()
 
 void KvdServer::schedule()
 {
-    start_timer();
-    http_server_ = std::make_shared<HTTPServer>(shared_from_this(), raft_loop_, port_);
+    http_server_ = std::make_shared<HTTPServer>(shared_from_this(), port_);
     std::promise<pthread_t> promise;
     std::future<pthread_t> future = promise.get_future();
     http_server_->start(promise);
     future.wait();
-    server_loop_id_ = future.get();
+    pthread_t id = future.get();
+    LOG_DEBUG("http server start [%lu]", id);
 
-    raft_loop_id_ = pthread_self();
-    raft_loop_.run();
+    pthread_id_ = pthread_self();
+    LOG_DEBUG("kdv server start [%lu]", pthread_id_);
+
+    start_timer();
+    pthread_id_ = pthread_self();
+    io_servie_.run();
 }
 
 void KvdServer::propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusCallback& callback)
 {
-    raft_loop_.post([this, data, callback]() {
+    io_servie_.post([this, data, callback]() {
         Status status = node_->propose(std::move(*data));
         callback(status);
         check_raft_ready();
@@ -215,7 +220,7 @@ void KvdServer::propose(std::shared_ptr<std::vector<uint8_t>> data, const Status
 
 void KvdServer::process(proto::MessagePtr msg, const StatusCallback& callback)
 {
-    raft_loop_.post([this, msg, callback]() {
+    io_servie_.post([this, msg, callback]() {
         Status status = this->node_->step(msg);
         callback(status);
         check_raft_ready();
@@ -272,13 +277,13 @@ void KvdServer::main(uint64_t id, const std::string& cluster, uint16_t port)
 void KvdServer::stop()
 {
     LOG_DEBUG("stopping");
-    server_loop_.stop();
+    http_server_->stop();
 
     if (transport_) {
         transport_->stop();
         transport_ = nullptr;
     }
-    raft_loop_.stop();
+    io_servie_.stop();
 }
 
 }
