@@ -79,42 +79,33 @@ void KvdServer::start_timer()
 
 void KvdServer::check_raft_ready()
 {
-    auto do_check = [this]() {
-        while (node_->has_ready()) {
-            auto rd = node_->ready();
-            if (!rd->contains_updates()) {
-                LOG_WARN("ready not contains updates");
-                return;
-            }
-
-            if (!rd->snapshot.is_empty()) {
-                //LOG_WARN("no impl yet");
-            }
-
-            if (!rd->entries.empty()) {
-                storage_->append(rd->entries);
-            }
-            if (!rd->messages.empty()) {
-                transport_->send(rd->messages);
-            }
-
-            if (!rd->committed_entries.empty()) {
-                std::vector<proto::EntryPtr> ents;
-                entries_to_apply(rd->committed_entries, ents);
-                if (!ents.empty()) {
-                    publish_entries(ents);
-                }
-            }
-            maybe_trigger_snapshot();
-            node_->advance(rd);
+    while (node_->has_ready()) {
+        auto rd = node_->ready();
+        if (!rd->contains_updates()) {
+            LOG_WARN("ready not contains updates");
+            return;
         }
-    };
 
-    if (raft_loop_id_ == pthread_self()) {
-        do_check();
-    }
-    else {
-        raft_loop_.post(std::move(do_check));
+        if (!rd->snapshot.is_empty()) {
+            //LOG_WARN("no impl yet");
+        }
+
+        if (!rd->entries.empty()) {
+            storage_->append(rd->entries);
+        }
+        if (!rd->messages.empty()) {
+            transport_->send(rd->messages);
+        }
+
+        if (!rd->committed_entries.empty()) {
+            std::vector<proto::EntryPtr> ents;
+            entries_to_apply(rd->committed_entries, ents);
+            if (!ents.empty()) {
+                publish_entries(ents);
+            }
+        }
+        maybe_trigger_snapshot();
+        node_->advance(rd);
     }
 }
 
@@ -215,15 +206,10 @@ void KvdServer::schedule()
 
 void KvdServer::propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusCallback& callback)
 {
-    if (raft_loop_id_ == pthread_self()) {
-        Status status = node_->propose(std::move(*data));
-        callback(status);
-        return;
-    }
-
     raft_loop_.post([this, data, callback]() {
         Status status = node_->propose(std::move(*data));
         callback(status);
+        check_raft_ready();
     });
 }
 
@@ -232,6 +218,7 @@ void KvdServer::process(proto::MessagePtr msg, const StatusCallback& callback)
     raft_loop_.post([this, msg, callback]() {
         Status status = this->node_->step(msg);
         callback(status);
+        check_raft_ready();
     });
 }
 
