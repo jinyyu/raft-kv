@@ -113,7 +113,7 @@ Status RawNode::step(proto::MessagePtr msg)
 ReadyPtr RawNode::ready()
 {
     ReadyPtr rd = std::make_shared<Ready>(raft_, prev_soft_state_, prev_hard_state_);
-    assert(raft_->msgs_.empty());
+    raft_->msgs_.clear();
     raft_->reduce_uncommitted_size(rd->committed_entries);
     return rd;
 }

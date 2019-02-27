@@ -127,20 +127,24 @@ public:
 
     void handle_put_result(const Status& status)
     {
-        data.clear();
-        data.append("HTTP/1.0 200 OK\r\nContent-type:text/json\r\n\r\n");
-        rapidjson::Document document;
-        document.SetObject();
-        document.AddMember("ok", rapidjson::Value(status.is_ok()), document.GetAllocator());
-        document.AddMember("result",
-                           rapidjson::Value(status.to_string().c_str(), document.GetAllocator()),
-                           document.GetAllocator());
-        rapidjson::StringBuffer sb;
-        rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
-        document.Accept(writer);
+        auto self = shared_from_this();
+        auto cb = [self, status] {
+            self->data.clear();
+            self->data.append("HTTP/1.0 200 OK\r\nContent-type:text/json\r\n\r\n");
+            rapidjson::Document document;
+            document.SetObject();
+            document.AddMember("ok", rapidjson::Value(status.is_ok()), document.GetAllocator());
+            document.AddMember("result",
+                               rapidjson::Value(status.to_string().c_str(), document.GetAllocator()),
+                               document.GetAllocator());
+            rapidjson::StringBuffer sb;
+            rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+            document.Accept(writer);
 
-        data.append(sb.GetString());
-        send_response();
+            self->data.append(sb.GetString());
+            self->send_response();
+        };
+        self->socket.get_io_service().post(cb);
     }
 
     void handle_invalid_method()
@@ -277,10 +281,9 @@ void HTTPServer::put(std::string key, std::string value, std::function<void(cons
     msgpack::sbuffer sbuf;
     msgpack::pack(sbuf, kv);
 
-    std::vector<uint8_t> data(sbuf.data(), sbuf.data() + sbuf.size());
+    std::shared_ptr<std::vector<uint8_t>> data(new std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size()));
 
-    Status status = server_.lock()->propose(std::move(data));
-    callback(status);
+    server_.lock()->propose(std::move(data), callback);
 }
 
 void HTTPServer::read_commit(proto::EntryPtr entry)
@@ -288,9 +291,10 @@ void HTTPServer::read_commit(proto::EntryPtr entry)
     auto cb = [this, entry] {
         KeyValue kv;
         try {
-            msgpack::object_handle oh = msgpack::unpack((const char*)entry->data.data(), entry->data.size());
+            msgpack::object_handle oh = msgpack::unpack((const char*) entry->data.data(), entry->data.size());
             oh.get().convert(kv);
-        } catch (std::exception& e) {
+        }
+        catch (std::exception& e) {
             LOG_ERROR("invalid data commit %s", e.what());
             return;
         }

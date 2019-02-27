@@ -175,7 +175,7 @@ void AsioPeer::do_send_data(uint8_t type, const uint8_t* data, uint32_t len)
 void AsioPeer::start_timer()
 {
     auto self = shared_from_this();
-    timer_.expires_from_now(boost::posix_time::seconds(1));
+    timer_.expires_from_now(boost::posix_time::seconds(3));
     timer_.async_wait([self](const boost::system::error_code& err) {
         if (err) {
             LOG_ERROR("timer waiter error %s", err.message().c_str());

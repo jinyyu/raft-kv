@@ -10,6 +10,8 @@
 namespace kvd
 {
 
+typedef std::function<void(const Status&)> StatusCallback;
+
 class KvdServer: public RaftServer, public std::enable_shared_from_this<KvdServer>
 {
 public:
@@ -21,9 +23,9 @@ public:
 
     void stop();
 
-    Status propose(std::vector<uint8_t> data);
+    void propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusCallback& callback);
 
-    virtual void process(proto::MessagePtr msg, const std::function<void(const Status&)>& callback);
+    virtual void process(proto::MessagePtr msg, const StatusCallback& callback);
 
     virtual void is_id_removed(uint64_t id, const std::function<void(bool)>& callback);
 
@@ -38,7 +40,6 @@ public:
 private:
     void start_timer();
     void check_raft_ready();
-    void post_ready(ReadyPtr ready);
     void schedule();
 
     uint16_t port_;

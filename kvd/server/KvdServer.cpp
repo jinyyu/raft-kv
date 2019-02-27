@@ -80,37 +80,34 @@ void KvdServer::start_timer()
 void KvdServer::check_raft_ready()
 {
     auto do_check = [this]() {
-        bool is_ready = node_->has_ready();
-        if (!is_ready) {
-            return;
-        }
-
-        auto rd = node_->ready();
-        if (!rd->contains_updates()) {
-            LOG_WARN("ready not contains updates");
-            return;
-        }
-
-        if (!rd->snapshot.is_empty()) {
-            //LOG_WARN("no impl yet");
-        }
-
-        if (!rd->entries.empty()) {
-            storage_->append(rd->entries);
-        }
-        if (!rd->messages.empty()) {
-            transport_->send(rd->messages);
-        }
-
-        if (!rd->committed_entries.empty()) {
-            std::vector<proto::EntryPtr> ents;
-            entries_to_apply(rd->committed_entries, ents);
-            if (!ents.empty()) {
-                publish_entries(ents);
+        while (node_->has_ready()) {
+            auto rd = node_->ready();
+            if (!rd->contains_updates()) {
+                LOG_WARN("ready not contains updates");
+                return;
             }
+
+            if (!rd->snapshot.is_empty()) {
+                //LOG_WARN("no impl yet");
+            }
+
+            if (!rd->entries.empty()) {
+                storage_->append(rd->entries);
+            }
+            if (!rd->messages.empty()) {
+                transport_->send(rd->messages);
+            }
+
+            if (!rd->committed_entries.empty()) {
+                std::vector<proto::EntryPtr> ents;
+                entries_to_apply(rd->committed_entries, ents);
+                if (!ents.empty()) {
+                    publish_entries(ents);
+                }
+            }
+            maybe_trigger_snapshot();
+            node_->advance(rd);
         }
-        maybe_trigger_snapshot();
-        node_->advance(rd);
     };
 
     if (raft_loop_id_ == pthread_self()) {
@@ -202,11 +199,6 @@ void KvdServer::maybe_trigger_snapshot()
     //LOG_WARN("not impl yet");
 }
 
-void KvdServer::post_ready(ReadyPtr ready)
-{
-
-}
-
 void KvdServer::schedule()
 {
     start_timer();
@@ -221,26 +213,23 @@ void KvdServer::schedule()
     raft_loop_.run();
 }
 
-Status KvdServer::propose(std::vector<uint8_t> data)
+void KvdServer::propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusCallback& callback)
 {
     if (raft_loop_id_ == pthread_self()) {
-        return node_->propose(std::move(data));;
+        Status status = node_->propose(std::move(*data));
+        callback(status);
+        return;
     }
 
-    std::promise<Status> promise;
-    std::future<Status> future = promise.get_future();
-    raft_loop_.post([this, &data, &promise]() {
-        Status status = node_->propose(std::move(data));
-        promise.set_value(status);
+    raft_loop_.post([this, data, callback]() {
+        Status status = node_->propose(std::move(*data));
+        callback(status);
     });
-    future.wait();
-    check_raft_ready();
-    return future.get();
 }
 
-void KvdServer::process(proto::MessagePtr msg, const std::function<void(const Status&)>& callback)
+void KvdServer::process(proto::MessagePtr msg, const StatusCallback& callback)
 {
-    raft_loop_.post([this,msg, callback]() {
+    raft_loop_.post([this, msg, callback]() {
         Status status = this->node_->step(msg);
         callback(status);
     });
