@@ -177,7 +177,7 @@ Status MemoryStorage::create_snapshot(uint64_t index,
     if (cs) {
         snapshot_->metadata.conf_state = *cs;
     }
-    snapshot_->data = std::make_shared<std::vector<uint8_t>>(std::move(data));
+    snapshot_->data = std::move(data);
     snapshot = snapshot_;
     return Status::ok();
 

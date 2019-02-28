@@ -336,16 +336,53 @@ TEST(node, RawNodeRestart)
     storage->append(entries);
 
     auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, storage);
-
     std::vector<PeerContext> peer;
     RawNode rawNode(c, peer);
 
     auto rd = rawNode.ready();
-
     ASSERT_TRUE(rd->equal(*want));
-
     rawNode.advance(rd);
+    ASSERT_TRUE(!rawNode.has_ready());
+}
 
+TEST(node, RawNodeRestartFromSnapshot)
+{
+    proto::SnapshotPtr snap(new proto::Snapshot());
+    snap->metadata.index = 2;
+    snap->metadata.term = 1;
+    snap->metadata.conf_state.nodes.push_back(1);
+    snap->metadata.conf_state.nodes.push_back(2);
+
+    std::vector<proto::EntryPtr> entries;
+    {
+        proto::EntryPtr e1(new proto::Entry());
+        e1->term = 1;
+        e1->index = 3;
+        e1->data = str_to_vector("foo");
+        entries.push_back(e1);
+    }
+
+    proto::HardState st;
+    st.term = 1;
+    st.commit = 3;
+
+    ReadyPtr want(new Ready());
+    want->committed_entries = entries;
+
+
+    MemoryStoragePtr storage(new MemoryStorage());
+    storage->set_hard_state(st);
+    storage->apply_snapshot(snap);
+    storage->append(entries);
+
+    auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, storage);
+    std::vector<PeerContext> peer;
+    RawNode rawNode(c, peer);
+
+
+    auto rd = rawNode.ready();
+    ASSERT_TRUE(rd->equal(*want));
+    rawNode.advance(rd);
     ASSERT_TRUE(!rawNode.has_ready());
 }
 

@@ -1194,7 +1194,7 @@ bool Raft::restore(const proto::Snapshot& s)
              s.metadata.index,
              s.metadata.term);
 
-    proto::SnapshotPtr snap(new proto::Snapshot(*s.data));
+    proto::SnapshotPtr snap(new proto::Snapshot(s.data));
     raft_log_->restore(snap);
     prs_.clear();
     learner_prs_.clear();

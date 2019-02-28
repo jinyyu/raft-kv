@@ -128,12 +128,10 @@ struct SnapshotMetadata
 struct Snapshot
 {
     explicit Snapshot()
-        : data(new std::vector<uint8_t>())
     {
     }
 
     explicit Snapshot(std::vector<uint8_t> data)
-        : data(new std::vector<uint8_t>(std::move(data)))
     {
     }
 
@@ -143,9 +141,9 @@ struct Snapshot
     {
         return metadata.index == 0;
     }
-    std::shared_ptr<std::vector<uint8_t>> data;
+    std::vector<uint8_t> data;
     SnapshotMetadata metadata;
-    MSGPACK_DEFINE (metadata);
+    MSGPACK_DEFINE (data, metadata);
 };
 typedef std::shared_ptr<Snapshot> SnapshotPtr;
 

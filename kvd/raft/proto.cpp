@@ -182,14 +182,7 @@ std::vector<uint8_t> ConfChange::serialize() const
 
 bool Snapshot::equal(const Snapshot& snap) const
 {
-    if ((data && !snap.data) || (!data && snap.data)) {
-        return false;
-    }
-
-    if (data && snap.data && *data != *snap.data) {
-        return false;
-    }
-    return metadata == snap.metadata;
+    return data == snap.data && metadata == snap.metadata;
 }
 
 }
