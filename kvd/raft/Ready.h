@@ -40,6 +40,8 @@ struct Ready
 
     bool contains_updates() const;
 
+    bool equal(const Ready& rd) const;
+
     // applied_cursor extracts from the Ready the highest index the client has
     // applied (once the Ready is confirmed via Advance). If no information is
     // contained in the Ready, returns zero.

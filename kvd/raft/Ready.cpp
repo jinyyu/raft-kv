@@ -66,5 +66,10 @@ uint64_t Ready::applied_cursor() const
     return 0;
 }
 
+bool Ready::equal(const Ready& rd) const
+{
+    return true;
+}
+
 }
 

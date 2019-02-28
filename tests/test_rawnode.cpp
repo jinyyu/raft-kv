@@ -225,6 +225,48 @@ TEST(node, RawNodeReadIndex)
     ASSERT_TRUE(msgs[0]->entries[0].data == wrequestCtx);
 }
 
+TEST(node, RawNodeStart)
+{
+    proto::ConfChange cc;
+    cc.conf_change_type = proto::ConfChangeAddNode;
+    cc.node_id = 1;
+    auto ccdata = cc.serialize();
+
+    std::vector<ReadyPtr> wants;
+
+    MemoryStoragePtr storage(new MemoryStorage());
+
+    auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, storage);
+
+    std::vector<PeerContext> peer{PeerContext{.id = 1}};
+    RawNode rawNode(c, peer);
+
+    auto rd = rawNode.ready();
+    ASSERT_TRUE(rd->equal(*wants[0]));
+
+    storage->append(rd->entries);
+    rawNode.advance(rd);
+
+    storage->append(rd->entries);
+    rawNode.advance(rd);
+
+    rawNode.campaign();
+
+    rd = rawNode.ready();
+    storage->append(rd->entries);
+    rawNode.advance(rd);
+
+
+
+    rawNode.propose(str_to_vector("foo"));
+    rd = rawNode.ready();
+    ASSERT_TRUE(rd->equal(*wants[1]));
+    storage->append(rd->entries);
+    rawNode.advance(rd);
+
+    ASSERT_TRUE(!rawNode.has_ready());
+}
+
 int main(int argc, char* argv[])
 {
     //testing::GTEST_FLAG(filter) = "raft.OldMessages";
