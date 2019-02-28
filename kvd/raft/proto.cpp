@@ -180,5 +180,17 @@ std::vector<uint8_t> ConfChange::serialize() const
     return std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size());
 }
 
+bool Snapshot::equal(const Snapshot& snap) const
+{
+    if ((data && !snap.data) || (!data && snap.data)) {
+        return false;
+    }
+
+    if (data && snap.data && *data != *snap.data) {
+        return false;
+    }
+    return metadata == snap.metadata;
+}
+
 }
 }

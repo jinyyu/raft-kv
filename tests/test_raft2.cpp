@@ -139,7 +139,7 @@ TEST(raft, OldMessages)
 
 int main(int argc, char* argv[])
 {
-    testing::GTEST_FLAG(filter) = "raft.OldMessages";
+    //testing::GTEST_FLAG(filter) = "raft.OldMessages";
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

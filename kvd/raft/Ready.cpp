@@ -68,7 +68,50 @@ uint64_t Ready::applied_cursor() const
 
 bool Ready::equal(const Ready& rd) const
 {
-    return true;
+    if ((soft_state && !rd.soft_state) || (!soft_state && rd.soft_state)) {
+        return false;
+    }
+    if (soft_state && rd.soft_state && !soft_state->equal(*rd.soft_state)) {
+        return false;
+    }
+    if (!hard_state.equal(rd.hard_state)) {
+        return false;
+    }
+
+    if (read_states.size() != read_states.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < read_states.size(); ++i) {
+        if (!read_states[i].equal(rd.read_states[i])) {
+            return false;
+        }
+    }
+
+    if (entries.size() != rd.entries.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < entries.size(); ++i) {
+        if (*entries[i] != *rd.entries[i]) {
+            return false;
+        }
+    }
+
+    if (!snapshot.equal(rd.snapshot)) {
+        return false;
+    }
+
+    if (committed_entries.size() != rd.committed_entries.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < committed_entries.size(); ++i) {
+        if (*committed_entries[i] != *rd.committed_entries[i]) {
+            return false;
+        }
+    }
+    return must_sync == rd.must_sync;
 }
 
 }

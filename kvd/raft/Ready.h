@@ -36,6 +36,10 @@ class Raft;
 
 struct Ready
 {
+    Ready()
+        : must_sync(false)
+    {}
+
     explicit Ready(std::shared_ptr<Raft> raft, SoftStatePtr pre_soft_state, const proto::HardState& pre_hard_state);
 
     bool contains_updates() const;

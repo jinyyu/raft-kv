@@ -76,6 +76,15 @@ struct Entry
         return static_cast<uint32_t>(data.size());
     }
 
+    bool operator==(const Entry& entry) const
+    {
+        return type == entry.type && term == entry.term && index == entry.index && data == entry.data;
+    }
+    bool operator!=(const Entry& entry) const
+    {
+        return !(*this == entry);
+    }
+
     EntryType type;
     uint64_t term;
     uint64_t index;
@@ -86,6 +95,11 @@ typedef std::shared_ptr<Entry> EntryPtr;
 
 struct ConfState
 {
+    bool operator==(const ConfState& cs) const
+    {
+        return nodes == cs.nodes && learners == cs.learners;
+    }
+
     std::vector<uint64_t> nodes;
     std::vector<uint64_t> learners;
     MSGPACK_DEFINE (nodes, learners);
@@ -99,6 +113,12 @@ struct SnapshotMetadata
           term(0)
     {
     }
+
+    bool operator==(const SnapshotMetadata& meta) const
+    {
+        return conf_state == meta.conf_state && index == meta.index && term == meta.term;
+    }
+
     ConfState conf_state;
     uint64_t index;
     uint64_t term;
@@ -116,6 +136,8 @@ struct Snapshot
         : data(new std::vector<uint8_t>(std::move(data)))
     {
     }
+
+    bool equal(const Snapshot& snap) const;
 
     bool is_empty() const
     {
@@ -141,6 +163,15 @@ struct Message
           reject_hint(0)
     {
 
+    }
+
+    bool operator==(const Message& msg) const
+    {
+        return type == msg.type && to == msg.to && from == msg.from && term == msg.term
+            && log_term == msg.log_term && index == msg.index
+            && entries == msg.entries && commit == msg.commit
+            && snapshot.equal(msg.snapshot) && reject == msg.reject
+            && reject_hint == msg.reject_hint && context == msg.context;
     }
 
     bool is_local_msg() const;
@@ -177,7 +208,7 @@ struct HardState
         return term == 0 && vote == 0 && commit == 0;
     }
 
-    bool equal(const HardState& hs)
+    bool equal(const HardState& hs) const
     {
         return term == hs.term && vote == hs.vote && commit == hs.commit;
     }

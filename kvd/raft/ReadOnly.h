@@ -14,6 +14,13 @@ namespace kvd
 // request_ctx
 struct ReadState
 {
+    bool equal(const ReadState& rs) const
+    {
+        if (index != rs.index) {
+            return false;
+        }
+        return request_ctx == rs.request_ctx;
+    }
     uint64_t index;
     std::vector<uint8_t> request_ctx;
 };

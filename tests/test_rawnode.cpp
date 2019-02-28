@@ -234,6 +234,49 @@ TEST(node, RawNodeStart)
 
     std::vector<ReadyPtr> wants;
 
+    {
+        ReadyPtr rd(new Ready());
+
+        rd->hard_state.term = 1;
+        rd->hard_state.commit = 1;
+        rd->hard_state.vote =0;
+
+        proto::EntryPtr entry(new proto::Entry());
+        entry->term = 1;
+        entry->index = 1;
+        entry->data = ccdata;
+        entry->type = proto::EntryConfChange;
+        rd->entries.push_back(entry);
+
+        proto::EntryPtr e1(new proto::Entry());
+        //copy
+        *e1 = *entry;
+        rd->committed_entries.push_back(e1);
+        rd->must_sync = true;
+        wants.push_back(rd);
+    }
+
+    {
+        ReadyPtr rd(new Ready());
+
+        rd->hard_state.term = 2;
+        rd->hard_state.commit = 3;
+        rd->hard_state.vote =1;
+
+        proto::EntryPtr entry(new proto::Entry());
+        entry->term = 2;
+        entry->index = 3;
+        entry->data = str_to_vector("foo");
+        rd->entries.push_back(entry);
+
+        proto::EntryPtr e1(new proto::Entry());
+        //copy
+        *e1 = *entry;
+        rd->committed_entries.push_back(e1);
+        rd->must_sync = true;
+        wants.push_back(rd);
+    }
+
     MemoryStoragePtr storage(new MemoryStorage());
 
     auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, storage);
@@ -255,8 +298,6 @@ TEST(node, RawNodeStart)
     rd = rawNode.ready();
     storage->append(rd->entries);
     rawNode.advance(rd);
-
-
 
     rawNode.propose(str_to_vector("foo"));
     rd = rawNode.ready();
