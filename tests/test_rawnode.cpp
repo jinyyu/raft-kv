@@ -308,6 +308,47 @@ TEST(node, RawNodeStart)
     ASSERT_TRUE(!rawNode.has_ready());
 }
 
+TEST(node, RawNodeRestart)
+{
+    std::vector<proto::EntryPtr> entries;
+    {
+        proto::EntryPtr e1(new proto::Entry());
+        e1->term = 1;
+        e1->index = 1;
+        entries.push_back(e1);
+
+        proto::EntryPtr e2(new proto::Entry());
+        e2->term = 1;
+        e2->index = 2;
+        e2->data = str_to_vector("foo");
+    }
+    proto::HardState st;
+    st.term = 1;
+    st.commit = 1;
+
+
+    ReadyPtr want(new Ready());
+    want->committed_entries.push_back(entries[0]);
+
+
+    MemoryStoragePtr storage(new MemoryStorage());
+    storage->set_hard_state(st);
+    storage->append(entries);
+
+    auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, storage);
+
+    std::vector<PeerContext> peer;
+    RawNode rawNode(c, peer);
+
+    auto rd = rawNode.ready();
+
+    ASSERT_TRUE(rd->equal(*want));
+
+    rawNode.advance(rd);
+
+    ASSERT_TRUE(!rawNode.has_ready());
+}
+
 int main(int argc, char* argv[])
 {
     //testing::GTEST_FLAG(filter) = "raft.OldMessages";
