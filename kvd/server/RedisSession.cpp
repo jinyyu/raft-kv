@@ -1,7 +1,8 @@
 #include <kvd/server/RedisSession.h>
 #include <kvd/common/log.h>
 #include <unordered_map>
-
+#include <kvd/server/RedisServer.h>
+#include <glib.h>
 
 namespace kvd
 {
@@ -17,11 +18,15 @@ static const char* unknown_command = "-ERR unknown command `%s`\r\n";
 static const char* syntax_error = "-ERR syntax error\r\n";
 static const char* wrong_number_arguments = "-ERR wrong number of arguments for '%s' command\r\n";
 static const char* pong = "+PONG\r\n";
+static const char* null = "$-1\r\n";
 
 typedef std::function<void(RedisSessionPtr, struct redisReply* reply)> CommandCallback;
 
 std::unordered_map<std::string, CommandCallback> command_table = {
     {"ping", RedisSession::ping_command},
+    {"PING", RedisSession::ping_command},
+    {"get", RedisSession::get_command},
+    {"GET", RedisSession::get_command}
 };
 
 }
@@ -162,6 +167,38 @@ void RedisSession::start_send()
 void RedisSession::ping_command(std::shared_ptr<RedisSession> self, struct redisReply* reply)
 {
     self->send_reply(shared::pong, strlen(shared::pong));
+}
+
+void RedisSession::get_command(std::shared_ptr<RedisSession> self, struct redisReply* reply)
+{
+    assert(reply->type = REDIS_REPLY_ARRAY);
+    assert(reply->elements > 0);
+    char buffer[256];
+
+    if (reply->elements != 2) {
+        LOG_WARN("wrong elements %lu", reply->elements);
+        int n = snprintf(buffer, sizeof(buffer), shared::wrong_number_arguments, "get");
+        self->send_reply(buffer, n);
+        return;
+    }
+
+    if (reply->element[1]->type != REDIS_REPLY_STRING) {
+        LOG_WARN("wrong type %d", reply->element[1]->type);
+        self->send_reply(shared::wrong_type, strlen(shared::wrong_type));
+        return;
+    }
+
+    std::string value;
+    char* key = reply->element[1]->str;
+    bool get = self->server_.lock()->get(key, value);
+    if (!get) {
+        self->send_reply(shared::null, strlen(shared::null));
+    }
+    else {
+        char* str = g_strdup_printf("$%lu\r\n%s\r\n", value.size(), value.c_str());
+        self->send_reply(str, strlen(str));
+        g_free(str);
+    }
 }
 
 }

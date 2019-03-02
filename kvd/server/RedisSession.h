@@ -30,6 +30,8 @@ public:
 
     static void ping_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
 
+    static void get_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
+
 
 public:
     std::weak_ptr<RedisServer> server_;
