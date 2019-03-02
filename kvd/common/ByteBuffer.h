@@ -15,14 +15,14 @@ public:
 
     void put(const uint8_t* data, uint32_t len);
 
-    void skip_bytes(uint32_t bytes);
+    void read_bytes(uint32_t bytes);
 
-    bool remain() const
+    bool readable() const
     {
         return writer_ > reader_;
     }
 
-    uint32_t remaining() const;
+    uint32_t readable_bytes() const;
 
     uint32_t capacity() const
     {
@@ -36,7 +36,7 @@ public:
 
     Slice slice() const
     {
-        return Slice((const char*) reader(), remaining());
+        return Slice((const char*) reader(), readable_bytes());
     }
 
     void reset();

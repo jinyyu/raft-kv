@@ -7,9 +7,6 @@
 namespace kvd
 {
 
-class ServerSession;
-typedef std::shared_ptr<ServerSession> ServerSessionPtr;
-
 class ServerSession: public std::enable_shared_from_this<ServerSession>
 {
 public:
@@ -113,6 +110,7 @@ private:
     TransportMeta meta_;
     std::vector<uint8_t> buffer_;
 };
+typedef std::shared_ptr<ServerSession> ServerSessionPtr;
 
 AsioServer::AsioServer(boost::asio::io_service& io_service,
                        const std::string& host,
