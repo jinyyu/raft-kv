@@ -119,7 +119,7 @@ bool KvdServer::publish_entries(const std::vector<proto::EntryPtr>& entries)
                     // ignore empty messages
                     break;
                 }
-                http_server_->read_commit(entry);
+                redis_server_->read_commit(entry);
                 break;
             }
 
@@ -193,10 +193,10 @@ void KvdServer::maybe_trigger_snapshot()
 
 void KvdServer::schedule()
 {
-    http_server_ = std::make_shared<HTTPServer>(shared_from_this(), port_);
+    redis_server_ = std::make_shared<RedisServer>(shared_from_this(), port_);
     std::promise<pthread_t> promise;
     std::future<pthread_t> future = promise.get_future();
-    http_server_->start(promise);
+    redis_server_->start(promise);
     future.wait();
     pthread_t id = future.get();
     LOG_DEBUG("http server start [%lu]", id);
@@ -277,7 +277,7 @@ void KvdServer::main(uint64_t id, const std::string& cluster, uint16_t port)
 void KvdServer::stop()
 {
     LOG_DEBUG("stopping");
-    http_server_->stop();
+    redis_server_->stop();
 
     if (transport_) {
         transport_->stop();

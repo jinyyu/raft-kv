@@ -5,7 +5,7 @@
 #include <vector>
 #include <kvd/transport/Transport.h>
 #include <kvd/raft/Node.h>
-#include <kvd/server/HTTPServer.h>
+#include <kvd/server/RedisServer.h>
 
 namespace kvd
 {
@@ -56,7 +56,7 @@ private:
     RawNodePtr node_;
     TransporterPtr transport_;
     MemoryStoragePtr storage_;
-    std::shared_ptr<HTTPServer> http_server_;
+    std::shared_ptr<RedisServer> redis_server_;
 };
 typedef std::shared_ptr<KvdServer> KvdServerPtr;
 

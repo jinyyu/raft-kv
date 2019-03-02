@@ -10,12 +10,12 @@ namespace kvd
 {
 
 class KvdServer;
-class HTTPServer: public std::enable_shared_from_this<HTTPServer>
+class RedisServer: public std::enable_shared_from_this<RedisServer>
 {
 public:
-    explicit HTTPServer(std::weak_ptr<KvdServer> server, uint16_t port);
+    explicit RedisServer(std::weak_ptr<KvdServer> server, uint16_t port);
 
-    ~HTTPServer();
+    ~RedisServer();
 
     void stop()
     {
