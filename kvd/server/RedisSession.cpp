@@ -13,7 +13,7 @@ namespace shared
 {
 
 static const char* ok = "+OK\r\n";
-static const char* err = "-ERR %s";
+static const char* err = "-ERR %s\r\n";
 static const char* wrong_type = "-WRONGTYPE Operation against a key holding the wrong kind of value\r\n";
 static const char* unknown_command = "-ERR unknown command `%s`\r\n";
 static const char* wrong_number_arguments = "-ERR wrong number of arguments for '%s' command\r\n";
@@ -31,8 +31,29 @@ static std::unordered_map<std::string, CommandCallback> command_table = {
     {"SET", RedisSession::set_command},
     {"del", RedisSession::del_command},
     {"DEL", RedisSession::del_command},
+    {"keys", RedisSession::keys_command},
+    {"KEYS", RedisSession::keys_command},
 };
 
+}
+
+static void build_redis_string_array_reply(const std::vector<std::string>& strs, std::string& reply)
+{
+    //*2\r\n$4\r\nkey1\r\n$4key2\r\n
+
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "*%lu\r\n", strs.size());
+    reply.append(buffer);
+
+    for (const std::string& str : strs) {
+        snprintf(buffer, sizeof(buffer), "$%lu\r\n", str.size());
+        reply.append(buffer);
+
+        if (!str.empty()) {
+            reply.append(str);
+            reply.append("\r\n");
+        }
+    }
 }
 
 RedisSession::RedisSession(std::weak_ptr<RedisServer> server, boost::asio::io_service& io_service)
@@ -165,7 +186,10 @@ void RedisSession::start_send()
     uint32_t remaining = send_buffer_.readable_bytes();
     auto buffer = boost::asio::buffer(send_buffer_.reader(), remaining);
     auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
-        if (error || bytes == 0) {
+        if (bytes == 0) {
+            return;;
+        }
+        if (error) {
             LOG_DEBUG("send error %s", error.message().c_str());
             return;
         }
@@ -278,6 +302,33 @@ void RedisSession::del_command(std::shared_ptr<RedisSession> self, struct redisR
             self->send_reply(buff, n);
         }
     });
+}
+
+void RedisSession::keys_command(std::shared_ptr<RedisSession> self, struct redisReply* reply)
+{
+    assert(reply->type = REDIS_REPLY_ARRAY);
+    assert(reply->elements > 0);
+    char buffer[256];
+
+    if (reply->elements != 2) { ;
+        int n = snprintf(buffer, sizeof(buffer), shared::wrong_number_arguments, "keys");
+        self->send_reply(buffer, n);
+        return;
+    }
+
+    redisReply* element = reply->element[1];
+
+    if (element->type != REDIS_REPLY_STRING) {
+        self->send_reply(shared::wrong_type, strlen(shared::wrong_type));
+        return;
+    }
+
+    std::vector<std::string> keys;
+    self->server_.lock()->keys(element->str, element->len, keys);
+    std::string str;
+    build_redis_string_array_reply(keys, str);
+    self->send_reply(str.data(), str.size());
+    return;
 }
 
 }
