@@ -13,20 +13,24 @@ namespace shared
 {
 
 static const char* ok = "+OK\r\n";
+static const char* err = "-ERR %s";
 static const char* wrong_type = "-WRONGTYPE Operation against a key holding the wrong kind of value\r\n";
 static const char* unknown_command = "-ERR unknown command `%s`\r\n";
-static const char* syntax_error = "-ERR syntax error\r\n";
 static const char* wrong_number_arguments = "-ERR wrong number of arguments for '%s' command\r\n";
 static const char* pong = "+PONG\r\n";
 static const char* null = "$-1\r\n";
 
 typedef std::function<void(RedisSessionPtr, struct redisReply* reply)> CommandCallback;
 
-std::unordered_map<std::string, CommandCallback> command_table = {
+static std::unordered_map<std::string, CommandCallback> command_table = {
     {"ping", RedisSession::ping_command},
     {"PING", RedisSession::ping_command},
     {"get", RedisSession::get_command},
-    {"GET", RedisSession::get_command}
+    {"GET", RedisSession::get_command},
+    {"set", RedisSession::set_command},
+    {"SET", RedisSession::set_command},
+    {"del", RedisSession::del_command},
+    {"DEL", RedisSession::del_command},
 };
 
 }
@@ -199,6 +203,44 @@ void RedisSession::get_command(std::shared_ptr<RedisSession> self, struct redisR
         self->send_reply(str, strlen(str));
         g_free(str);
     }
+}
+
+void RedisSession::set_command(std::shared_ptr<RedisSession> self, struct redisReply* reply)
+{
+    assert(reply->type = REDIS_REPLY_ARRAY);
+    assert(reply->elements > 0);
+    char buffer[256];
+
+    if (reply->elements != 3) {
+        LOG_WARN("wrong elements %lu", reply->elements);
+        int n = snprintf(buffer, sizeof(buffer), shared::wrong_number_arguments, "set");
+        self->send_reply(buffer, n);
+        return;
+    }
+
+    if (reply->element[1]->type != REDIS_REPLY_STRING || reply->element[2]->type != REDIS_REPLY_STRING) {
+        LOG_WARN("wrong type %d", reply->element[1]->type);
+        self->send_reply(shared::wrong_type, strlen(shared::wrong_type));
+        return;
+    }
+    char* key = reply->element[1]->str;
+    char* value = reply->element[2]->str;
+    self->server_.lock()->set(key, value, [self](const Status& status) {
+        if (status.is_ok()) {
+            self->send_reply(shared::ok, strlen(shared::ok));
+        }
+        else {
+            char buff[256];
+            int n = snprintf(buff, sizeof(buff), shared::err, status.to_string().c_str());
+            self->send_reply(buff, n);
+        }
+    });
+
+}
+
+void RedisSession::del_command(std::shared_ptr<RedisSession> self, struct redisReply* reply)
+{
+
 }
 
 }

@@ -32,7 +32,9 @@ public:
 
     static void get_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
 
+    static void set_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
 
+    static void del_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
 public:
     std::weak_ptr<RedisServer> server_;
     boost::asio::ip::tcp::socket socket_;

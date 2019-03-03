@@ -53,10 +53,11 @@ void RedisServer::start_accept()
     });
 }
 
-void RedisServer::put(std::string key, std::string value, const std::function<void(const Status&)>& callback)
+void RedisServer::set(std::string key, std::string value, const std::function<void(const Status&)>& callback)
 {
-
+    RaftCommit commit(RaftCommit::kCommitSet, std::move(key), std::move(value));
     msgpack::sbuffer sbuf;
+    msgpack::pack(sbuf, commit);
     std::shared_ptr<std::vector<uint8_t>> data(new std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size()));
 
     auto on_propose = [this, callback](const Status& status) {
@@ -70,10 +71,33 @@ void RedisServer::put(std::string key, std::string value, const std::function<vo
 void RedisServer::read_commit(proto::EntryPtr entry)
 {
     auto cb = [this, entry] {
+        RaftCommit commit;
+        try {
+            msgpack::object_handle oh = msgpack::unpack((const char*) entry->data.data(), entry->data.size());
+            oh.get().convert(commit);
 
+        }
+        catch (std::exception& e) {
+            LOG_ERROR("bad entry %s", e.what());
+            return;
+        }
+
+        switch (commit.type) {
+            case RaftCommit::kCommitSet: {
+                this->key_values_[std::move(commit.key)] = std::move(commit.value);
+                break;
+            }
+            case RaftCommit::kCommitDel: {
+                this->key_values_.erase(commit.key);
+                break;
+            }
+            default: {
+                LOG_ERROR("not supported type %d", commit.type);
+            }
+        }
     };
 
-    io_service_.post(cb);
+    io_service_.post(std::move(cb));
 }
 
 }
