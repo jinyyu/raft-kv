@@ -36,6 +36,7 @@ public:
 
     static void del_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
 public:
+    bool quit_;
     std::weak_ptr<RedisServer> server_;
     boost::asio::ip::tcp::socket socket_;
     std::vector<uint8_t> read_buffer_;

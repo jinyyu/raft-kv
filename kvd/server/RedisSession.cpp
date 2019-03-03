@@ -36,20 +36,27 @@ static std::unordered_map<std::string, CommandCallback> command_table = {
 }
 
 RedisSession::RedisSession(std::weak_ptr<RedisServer> server, boost::asio::io_service& io_service)
-    : server_(std::move(server)),
+    : quit_(false),
+      server_(std::move(server)),
       socket_(io_service),
       read_buffer_(RECEIVE_BUFFER_SIZE),
       reader_(redisReaderCreate())
 {
-    shared::CommandCallback cb = RedisSession::ping_command;
+
 }
 
 void RedisSession::start()
 {
+    if (quit_) {
+        return;
+    }
     auto self = shared_from_this();
     auto buffer = boost::asio::buffer(read_buffer_.data(), read_buffer_.size());
     auto handler = [self](const boost::system::error_code& error, size_t bytes) {
-        if (error || bytes == 0) {
+        if (bytes == 0) {
+            return;
+        }
+        if (error) {
             LOG_DEBUG("read error %s", error.message().c_str());
             return;
         }
@@ -68,7 +75,7 @@ void RedisSession::handle_read(size_t bytes)
     int err = REDIS_OK;
     std::vector<struct redisReply*> replays;
 
-    while (start < end) {
+    while (!quit_ && start < end) {
         uint8_t* p = (uint8_t*) memchr(start, '\n', bytes);
         if (!p) {
             break;
@@ -78,6 +85,7 @@ void RedisSession::handle_read(size_t bytes)
         err = redisReaderFeed(reader_, (const char*) start, n);
         if (err != REDIS_OK) {
             LOG_DEBUG("redis protocol error %d, %s", err, reader_->errstr);
+            quit_ = true;
             break;
         }
 
@@ -85,6 +93,7 @@ void RedisSession::handle_read(size_t bytes)
         err = redisReaderGetReply(reader_, (void**) &reply);
         if (err != REDIS_OK) {
             LOG_DEBUG("redis protocol error %d, %s", err, reader_->errstr);
+            quit_ = true;
             break;
         }
         if (reply) {

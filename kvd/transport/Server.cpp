@@ -25,7 +25,10 @@ public:
         meta_.len = 0;
         auto buffer = boost::asio::buffer(&meta_, sizeof(meta_));
         auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
-            if (error || bytes == 0) {
+            if (bytes == 0) {
+                return;;
+            }
+            if (error) {
                 LOG_DEBUG("read error %s", error.message().c_str());
                 return;
             }
@@ -80,8 +83,12 @@ public:
                 try {
                     msgpack::object_handle oh = msgpack::unpack((const char*) buffer_.data(), len);
                     oh.get().convert(*msg);
-                } catch (std::exception &e) {
-                    LOG_ERROR("bad message %s, size = %lu, type %s", e.what(), buffer_.size(), proto::msg_type_to_string(msg->type));
+                }
+                catch (std::exception& e) {
+                    LOG_ERROR("bad message %s, size = %lu, type %s",
+                              e.what(),
+                              buffer_.size(),
+                              proto::msg_type_to_string(msg->type));
                     return;
                 }
                 on_receive_stream_message(std::move(msg));
@@ -159,7 +166,7 @@ void AsioServer::on_message(proto::MessagePtr msg)
 {
     auto raft = raft_.lock();
     if (raft) {
-        raft->process(std::move(msg),[](const Status& status) {
+        raft->process(std::move(msg), [](const Status& status) {
             if (!status.is_ok()) {
                 LOG_ERROR("process error %s", status.to_string().c_str());
             }
