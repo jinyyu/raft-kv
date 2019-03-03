@@ -24,8 +24,9 @@ set(SRC
     transport/Server.cpp
     transport/Peer.cpp
     server/KvdServer.cpp
+    server/RedisSession.cpp
     server/RedisServer.cpp
-    )
+    server/RedisSession.h server/RedisSession.cpp)
 add_library(kvd++ ${SRC})
 target_link_libraries(kvd++ ${LIBS})
 

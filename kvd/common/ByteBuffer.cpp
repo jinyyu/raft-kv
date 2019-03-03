@@ -24,15 +24,15 @@ void ByteBuffer::put(const uint8_t* data, uint32_t len)
     writer_ += len;
 }
 
-uint32_t ByteBuffer::remaining() const
+uint32_t ByteBuffer::readable_bytes() const
 {
     assert(writer_ >= reader_);
     return writer_ - reader_;
 }
 
-void ByteBuffer::skip_bytes(uint32_t bytes)
+void ByteBuffer::read_bytes(uint32_t bytes)
 {
-    assert(remaining() >= bytes);
+    assert(readable_bytes() >= bytes);
     reader_ += bytes;
     may_shrink_to_fit();
 }

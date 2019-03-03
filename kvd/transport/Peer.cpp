@@ -27,7 +27,7 @@ public:
 
     void send(uint8_t transport_type, const uint8_t* data, uint32_t len)
     {
-        uint32_t remaining = buffer_.remaining();
+        uint32_t remaining = buffer_.readable_bytes();
 
         TransportMeta meta;
         meta.type = transport_type;
@@ -35,7 +35,7 @@ public:
         assert(sizeof(TransportMeta) == 5);
         buffer_.put((const uint8_t*) &meta, sizeof(TransportMeta));
         buffer_.put(data, len);
-        assert(remaining + sizeof(TransportMeta) + len == buffer_.remaining());
+        assert(remaining + sizeof(TransportMeta) + len == buffer_.readable_bytes());
 
         if (connected_ && remaining == 0) {
             start_write();
@@ -62,7 +62,7 @@ public:
             self->connected_ = true;
             LOG_INFO("connected success");
 
-            if (self->buffer_.remain()) {
+            if (self->buffer_.readable()) {
                 self->start_write();
             }
         });
@@ -70,12 +70,12 @@ public:
 
     void start_write()
     {
-        if (!buffer_.remain()) {
+        if (!buffer_.readable()) {
             return;
         }
 
         auto self = shared_from_this();
-        uint32_t remaining = buffer_.remaining();
+        uint32_t remaining = buffer_.readable_bytes();
         auto buffer = boost::asio::buffer(buffer_.reader(), remaining);
         auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
             if (error || bytes == 0) {
@@ -83,7 +83,7 @@ public:
                 self->close_session();
                 return;
             }
-            self->buffer_.skip_bytes(bytes);
+            self->buffer_.read_bytes(bytes);
             self->start_write();
         };
         boost::asio::async_write(socket_, buffer, handler);

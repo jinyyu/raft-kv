@@ -9,18 +9,18 @@ TEST(test_buffer, test_buffer)
     ByteBuffer buff;
 
     buff.put((const uint8_t*) "abc", 3);
-    ASSERT_TRUE(buff.remain());
-    ASSERT_TRUE(buff.remaining() == 3);
+    ASSERT_TRUE(buff.readable());
+    ASSERT_TRUE(buff.readable_bytes() == 3);
 
-    buff.skip_bytes(1);
+    buff.read_bytes(1);
     char buffer[4096] = {0};
-    memcpy(buffer, buff.reader(), buff.remaining());
-    ASSERT_TRUE(buff.remaining() == 2);
+    memcpy(buffer, buff.reader(), buff.readable_bytes());
+    ASSERT_TRUE(buff.readable_bytes() == 2);
     ASSERT_TRUE(buffer == std::string("bc"));
     ASSERT_TRUE(buff.slice().to_string() == "bc");
 
-    buff.skip_bytes(2);
-    ASSERT_TRUE(buff.remaining() == 0);
+    buff.read_bytes(2);
+    ASSERT_TRUE(buff.readable_bytes() == 0);
 
     ASSERT_TRUE(buff.slice().to_string() == "");
     fprintf(stderr, "%d\n", buff.capacity());

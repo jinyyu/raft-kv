@@ -12,7 +12,8 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(dependencies
                   glib-2.0>=2.10 REQUIRED
                   jemalloc REQUIRED
-                  msgpack REQUIRED)
+                  msgpack REQUIRED
+                  hiredis REQUIRED)
 include_directories(${dependencies_INCLUDE_DIRS})
 set(LIBS
     ${dependencies_LIBRARIES})
