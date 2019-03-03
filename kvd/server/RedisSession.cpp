@@ -69,7 +69,6 @@ void RedisSession::start()
 
 void RedisSession::handle_read(size_t bytes)
 {
-    std::string str((const char*) read_buffer_.data(), bytes);
     uint8_t* start = read_buffer_.data();
     uint8_t* end = read_buffer_.data() + bytes;
     int err = REDIS_OK;
