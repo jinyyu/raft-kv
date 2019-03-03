@@ -24,7 +24,8 @@ set(LIBS
     ${LIBS}
     pthread
     Boost::system
-    Boost::filesystem)
+    Boost::filesystem
+    )
 
 add_subdirectory(kvd)
 

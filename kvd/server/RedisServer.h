@@ -10,6 +10,9 @@
 namespace kvd
 {
 
+int string_match_len(const char *pattern, int patternLen,
+    const char *string, int stringLen, int nocase);
+
 
 struct RaftCommit
 {
@@ -56,6 +59,8 @@ public:
     void set(std::string key, std::string value, const std::function<void(const Status&)>& callback);
 
     void del(std::vector<std::string> keys, const std::function<void(const Status&)>& callback);
+
+    void keys(const char* pattern, int len, std::vector<std::string>& keys);
 
     void read_commit(proto::EntryPtr entry);
 

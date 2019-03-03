@@ -38,3 +38,6 @@ target_link_libraries(raft2 ${LIBS})
 
 add_executable(rawnode test_rawnode.cpp)
 target_link_libraries(rawnode ${LIBS})
+
+add_executable(string_match string_match.cpp)
+target_link_libraries(string_match ${LIBS})

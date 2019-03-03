@@ -35,6 +35,8 @@ public:
     static void set_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
 
     static void del_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
+
+    static void keys_command(std::shared_ptr<RedisSession> self, struct redisReply* reply);
 public:
     bool quit_;
     std::weak_ptr<RedisServer> server_;
