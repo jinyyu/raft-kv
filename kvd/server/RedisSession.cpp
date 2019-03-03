@@ -128,10 +128,10 @@ void RedisSession::on_redis_reply(struct redisReply* reply)
         return;
     }
 
-    char* command = reply->element[0]->str;
+    std::string command(reply->element[0]->str, reply->element[0]->len);
     auto it = shared::command_table.find(command);
     if (it == shared::command_table.end()) {
-        int n = snprintf(buffer, sizeof(buffer), shared::unknown_command, command);
+        int n = snprintf(buffer, sizeof(buffer), shared::unknown_command, command.c_str());
         send_reply(buffer, n);
         return;
     }
@@ -193,7 +193,7 @@ void RedisSession::get_command(std::shared_ptr<RedisSession> self, struct redisR
     }
 
     std::string value;
-    char* key = reply->element[1]->str;
+    std::string key(reply->element[1]->str, reply->element[1]->len);
     bool get = self->server_.lock()->get(key, value);
     if (!get) {
         self->send_reply(shared::null, strlen(shared::null));
@@ -223,9 +223,9 @@ void RedisSession::set_command(std::shared_ptr<RedisSession> self, struct redisR
         self->send_reply(shared::wrong_type, strlen(shared::wrong_type));
         return;
     }
-    char* key = reply->element[1]->str;
-    char* value = reply->element[2]->str;
-    self->server_.lock()->set(key, value, [self](const Status& status) {
+    std::string key(reply->element[1]->str, reply->element[1]->len);
+    std::string value(reply->element[2]->str, reply->element[2]->len);
+    self->server_.lock()->set(std::move(key), std::move(value), [self](const Status& status) {
         if (status.is_ok()) {
             self->send_reply(shared::ok, strlen(shared::ok));
         }
@@ -235,12 +235,41 @@ void RedisSession::set_command(std::shared_ptr<RedisSession> self, struct redisR
             self->send_reply(buff, n);
         }
     });
-
 }
 
 void RedisSession::del_command(std::shared_ptr<RedisSession> self, struct redisReply* reply)
 {
+    assert(reply->type = REDIS_REPLY_ARRAY);
+    assert(reply->elements > 0);
+    char buffer[256];
 
+    if (reply->elements <= 1) { ;
+        int n = snprintf(buffer, sizeof(buffer), shared::wrong_number_arguments, "del");
+        self->send_reply(buffer, n);
+        return;
+    }
+
+    std::vector<std::string> keys;
+    for (size_t i = 1; i < reply->elements; ++i) {
+        redisReply* element = reply->element[i];
+        if (element->type != REDIS_REPLY_STRING) {
+            self->send_reply(shared::wrong_type, strlen(shared::wrong_type));
+            return;
+        }
+
+        keys.emplace_back(element->str, element->len);
+    }
+
+    self->server_.lock()->del(std::move(keys), [self](const Status& status) {
+        if (status.is_ok()) {
+            self->send_reply(shared::ok, strlen(shared::ok));
+        }
+        else {
+            char buff[256];
+            int n = snprintf(buff, sizeof(buff), shared::err, status.to_string().c_str());
+            self->send_reply(buff, n);
+        }
+    });
 }
 
 }

@@ -15,19 +15,12 @@ struct RaftCommit
 {
     static const uint8_t kCommitSet = 0;
     static const uint8_t kCommitDel = 1;
-
-    explicit RaftCommit(uint8_t type, std::string&& key, std::string&& value)
-        : type(type),
-          key(std::move(key)),
-          value(std::move(value))
-    {}
     RaftCommit()
     {}
 
     uint8_t type;
-    std::string key;
-    std::string value;
-    MSGPACK_DEFINE (type, key, value);
+    std::vector<std::string> strs;
+    MSGPACK_DEFINE (type, strs);
 };
 
 class KvdServer;
@@ -61,6 +54,8 @@ public:
     }
 
     void set(std::string key, std::string value, const std::function<void(const Status&)>& callback);
+
+    void del(std::vector<std::string> keys, const std::function<void(const Status&)>& callback);
 
     void read_commit(proto::EntryPtr entry);
 
