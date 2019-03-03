@@ -49,31 +49,26 @@ bring the node back up and verify it recovers with the updated value "new-value"
     redis-benchmark -t set,get -n 100000 -p 63791
     
     ====== SET ======
-      100000 requests completed in 1.61 seconds
+      100000 requests completed in 1.35 seconds
       50 parallel clients
       3 bytes payload
       keep alive: 1
     
-    93.19% <= 1 milliseconds
-    99.26% <= 2 milliseconds
-    99.74% <= 3 milliseconds
-    99.85% <= 4 milliseconds
-    99.90% <= 5 milliseconds
-    99.95% <= 10 milliseconds
-    100.00% <= 10 milliseconds
-    62305.30 requests per second
+    96.64% <= 1 milliseconds
+    99.15% <= 2 milliseconds
+    99.90% <= 3 milliseconds
+    100.00% <= 3 milliseconds
+    73909.83 requests per second
     
     ====== GET ======
-      100000 requests completed in 0.96 seconds
+      100000 requests completed in 0.95 seconds
       50 parallel clients
       3 bytes payload
       keep alive: 1
     
-    99.83% <= 1 milliseconds
-    99.96% <= 2 milliseconds
-    100.00% <= 2 milliseconds
-    103734.44 requests per second
-
+    99.95% <= 4 milliseconds
+    100.00% <= 4 milliseconds
+    105485.23 requests per second
     
     
     
