@@ -23,6 +23,9 @@ set(SRC
     transport/Peer.h
     transport/Server.cpp
     transport/Peer.cpp
+    wal/WAL.cpp
+    wal/proto.cpp
+    wal/util.cpp
     server/KvdServer.cpp
     server/RedisSession.cpp
     server/RedisServer.cpp
