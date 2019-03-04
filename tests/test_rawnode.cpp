@@ -454,6 +454,62 @@ TEST(raft, RawNodeCommitPaginationAfterRestart)
     }
 }
 
+TEST(raft, RawNodeBoundedLogGrowthWithPartition)
+{
+    uint64_t maxEntries = 16;
+    auto data = str_to_vector("testdata");
+    proto::EntryPtr entry(new proto::Entry());
+    entry->data = data;
+
+    uint64_t maxEntrySize = maxEntries * entry->payload_size();
+    MemoryStoragePtr s(new MemoryStorage());
+
+    auto cfg = newTestConfig(1, std::vector<uint64_t>{1}, 10, 1, s);
+    cfg.max_uncommitted_entries_size = maxEntrySize;
+
+    std::vector<PeerContext> peer;
+    peer.push_back(PeerContext{.id = 1});
+    RawNode rawNode(cfg, peer);
+    auto rd = rawNode.ready();
+    s->append(rd->entries);
+    rawNode.advance(rd);
+
+    // Become the leader.
+    rawNode.campaign();
+
+    while (true) {
+        rd = rawNode.ready();
+        s->append(rd->entries);
+        if (rd->soft_state->lead == rawNode.raft_->id_) {
+            rawNode.advance(rd);
+            break;
+        }
+        rawNode.advance(rd);
+    }
+
+    // Simulate a network partition while we make our proposals by never
+    // committing anything. These proposals should not cause the leader's
+    // log to grow indefinitely.
+    for (size_t i = 0; i < 1024; i++) {
+        rawNode.propose(data);
+    }
+
+    // Check the size of leader's uncommitted log tail. It should not exceed the
+    // MaxUncommittedEntriesSize limit.
+    auto checkUncommitted = [&rawNode](uint64_t exp) {
+        ASSERT_TRUE(rawNode.raft_->uncommitted_size_ == exp);
+    };
+    checkUncommitted(maxEntrySize);
+
+    // Recover from the partition. The uncommitted tail of the Raft log should
+    // disappear as entries are committed.
+    rd = rawNode.ready();
+    ASSERT_TRUE(rd->committed_entries.size() == maxEntries);
+    s->append(rd->entries);
+    rawNode.advance(rd);
+    checkUncommitted(0);
+}
+
 int main(int argc, char* argv[])
 {
     //testing::GTEST_FLAG(filter) = "raft.OldMessages";
