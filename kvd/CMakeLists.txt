@@ -28,8 +28,7 @@ set(SRC
     wal/util.cpp
     server/KvdServer.cpp
     server/RedisSession.cpp
-    server/RedisServer.cpp
-    server/RedisSession.h server/RedisSession.cpp)
+    server/RedisServer.cpp)
 add_library(kvd++ ${SRC})
 target_link_libraries(kvd++ ${LIBS})
 
