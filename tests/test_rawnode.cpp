@@ -239,7 +239,7 @@ TEST(node, RawNodeStart)
 
         rd->hard_state.term = 1;
         rd->hard_state.commit = 1;
-        rd->hard_state.vote =0;
+        rd->hard_state.vote = 0;
 
         proto::EntryPtr entry(new proto::Entry());
         entry->term = 1;
@@ -261,7 +261,7 @@ TEST(node, RawNodeStart)
 
         rd->hard_state.term = 2;
         rd->hard_state.commit = 3;
-        rd->hard_state.vote =1;
+        rd->hard_state.vote = 1;
 
         proto::EntryPtr entry(new proto::Entry());
         entry->term = 2;
@@ -379,11 +379,79 @@ TEST(node, RawNodeRestartFromSnapshot)
     std::vector<PeerContext> peer;
     RawNode rawNode(c, peer);
 
-
     auto rd = rawNode.ready();
     ASSERT_TRUE(rd->equal(*want));
     rawNode.advance(rd);
     ASSERT_TRUE(!rawNode.has_ready());
+}
+
+TEST(raft, RawNodeCommitPaginationAfterRestart)
+{
+    MemoryStoragePtr storage(new MemoryStorage());
+
+    proto::HardState persistedHardState;
+    persistedHardState.term = 1;
+    persistedHardState.vote = 1;
+    persistedHardState.commit = 10;
+
+    storage->hard_state_ = persistedHardState;
+    storage->entries_.clear();
+
+    uint64_t size = 0;
+    for (int i = 0; i < 10; ++i) {
+        proto::EntryPtr entry(new proto::Entry());
+
+        entry->term = 1;
+        entry->index = i + 1;
+        entry->type = proto::EntryNormal;
+        entry->data.push_back('a');
+
+        storage->entries_.push_back(entry);
+        size += entry->serialize_size();
+    }
+
+
+    auto cfg = newTestConfig(1, std::vector<uint64_t>{1}, 10, 1, storage);
+    // Set a MaxSizePerMsg that would suggest to Raft that the last committed entry should
+    // not be included in the initial rd.CommittedEntries. However, our storage will ignore
+    // this and *will* return it (which is how the Commit index ended up being 10 initially).
+    cfg.max_size_per_msg = size - storage->entries_.back()->serialize_size() - 1;
+
+    {
+        proto::EntryPtr entry(new proto::Entry());
+        entry->term = 1;
+        entry->index = 11;
+        entry->type = proto::EntryNormal;
+        entry->data = str_to_vector("boom");
+        storage->entries_.push_back(entry);
+    }
+
+
+    std::vector<PeerContext> peer;
+    peer.push_back(PeerContext{.id = 1});
+    RawNode rawNode(cfg, peer);
+
+
+    for (uint64_t highestApplied = 0; highestApplied != 11;) {
+        auto rd = rawNode.ready();
+        size_t n = rd->committed_entries.size();
+        ASSERT_TRUE(n != 0);
+        uint64_t next = rd->committed_entries[0]->index;
+        if (highestApplied != 0 && highestApplied + 1 != next) {
+            ASSERT_TRUE(false);
+        }
+
+        highestApplied = rd->committed_entries[n - 1]->index;
+        rawNode.advance(rd);
+
+        proto::MessagePtr msg(new proto::Message());
+        msg->type = proto::MsgHeartbeat;
+        msg->to = 1;
+        msg->from = 1; // illegal, but we get away with it
+        msg->from = 1;
+        msg->commit = 11;
+        rawNode.step(msg);
+    }
 }
 
 int main(int argc, char* argv[])
