@@ -321,30 +321,32 @@ Status Raft::step(proto::MessagePtr msg)
                 return Status::ok();
             }
         }
+        switch (msg->type) {
+            case proto::MsgPreVote:
+                // Never change our term in response to a PreVote
+                break;
+            case proto::MsgPreVoteResp:
+                if (!msg->reject) {
+                    // We send pre-vote requests with a term in our future. If the
+                    // pre-vote is granted, we will increment our term when we get a
+                    // quorum. If it is not, the term comes from the node that
+                    // rejected our vote so we should become a follower at the new
+                    // term.
+                    break;
+                }
+            default:
+                LOG_INFO("%lu [term: %lu] received a %s message with higher term from %lu [term: %lu]",
+                         id_, term_,
+                         proto::msg_type_to_string(msg->type),
+                         msg->from,
+                         msg->term);
 
-        if (msg->type == proto::MsgPreVote) {
-            // Never change our term in response to a PreVote
-        }
-        else if (msg->type == proto::MsgPreVoteResp && !msg->reject) {
-            // We send pre-vote requests with a term in our future. If the
-            // pre-vote is granted, we will increment our term when we get a
-            // quorum. If it is not, the term comes from the node that
-            // rejected our vote so we should become a follower at the new
-            // term.
-        }
-        else {
-            LOG_INFO("%lu [term: %lu] received a %s message with higher term from %lu [term: %lu]",
-                     id_, term_,
-                     proto::msg_type_to_string(msg->type),
-                     msg->from,
-                     msg->term);
-
-            if (msg->type == proto::MsgApp || msg->type == proto::MsgHeartbeat || msg->type == proto::MsgSnap) {
-                become_follower(msg->term, msg->from);
-            }
-            else {
-                become_follower(msg->term, 0);
-            }
+                if (msg->type == proto::MsgApp || msg->type == proto::MsgHeartbeat || msg->type == proto::MsgSnap) {
+                    become_follower(msg->term, msg->from);
+                }
+                else {
+                    become_follower(msg->term, 0);
+                }
         }
     }
     else if (msg->term < term_) {
