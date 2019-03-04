@@ -60,8 +60,8 @@ private:
     void do_send_data(uint8_t type, const uint8_t* data, uint32_t len);
     void start_timer();
 
+    uint64_t peer_;
     boost::asio::io_service& io_service_;
-
     friend class ClientSession;
     ClientSessionPtr session_;
     boost::asio::ip::tcp::endpoint endpoint_;
