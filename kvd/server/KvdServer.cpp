@@ -11,6 +11,7 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
       pthread_id_(0),
       timer_(io_servie_),
       id_(id),
+      wal_dir_("kvd-" + std::to_string(id)),
       last_index_(0),
       conf_state_(new proto::ConfState()),
       snapshot_index_(0),
@@ -50,6 +51,8 @@ KvdServer::KvdServer(uint64_t id, const std::string& cluster, uint16_t port)
         peers.push_back(PeerContext{.id = i + 1});
     }
     node_ = std::make_shared<RawNode>(c, std::move(peers));
+
+    bool old_wal = wal::exists(wal_dir_);
 }
 
 KvdServer::~KvdServer()

@@ -203,7 +203,7 @@ void RaftLog::commit_to(uint64_t to_commit)
     // never decrease commit
     if (committed_ < to_commit) {
         if (last_index() < to_commit) {
-            LOG_FATAL("tocommit(%lu) is out of range [lastIndex(%lu)]. Was the raft log corrupted, truncated, or lost?",
+            LOG_FATAL("to_commit(%lu) is out of range [lastIndex(%lu)]. Was the raft log corrupted, truncated, or lost?",
                       to_commit,
                       last_index());
         }

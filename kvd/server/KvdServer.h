@@ -6,6 +6,7 @@
 #include <kvd/transport/Transport.h>
 #include <kvd/raft/Node.h>
 #include <kvd/server/RedisServer.h>
+#include <kvd/wal/WAL.h>
 
 namespace kvd
 {
@@ -48,6 +49,7 @@ private:
     boost::asio::deadline_timer timer_;
     uint64_t id_;
     std::vector<std::string> peers_;
+    std::string wal_dir_;
     uint64_t last_index_;
     proto::ConfStatePtr conf_state_;
     uint64_t snapshot_index_;

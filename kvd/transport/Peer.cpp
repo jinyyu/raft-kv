@@ -11,18 +11,19 @@ namespace kvd
 class ClientSession: public std::enable_shared_from_this<ClientSession>
 {
 public:
-    explicit ClientSession(boost::asio::io_service& io_serivce, std::weak_ptr<AsioPeer> peer)
-        : socket_(io_serivce),
+    explicit ClientSession(boost::asio::io_service& io_service, std::weak_ptr<AsioPeer> peer)
+        : socket_(io_service),
           endpoint_(peer.lock()->endpoint_),
           peer_(std::move(peer)),
+          peer_id_(peer_.lock()->peer_),
           connected_(false)
     {
-        LOG_INFO("new client session");
+
     }
 
     ~ClientSession()
     {
-        LOG_DEBUG("remove closed");
+
     }
 
     void send(uint8_t transport_type, const uint8_t* data, uint32_t len)
@@ -55,12 +56,12 @@ public:
         auto self = shared_from_this();
         socket_.async_connect(endpoint_, [self](const boost::system::error_code& err) {
             if (err) {
-                LOG_DEBUG("connect error %s", err.message().c_str());
+                LOG_DEBUG("connect [%lu] error %s", self->peer_id_, err.message().c_str());
                 self->close_session();
                 return;
             }
             self->connected_ = true;
-            LOG_INFO("connected success");
+            LOG_INFO("connected to [%lu]", self->peer_id_);
 
             if (self->buffer_.readable()) {
                 self->start_write();
@@ -79,7 +80,7 @@ public:
         auto buffer = boost::asio::buffer(buffer_.reader(), remaining);
         auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
             if (error || bytes == 0) {
-                LOG_DEBUG("send error %s", error.message().c_str());
+                LOG_DEBUG("send [%lu] error %s", self->peer_id_, error.message().c_str());
                 self->close_session();
                 return;
             }
@@ -93,12 +94,14 @@ private:
     boost::asio::ip::tcp::socket socket_;
     boost::asio::ip::tcp::endpoint endpoint_;
     std::weak_ptr<AsioPeer> peer_;
+    uint64_t peer_id_;
     ByteBuffer buffer_;
     bool connected_;
 };
 
 AsioPeer::AsioPeer(boost::asio::io_service& io_service, uint64_t peer, const std::string& peer_str)
-    : io_service_(io_service),
+    : peer_(peer),
+      io_service_(io_service),
       timer_(io_service),
       paused(false)
 {
