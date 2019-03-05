@@ -85,7 +85,7 @@ void RedisSession::start()
         self->handle_read(bytes);
 
     };
-    socket_.async_read_some(buffer, handler);
+    socket_.async_read_some(buffer, std::move(handler));
 }
 
 void RedisSession::handle_read(size_t bytes)
@@ -197,7 +197,7 @@ void RedisSession::start_send()
         self->send_buffer_.read_bytes(bytes);
         self->start_send();
     };
-    boost::asio::async_write(socket_, buffer, handler);
+    boost::asio::async_write(socket_, buffer, std::move(handler));
 }
 
 void RedisSession::ping_command(std::shared_ptr<RedisSession> self, struct redisReply* reply)
