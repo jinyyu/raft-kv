@@ -93,11 +93,12 @@ void RedisSession::handle_read(size_t bytes)
     uint8_t* start = read_buffer_.data();
     uint8_t* end = read_buffer_.data() + bytes;
     int err = REDIS_OK;
-    std::vector<struct redisReply*> replays;
+    std::vector<struct redisReply*> replies;
 
     while (!quit_ && start < end) {
         uint8_t* p = (uint8_t*) memchr(start, '\n', bytes);
         if (!p) {
+            this->start();
             break;
         }
 
@@ -117,20 +118,20 @@ void RedisSession::handle_read(size_t bytes)
             break;
         }
         if (reply) {
-            replays.push_back(reply);
+            replies.push_back(reply);
         }
 
         start += n;
         bytes -= n;
     }
     if (err == REDIS_OK) {
-        for (struct redisReply* reply : replays) {
+        for (struct redisReply* reply : replies) {
             on_redis_reply(reply);
         }
         this->start();
     }
 
-    for (struct redisReply* reply : replays) {
+    for (struct redisReply* reply : replies) {
         freeReplyObject(reply);
     }
 }
