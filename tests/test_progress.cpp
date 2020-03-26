@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include <kvd/raft/Progress.h>
+#include <raft-kv/raft/Progress.h>
 
-using namespace kvd;
+using namespace kv;
 
 
 static bool cmp_InFlights(const InFlights& l, const InFlights& r)

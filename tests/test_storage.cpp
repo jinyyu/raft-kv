@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <kvd/raft/Storage.h>
-using namespace kvd;
+#include <raft-kv/raft/Storage.h>
+using namespace kv;
 
 
 proto::EntryPtr newMemoryStorage(uint64_t term, uint64_t index)

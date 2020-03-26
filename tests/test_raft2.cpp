@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
-#include <kvd/raft/Raft.h>
-#include <kvd/common/log.h>
-#include <kvd/raft/util.h>
+#include <raft-kv/raft/Raft.h>
+#include <raft-kv/common/log.h>
+#include <raft-kv/raft/util.h>
 #include "network.hpp"
 
-using namespace kvd;
+using namespace kv;
 
 TEST(raft, SingleNodeCandidate)
 {

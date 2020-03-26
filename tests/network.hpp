@@ -1,12 +1,12 @@
 #include <functional>
-#include <kvd/common/log.h>
-#include <kvd/raft/proto.h>
+#include <raft-kv/common/log.h>
+#include <raft-kv/raft/proto.h>
 #include <boost/functional/hash.hpp>
-#include <kvd/raft/Raft.h>
-#include <kvd/common/RandomDevice.h>
+#include <raft-kv/raft/Raft.h>
+#include <raft-kv/common/RandomDevice.h>
 
 
-using namespace kvd;
+using namespace kv;
 
 
 bool entry_cmp(const std::vector<proto::EntryPtr>& left, const std::vector<proto::EntryPtr>& right)

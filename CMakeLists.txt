@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(kvd)
+project(raft-kv)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -11,7 +11,6 @@ include_directories(${CMAKE_SOURCE_DIR})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(dependencies
                   glib-2.0>=2.10 REQUIRED
-                  jemalloc REQUIRED
                   msgpack REQUIRED
                   hiredis REQUIRED)
 include_directories(${dependencies_INCLUDE_DIRS})
@@ -27,7 +26,7 @@ set(LIBS
     Boost::filesystem
     )
 
-add_subdirectory(kvd)
+add_subdirectory(raft-kv)
 
 pkg_check_modules(GoogleTest gtest_main)
 if (GoogleTest_FOUND)
@@ -36,6 +35,7 @@ if (GoogleTest_FOUND)
         ${LIBS}
         ${GoogleTest_LIBRARIES})
     add_subdirectory(tests)
+    enable_testing()
 endif (GoogleTest_FOUND)
 
 configure_file(Procfile.in Procfile)

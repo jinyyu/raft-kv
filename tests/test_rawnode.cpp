@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include <kvd/raft/Node.h>
-#include <kvd/raft/util.h>
+#include <raft-kv/raft/Node.h>
+#include <raft-kv/raft/util.h>
 #include "network.hpp"
 
-using namespace kvd;
+using namespace kv;
 
 static bool read_state_cmp(const std::vector<ReadState>& l, const std::vector<ReadState>& r)
 {

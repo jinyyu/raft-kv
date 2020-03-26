@@ -1,6 +1,6 @@
 #include <cstdio>
-#include "kvd/raft/proto.h"
-using namespace kvd;
+#include "raft-kv/raft/proto.h"
+using namespace kv;
 
 int main(int argc, char* argv[])
 {

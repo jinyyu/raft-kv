@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <kvd/raft/RaftLog.h>
-#include <kvd/common/log.h>
+#include <raft-kv/raft/RaftLog.h>
+#include <raft-kv/common/log.h>
 
-using namespace kvd;
+using namespace kv;
 
 
 static proto::EntryPtr newEntry(uint64_t index, uint64_t term)

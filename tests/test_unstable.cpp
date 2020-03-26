@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include <kvd/raft/Unstable.h>
+#include <raft-kv/raft/Unstable.h>
 
-using namespace kvd;
+using namespace kv;
 
 
 static proto::SnapshotPtr newSnapshot(uint64_t index, uint64_t term)

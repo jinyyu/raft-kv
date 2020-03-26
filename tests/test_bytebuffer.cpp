@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <kvd/common/ByteBuffer.h>
+#include <raft-kv/common/ByteBuffer.h>
 
 
-using namespace kvd;
+using namespace kv;
 
 TEST(test_buffer, test_buffer)
 {

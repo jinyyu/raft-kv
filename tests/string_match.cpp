@@ -1,7 +1,7 @@
 #include <regex>
 #include <gtest/gtest.h>
-#include <kvd/server/RedisServer.h>
-using namespace kvd;
+#include <raft-kv/server/RedisServer.h>
+using namespace kv;
 
 TEST(match, match)
 {

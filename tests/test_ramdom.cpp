@@ -1,8 +1,8 @@
-#include <kvd/common/RandomDevice.h>
+#include <raft-kv/common/RandomDevice.h>
 #include <gtest/gtest.h>
 
 
-using namespace kvd;
+using namespace kv;
 
 
 TEST(random, random)
