@@ -1,4 +1,4 @@
-# kv
+# raft-kv
 
 A C++ implementation of RAFT consensus algorithm based on [asio](https://github.com/boostorg/asio). It provides a key-value store compatible with the [redis protocol](https://redis.io/topics/protocol).
 
@@ -6,9 +6,9 @@ A C++ implementation of RAFT consensus algorithm based on [asio](https://github.
 
 ### Build
     
-    git clone https://github.com/jinyyu/kv.git
-    mkdir -p kv/build
-    cd kv/build
+    git clone https://github.com/jinyyu/raft-kv.git
+    mkdir -p raft-kv/build
+    cd raft-kv/build
     cmake .. -DCMAKE_BUILD_TYPE=Release
     make -j8
     
