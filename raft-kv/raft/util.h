@@ -1,9 +1,7 @@
 #pragma once
 #include <raft-kv/raft/proto.h>
 
-namespace kv
-{
-
+namespace kv {
 
 void entry_limit_size(uint64_t max_size, std::vector<proto::EntryPtr>& entries);
 

@@ -3,25 +3,21 @@
 #include <vector>
 #include <memory>
 
-namespace kv
-{
+namespace kv {
 
-namespace wal
-{
+namespace wal {
 
-struct Record
-{
-    int64_t type;
-    uint32_t crc;
-    std::vector<uint8_t> data;
+struct Record {
+  int64_t type;
+  uint32_t crc;
+  std::vector<uint8_t> data;
 };
 
 typedef std::shared_ptr<Record> RecordPtr;
 
-struct Snapshot
-{
-    uint64_t index;
-    uint64_t term;
+struct Snapshot {
+  uint64_t index;
+  uint64_t term;
 };
 typedef std::shared_ptr<Snapshot> SnapshotPtr;
 

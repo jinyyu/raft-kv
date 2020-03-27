@@ -26,7 +26,7 @@ set(SRC
     wal/WAL.cpp
     wal/proto.cpp
     wal/util.cpp
-        server/KvServer.cpp
+    server/KvServer.cpp
     server/RedisSession.cpp
     server/RedisServer.cpp)
 add_library(raft-kv++ ${SRC})

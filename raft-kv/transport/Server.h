@@ -3,29 +3,27 @@
 #include <boost/asio.hpp>
 #include <raft-kv/raft/proto.h>
 
-namespace kv
-{
+namespace kv {
 
 class RaftServer;
-class AsioServer: public std::enable_shared_from_this<AsioServer>
-{
-public:
-    explicit AsioServer(boost::asio::io_service& io_service,
-                        const std::string& host,
-                        std::weak_ptr<RaftServer> raft);
+class AsioServer : public std::enable_shared_from_this<AsioServer> {
+ public:
+  explicit AsioServer(boost::asio::io_service& io_service,
+                      const std::string& host,
+                      std::weak_ptr<RaftServer> raft);
 
-    ~AsioServer();
+  ~AsioServer();
 
-    void start();
+  void start();
 
-    void stop();
+  void stop();
 
-    void on_message(proto::MessagePtr msg);
+  void on_message(proto::MessagePtr msg);
 
-private:
-    boost::asio::io_service& io_service_;
-    boost::asio::ip::tcp::acceptor acceptor_;
-    std::weak_ptr<RaftServer> raft_;
+ private:
+  boost::asio::io_service& io_service_;
+  boost::asio::ip::tcp::acceptor acceptor_;
+  std::weak_ptr<RaftServer> raft_;
 };
 
 }

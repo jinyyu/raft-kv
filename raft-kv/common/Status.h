@@ -1,80 +1,65 @@
 #pragma once
 #include <string>
 
-namespace kv
-{
+namespace kv {
 
-class Status
-{
-public:
-    // Create a success status.
-    Status()
-        : status_(nullptr)
-    {}
+class Status {
+ public:
+  // Create a success status.
+  Status()
+      : status_(nullptr) {}
 
-    Status(const Status& s);
+  Status(const Status& s);
 
-    Status& operator=(const Status& s);
+  Status& operator=(const Status& s);
 
-    ~Status();
+  ~Status();
 
-    static Status ok()
-    { return Status(); }
+  static Status ok() { return Status(); }
 
-    static Status not_found(const char* msg)
-    { return Status(NotFound, msg); }
+  static Status not_found(const char* msg) { return Status(NotFound, msg); }
 
-    static Status not_supported(const char* msg)
-    { return Status(NotSupported, msg); }
+  static Status not_supported(const char* msg) { return Status(NotSupported, msg); }
 
-    static Status invalid_argument(const char* msg)
-    { return Status(InvalidArgument, msg); }
+  static Status invalid_argument(const char* msg) { return Status(InvalidArgument, msg); }
 
-    static Status io_error(const char* msg)
-    { return Status(IOError, msg); }
+  static Status io_error(const char* msg) { return Status(IOError, msg); }
 
-    bool is_ok() const
-    { return status_ == nullptr; }
+  bool is_ok() const { return status_ == nullptr; }
 
-    bool is_not_found() const
-    { return code() == Code::NotFound; }
+  bool is_not_found() const { return code() == Code::NotFound; }
 
-    bool is_io_error() const
-    { return code() == Code::IOError; }
+  bool is_io_error() const { return code() == Code::IOError; }
 
-    bool is_not_supported() const
-    { return code() == NotSupported; }
+  bool is_not_supported() const { return code() == NotSupported; }
 
-    bool is_invalid_argument() const
-    { return code() == InvalidArgument; }
+  bool is_invalid_argument() const { return code() == InvalidArgument; }
 
-    std::string to_string() const;
+  std::string to_string() const;
 
-private:
+ private:
 
-    enum Code
-    {
-        OK = 0,
-        NotFound = 1,
-        NotSupported = 2,
-        InvalidArgument = 3,
-        IOError = 4,
-    };
+  enum Code {
+    OK = 0,
+    NotFound = 1,
+    NotSupported = 2,
+    InvalidArgument = 3,
+    IOError = 4,
+  };
 
-    inline static char* copy(const Status& s);
+  inline static char* copy(const Status& s);
 
-    Status(Code code, const char* msg);
+  Status(Code code, const char* msg);
 
-    Code code() const
-    {
-        return status_ == nullptr ? Code::OK : static_cast<Code> (status_[4]);
-    }
+  Code code() const {
+    return status_ == nullptr ? Code::OK : static_cast<Code> (status_[4]);
+  }
 
-private:
-    //state_[0..3] == length of message
-    //state_[4]    == code
-    //state_[5..]  == message
-    char* status_;
+ private:
+  //state_[0..3] == length of message
+  //state_[4]    == code
+  //state_[5..]  == message
+  char* status_;
 };
 
 }
