@@ -2,7 +2,6 @@
 #include <inttypes.h>
 #include <string.h>
 #include <iostream>
-#include <jemalloc/jemalloc.h>
 #include <raft-kv/common/Status.h>
 
 namespace kv {

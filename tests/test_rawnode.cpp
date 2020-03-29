@@ -22,7 +22,7 @@ static bool read_state_cmp(const std::vector<ReadState>& l, const std::vector<Re
   return true;
 }
 
-TEST(node, RawNodeStep) {
+TEST(test_rawnode, RawNodeStep) {
   for (uint8_t i = 0; i < proto::MsgTypeSize; ++i) {
     MemoryStoragePtr s(new MemoryStorage());
     auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
@@ -42,7 +42,7 @@ TEST(node, RawNodeStep) {
 
 // RawNodeProposeAndConfChange ensures that RawNode.Propose and RawNode.ProposeConfChange
 // send the given proposal and ConfChange to the underlying raft.
-TEST(node, RawNodeProposeAndConfChange) {
+TEST(test_rawnode, RawNodeProposeAndConfChange) {
   MemoryStoragePtr s(new MemoryStorage());
   auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
   std::vector<PeerContext> peer{PeerContext{.id = 1}};
@@ -98,7 +98,7 @@ TEST(node, RawNodeProposeAndConfChange) {
   ASSERT_TRUE(entries[1]->data == ccdata);
 }
 
-TEST(node, RawNodeProposeAddDuplicateNode) {
+TEST(test_rawnode, RawNodeProposeAddDuplicateNode) {
   MemoryStoragePtr s(new MemoryStorage());
   auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, s);
   std::vector<PeerContext> peer{PeerContext{.id = 1}};
@@ -170,7 +170,7 @@ TEST(node, RawNodeProposeAddDuplicateNode) {
   ASSERT_TRUE(entries[2]->data == ccdata2);
 }
 
-TEST(node, RawNodeReadIndex) {
+TEST(test_rawnode, RawNodeReadIndex) {
   std::vector<proto::MessagePtr> msgs;
   auto appendStep = [&msgs](proto::MessagePtr msg) {
     msgs.push_back(msg);
@@ -220,10 +220,11 @@ TEST(node, RawNodeReadIndex) {
   ASSERT_TRUE(msgs[0]->entries[0].data == wrequestCtx);
 }
 
-TEST(node, RawNodeStart) {
+TEST(test_rawnode, RawNodeStart) {
   proto::ConfChange cc;
   cc.conf_change_type = proto::ConfChangeAddNode;
   cc.node_id = 1;
+  cc.id = 0;
   auto ccdata = cc.serialize();
 
   std::vector<ReadyPtr> wants;
@@ -279,7 +280,10 @@ TEST(node, RawNodeStart) {
   RawNode rawNode(c, peer);
 
   auto rd = rawNode.ready();
-  ASSERT_TRUE(rd->equal(*wants[0]));
+  if (!rd->equal(*wants[0]))
+  {
+    ASSERT_TRUE(rd->equal(*wants[0]));
+  }
 
   storage->append(rd->entries);
   rawNode.advance(rd);
@@ -302,7 +306,7 @@ TEST(node, RawNodeStart) {
   ASSERT_TRUE(!rawNode.has_ready());
 }
 
-TEST(node, RawNodeRestart) {
+TEST(test_rawnode, RawNodeRestart) {
   std::vector<proto::EntryPtr> entries;
   {
     proto::EntryPtr e1(new proto::Entry());
@@ -336,7 +340,7 @@ TEST(node, RawNodeRestart) {
   ASSERT_TRUE(!rawNode.has_ready());
 }
 
-TEST(node, RawNodeRestartFromSnapshot) {
+TEST(test_rawnode, RawNodeRestartFromSnapshot) {
   proto::SnapshotPtr snap(new proto::Snapshot());
   snap->metadata.index = 2;
   snap->metadata.term = 1;
@@ -374,7 +378,7 @@ TEST(node, RawNodeRestartFromSnapshot) {
   ASSERT_TRUE(!rawNode.has_ready());
 }
 
-TEST(raft, RawNodeCommitPaginationAfterRestart) {
+TEST(test_rawnode, RawNodeCommitPaginationAfterRestart) {
   MemoryStoragePtr storage(new MemoryStorage());
 
   proto::HardState persistedHardState;
@@ -439,7 +443,7 @@ TEST(raft, RawNodeCommitPaginationAfterRestart) {
   }
 }
 
-TEST(raft, RawNodeBoundedLogGrowthWithPartition) {
+TEST(test_rawnode, RawNodeBoundedLogGrowthWithPartition) {
   uint64_t maxEntries = 16;
   auto data = str_to_vector("testdata");
   proto::EntryPtr entry(new proto::Entry());
