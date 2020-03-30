@@ -1,6 +1,6 @@
 #include <msgpack.hpp>
-#include <raft-kv/server/RedisServer.h>
-#include <raft-kv/server/KvServer.h>
+#include <raft-kv/server/RedisStore.h>
+#include <raft-kv/server/RaftNode.h>
 #include <raft-kv/common/log.h>
 #include <raft-kv/server/RedisSession.h>
 
@@ -127,8 +127,8 @@ int string_match_len(const char* pattern, int patternLen,
   return 0;
 }
 
-RedisServer::RedisServer(std::weak_ptr<KvServer> server, uint16_t port)
-    : server_(std::move(server)),
+RedisStore::RedisStore(RaftNode* server, uint16_t port)
+    : server_(server),
       acceptor_(io_service_) {
   auto address = boost::asio::ip::address::from_string("0.0.0.0");
   auto endpoint = boost::asio::ip::tcp::endpoint(address, port);
@@ -139,13 +139,13 @@ RedisServer::RedisServer(std::weak_ptr<KvServer> server, uint16_t port)
   acceptor_.listen();
 }
 
-RedisServer::~RedisServer() {
+RedisStore::~RedisStore() {
   if (worker_.joinable()) {
     worker_.join();
   }
 }
 
-void RedisServer::start(std::promise<pthread_t>& promise) {
+void RedisStore::start(std::promise<pthread_t>& promise) {
   start_accept();
 
   auto self = shared_from_this();
@@ -155,7 +155,7 @@ void RedisServer::start(std::promise<pthread_t>& promise) {
   });
 }
 
-void RedisServer::start_accept() {
+void RedisStore::start_accept() {
   RedisSessionPtr session(new RedisSession(shared_from_this(), io_service_));
 
   acceptor_.async_accept(session->socket_, [this, session](const boost::system::error_code& error) {
@@ -168,7 +168,7 @@ void RedisServer::start_accept() {
   });
 }
 
-void RedisServer::set(std::string key, std::string value, const std::function<void(const Status&)>& callback) {
+void RedisStore::set(std::string key, std::string value, const std::function<void(const Status&)>& callback) {
   RaftCommit commit;
   commit.type = RaftCommit::kCommitSet;
   commit.strs.push_back(std::move(key));
@@ -182,10 +182,10 @@ void RedisServer::set(std::string key, std::string value, const std::function<vo
       callback(status);
     });
   };
-  server_.lock()->propose(std::move(data), std::move(on_propose));
+  server_->propose(std::move(data), std::move(on_propose));
 }
 
-void RedisServer::del(std::vector<std::string> keys, const std::function<void(const Status&)>& callback) {
+void RedisStore::del(std::vector<std::string> keys, const std::function<void(const Status&)>& callback) {
   RaftCommit commit;
   commit.type = RaftCommit::kCommitDel;
   commit.strs = std::move(keys);
@@ -198,11 +198,11 @@ void RedisServer::del(std::vector<std::string> keys, const std::function<void(co
       callback(status);
     });
   };
-  server_.lock()->propose(std::move(data), std::move(on_propose));
+  server_->propose(std::move(data), std::move(on_propose));
 
 }
 
-void RedisServer::keys(const char* pattern, int len, std::vector<std::string>& keys) {
+void RedisStore::keys(const char* pattern, int len, std::vector<std::string>& keys) {
   for (auto it = key_values_.begin(); it != key_values_.end(); ++it) {
     if (string_match_len(pattern, len, it->first.c_str(), it->first.size(), 0)) {
       keys.push_back(it->first);
@@ -210,7 +210,7 @@ void RedisServer::keys(const char* pattern, int len, std::vector<std::string>& k
   }
 }
 
-void RedisServer::read_commit(proto::EntryPtr entry) {
+void RedisStore::read_commit(proto::EntryPtr entry) {
   auto cb = [this, entry] {
     RaftCommit commit;
     try {

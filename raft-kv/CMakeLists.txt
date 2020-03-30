@@ -21,14 +21,14 @@ set(SRC
     transport/Transport.h
     transport/Transport.cpp
     transport/Peer.h
-    transport/Server.cpp
+    transport/RaftServer.cpp
     transport/Peer.cpp
     wal/WAL.cpp
     wal/proto.cpp
     wal/util.cpp
-    server/KvServer.cpp
+    server/RaftNode.cpp
     server/RedisSession.cpp
-    server/RedisServer.cpp)
+    server/RedisStore.cpp)
 add_library(raft-kv++ ${SRC})
 target_link_libraries(raft-kv++ ${LIBS})
 

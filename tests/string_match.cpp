@@ -1,6 +1,6 @@
 #include <regex>
 #include <gtest/gtest.h>
-#include <raft-kv/server/RedisServer.h>
+#include <raft-kv/server/RedisStore.h>
 using namespace kv;
 
 TEST(match, match) {

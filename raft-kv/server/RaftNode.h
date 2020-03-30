@@ -5,20 +5,20 @@
 #include <vector>
 #include <raft-kv/transport/Transport.h>
 #include <raft-kv/raft/Node.h>
-#include <raft-kv/server/RedisServer.h>
+#include <raft-kv/server/RedisStore.h>
 #include <raft-kv/wal/WAL.h>
 
 namespace kv {
 
 typedef std::function<void(const Status&)> StatusCallback;
 
-class KvServer : public RaftServer, public std::enable_shared_from_this<KvServer> {
+class RaftNode : public RaftServer {
  public:
   static void main(uint64_t id, const std::string& cluster, uint16_t port);
 
-  explicit KvServer(uint64_t id, const std::string& cluster, uint16_t port);
+  explicit RaftNode(uint64_t id, const std::string& cluster, uint16_t port);
 
-  virtual ~KvServer();
+  virtual ~RaftNode();
 
   void stop();
 
@@ -43,7 +43,7 @@ class KvServer : public RaftServer, public std::enable_shared_from_this<KvServer
 
   uint16_t port_;
   pthread_t pthread_id_;
-  boost::asio::io_service io_servie_;
+  boost::asio::io_service io_service_;
   boost::asio::deadline_timer timer_;
   uint64_t id_;
   std::vector<std::string> peers_;
@@ -56,8 +56,8 @@ class KvServer : public RaftServer, public std::enable_shared_from_this<KvServer
   RawNodePtr node_;
   TransporterPtr transport_;
   MemoryStoragePtr storage_;
-  std::shared_ptr<RedisServer> redis_server_;
+  std::shared_ptr<RedisStore> redis_server_;
 };
-typedef std::shared_ptr<KvServer> KvdServerPtr;
+typedef std::shared_ptr<RaftNode> RaftNodePtr;
 
 }

@@ -1,7 +1,7 @@
 #include <raft-kv/server/RedisSession.h>
 #include <raft-kv/common/log.h>
 #include <unordered_map>
-#include <raft-kv/server/RedisServer.h>
+#include <raft-kv/server/RedisStore.h>
 #include <glib.h>
 
 namespace kv {
@@ -53,13 +53,12 @@ static void build_redis_string_array_reply(const std::vector<std::string>& strs,
   }
 }
 
-RedisSession::RedisSession(std::weak_ptr<RedisServer> server, boost::asio::io_service& io_service)
+RedisSession::RedisSession(std::weak_ptr<RedisStore> server, boost::asio::io_service& io_service)
     : quit_(false),
       server_(std::move(server)),
       socket_(io_service),
       read_buffer_(RECEIVE_BUFFER_SIZE),
       reader_(redisReaderCreate()) {
-
 }
 
 void RedisSession::start() {

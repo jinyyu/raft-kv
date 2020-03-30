@@ -1,14 +1,14 @@
 #include <boost/algorithm/string.hpp>
 #include <future>
-#include <raft-kv/server/KvServer.h>
+#include <raft-kv/server/RaftNode.h>
 #include <raft-kv/common/log.h>
 
 namespace kv {
 
-KvServer::KvServer(uint64_t id, const std::string& cluster, uint16_t port)
+RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),
       pthread_id_(0),
-      timer_(io_servie_),
+      timer_(io_service_),
       id_(id),
       wal_dir_("raft-kv-" + std::to_string(id)),
       last_index_(0),
@@ -52,7 +52,7 @@ KvServer::KvServer(uint64_t id, const std::string& cluster, uint16_t port)
   bool old_wal = wal::exists(wal_dir_);
 }
 
-KvServer::~KvServer() {
+RaftNode::~RaftNode() {
   LOG_DEBUG("stopped");
   if (transport_) {
     transport_->stop();
@@ -60,22 +60,21 @@ KvServer::~KvServer() {
   }
 }
 
-void KvServer::start_timer() {
-  auto self = shared_from_this();
+void RaftNode::start_timer() {
   timer_.expires_from_now(boost::posix_time::millisec(100));
-  timer_.async_wait([self](const boost::system::error_code& err) {
+  timer_.async_wait([this](const boost::system::error_code& err) {
     if (err) {
       LOG_ERROR("timer waiter error %s", err.message().c_str());
       return;
     }
 
-    self->start_timer();
-    self->node_->tick();
-    self->check_raft_ready();
+    this->start_timer();
+    this->node_->tick();
+    this->check_raft_ready();
   });
 }
 
-void KvServer::check_raft_ready() {
+void RaftNode::check_raft_ready() {
   assert(pthread_id_ == pthread_self());
   while (node_->has_ready()) {
     auto rd = node_->ready();
@@ -107,7 +106,7 @@ void KvServer::check_raft_ready() {
   }
 }
 
-bool KvServer::publish_entries(const std::vector<proto::EntryPtr>& entries) {
+bool RaftNode::publish_entries(const std::vector<proto::EntryPtr>& entries) {
   for (const proto::EntryPtr& entry : entries) {
     switch (entry->type) {
       case proto::EntryNormal: {
@@ -167,7 +166,7 @@ bool KvServer::publish_entries(const std::vector<proto::EntryPtr>& entries) {
   return true;
 }
 
-void KvServer::entries_to_apply(const std::vector<proto::EntryPtr>& entries, std::vector<proto::EntryPtr>& ents) {
+void RaftNode::entries_to_apply(const std::vector<proto::EntryPtr>& entries, std::vector<proto::EntryPtr>& ents) {
   if (entries.empty()) {
     return;
   }
@@ -181,12 +180,12 @@ void KvServer::entries_to_apply(const std::vector<proto::EntryPtr>& entries, std
   }
 }
 
-void KvServer::maybe_trigger_snapshot() {
+void RaftNode::maybe_trigger_snapshot() {
   //LOG_WARN("not impl yet");
 }
 
-void KvServer::schedule() {
-  redis_server_ = std::make_shared<RedisServer>(shared_from_this(), port_);
+void RaftNode::schedule() {
+  redis_server_ = std::make_shared<RedisStore>(this, port_);
   std::promise<pthread_t> promise;
   std::future<pthread_t> future = promise.get_future();
   redis_server_->start(promise);
@@ -199,39 +198,39 @@ void KvServer::schedule() {
 
   start_timer();
   pthread_id_ = pthread_self();
-  io_servie_.run();
+  io_service_.run();
 }
 
-void KvServer::propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusCallback& callback) {
-  io_servie_.post([this, data, callback]() {
+void RaftNode::propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusCallback& callback) {
+  io_service_.post([this, data, callback]() {
     Status status = node_->propose(std::move(*data));
     callback(status);
     check_raft_ready();
   });
 }
 
-void KvServer::process(proto::MessagePtr msg, const StatusCallback& callback) {
-  io_servie_.post([this, msg, callback]() {
+void RaftNode::process(proto::MessagePtr msg, const StatusCallback& callback) {
+  io_service_.post([this, msg, callback]() {
     Status status = this->node_->step(msg);
     callback(status);
     check_raft_ready();
   });
 }
 
-void KvServer::is_id_removed(uint64_t id, const std::function<void(bool)>& callback) {
+void RaftNode::is_id_removed(uint64_t id, const std::function<void(bool)>& callback) {
   LOG_DEBUG("no impl yet");
   callback(false);
 }
 
-void KvServer::report_unreachable(uint64_t id) {
+void RaftNode::report_unreachable(uint64_t id) {
   LOG_DEBUG("no impl yet");
 }
 
-void KvServer::report_snapshot(uint64_t id, SnapshotStatus status) {
+void RaftNode::report_snapshot(uint64_t id, SnapshotStatus status) {
   LOG_DEBUG("no impl yet");
 }
 
-static KvdServerPtr g_node = nullptr;
+static RaftNodePtr g_node = nullptr;
 
 void on_signal(int) {
   LOG_INFO("catch signal");
@@ -240,27 +239,26 @@ void on_signal(int) {
   }
 }
 
-void KvServer::main(uint64_t id, const std::string& cluster, uint16_t port) {
+void RaftNode::main(uint64_t id, const std::string& cluster, uint16_t port) {
   ::signal(SIGINT, on_signal);
   ::signal(SIGHUP, on_signal);
-  g_node = std::make_shared<KvServer>(id, cluster, port);
+  g_node = std::make_shared<RaftNode>(id, cluster, port);
 
-  std::shared_ptr<AsioTransport> transport(new AsioTransport(g_node, g_node->id_));
+  g_node->transport_ = Transport::create(g_node.get(), g_node->id_);
   std::string& host = g_node->peers_[id - 1];
-  transport->start(host);
-  g_node->transport_ = transport;
+  g_node->transport_->start(host);
 
   for (uint64_t i = 0; i < g_node->peers_.size(); ++i) {
     uint64_t peer = i + 1;
     if (peer == g_node->id_) {
       continue;
     }
-    transport->add_peer(peer, g_node->peers_[i]);
+    g_node->transport_->add_peer(peer, g_node->peers_[i]);
   }
   g_node->schedule();
 }
 
-void KvServer::stop() {
+void RaftNode::stop() {
   LOG_DEBUG("stopping");
   redis_server_->stop();
 
@@ -268,7 +266,7 @@ void KvServer::stop() {
     transport_->stop();
     transport_ = nullptr;
   }
-  io_servie_.stop();
+  io_service_.stop();
 }
 
 }

@@ -30,40 +30,9 @@ class Peer {
   // stop performs any necessary finalization and terminates the peer
   // elegantly
   virtual void stop() = 0;
+
+  static std::shared_ptr<Peer> creat(uint64_t peer, const std::string& peer_str, void* io_service);
 };
 typedef std::shared_ptr<Peer> PeerPtr;
-
-class ClientSession;
-typedef std::shared_ptr<ClientSession> ClientSessionPtr;
-
-class AsioPeer : public Peer, public std::enable_shared_from_this<AsioPeer> {
- public:
-  explicit AsioPeer(boost::asio::io_service& io_service, uint64_t peer, const std::string& peer_str);
-
-  virtual ~AsioPeer();
-
-  virtual void start();
-
-  virtual void send(proto::MessagePtr msg);
-
-  virtual void send_snap(proto::SnapshotPtr snap);
-
-  virtual void update(const std::string& peer);
-
-  virtual uint64_t active_since();
-
-  virtual void stop();
- private:
-  void do_send_data(uint8_t type, const uint8_t* data, uint32_t len);
-  void start_timer();
-
-  uint64_t peer_;
-  boost::asio::io_service& io_service_;
-  friend class ClientSession;
-  ClientSessionPtr session_;
-  boost::asio::ip::tcp::endpoint endpoint_;
-  boost::asio::deadline_timer timer_;
-  bool paused;
-};
 
 }

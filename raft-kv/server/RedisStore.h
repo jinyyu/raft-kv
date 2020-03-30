@@ -22,12 +22,12 @@ struct RaftCommit {
   MSGPACK_DEFINE (type, strs);
 };
 
-class KvServer;
-class RedisServer : public std::enable_shared_from_this<RedisServer> {
+class RaftNode;
+class RedisStore : public std::enable_shared_from_this<RedisStore> {
  public:
-  explicit RedisServer(std::weak_ptr<KvServer> server, uint16_t port);
+  explicit RedisStore(RaftNode* server, uint16_t port);
 
-  ~RedisServer();
+  ~RedisStore();
 
   void stop() {
     io_service_.stop();
@@ -59,7 +59,7 @@ class RedisServer : public std::enable_shared_from_this<RedisServer> {
  private:
   void start_accept();
 
-  std::weak_ptr<KvServer> server_;
+  RaftNode* server_;
   boost::asio::io_service io_service_;
   boost::asio::ip::tcp::acceptor acceptor_;
   std::thread worker_;

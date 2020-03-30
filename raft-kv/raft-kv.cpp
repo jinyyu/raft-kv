@@ -2,7 +2,7 @@
 #include <glib.h>
 #include <stdint.h>
 #include <raft-kv/common/log.h>
-#include <raft-kv/server/KvServer.h>
+#include <raft-kv/server/RaftNode.h>
 
 static uint64_t g_id = 0;
 static const char* g_cluster = NULL;
@@ -32,6 +32,6 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  kv::KvServer::main(g_id, g_cluster, g_port);
+  kv::RaftNode::main(g_id, g_cluster, g_port);
   g_option_context_free(context);
 }
