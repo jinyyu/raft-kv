@@ -3,13 +3,13 @@
 #include <raft-kv/common/log.h>
 #include <raft-kv/common/ByteBuffer.h>
 #include <raft-kv/transport/proto.h>
+#include <boost/asio.hpp>
 
 namespace kv {
 
 class PeerImpl;
 class ClientSession {
  public:
-
   explicit ClientSession(boost::asio::io_service& io_service, PeerImpl* peer);
 
   ~ClientSession() {
@@ -83,8 +83,7 @@ class PeerImpl : public Peer {
   explicit PeerImpl(boost::asio::io_service& io_service, uint64_t peer, const std::string& peer_str)
       : peer_(peer),
         io_service_(io_service),
-        timer_(io_service),
-        paused(false) {
+        timer_(io_service) {
     std::vector<std::string> strs;
     boost::split(strs, peer_str, boost::is_any_of(":"));
     if (strs.size() != 2) {
@@ -166,7 +165,6 @@ class PeerImpl : public Peer {
   std::shared_ptr<ClientSession> session_;
   boost::asio::ip::tcp::endpoint endpoint_;
   boost::asio::deadline_timer timer_;
-  bool paused;
 };
 
 ClientSession::ClientSession(boost::asio::io_service& io_service, PeerImpl* peer)
@@ -183,8 +181,7 @@ void ClientSession::close_session() {
 }
 
 std::shared_ptr<Peer> Peer::creat(uint64_t peer, const std::string& peer_str, void* io_service) {
-  boost::asio::io_service* io_service_ptr = (boost::asio::io_service*) io_service;
-  std::shared_ptr<PeerImpl> peer_ptr(new PeerImpl(*io_service_ptr, peer, peer_str));
+  std::shared_ptr<PeerImpl> peer_ptr(new PeerImpl(*(boost::asio::io_service*) io_service, peer, peer_str));
   return peer_ptr;
 }
 

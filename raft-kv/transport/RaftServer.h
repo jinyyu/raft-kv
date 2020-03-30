@@ -17,8 +17,6 @@ class RaftServer {
   virtual void report_unreachable(uint64_t id) = 0;
 
   virtual void report_snapshot(uint64_t id, SnapshotStatus status) = 0;
-
-  static std::shared_ptr<RaftServer> creat(RaftServer* raft, uint64_t id);
 };
 typedef std::shared_ptr<RaftServer> RaftServerPtr;
 

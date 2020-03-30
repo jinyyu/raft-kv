@@ -3,11 +3,12 @@
 #include <raft-kv/common/log.h>
 #include <raft-kv/transport/proto.h>
 #include <raft-kv/transport/Transport.h>
+#include <boost/asio.hpp>
 
 namespace kv {
 
 class AsioServer;
-class ServerSession {
+class ServerSession : public std::enable_shared_from_this<ServerSession> {
  public:
   explicit ServerSession(boost::asio::io_service& io_service, AsioServer* server)
       : socket(io_service),
@@ -19,8 +20,9 @@ class ServerSession {
     assert(sizeof(meta_) == 5);
     meta_.type = 0;
     meta_.len = 0;
+    auto self = shared_from_this();
     auto buffer = boost::asio::buffer(&meta_, sizeof(meta_));
-    auto handler = [this](const boost::system::error_code& error, std::size_t bytes) {
+    auto handler = [self](const boost::system::error_code& error, std::size_t bytes) {
       if (bytes == 0) {
         return;;
       }
@@ -33,7 +35,7 @@ class ServerSession {
         LOG_DEBUG("invalid data len %lu", bytes);
         return;
       }
-      this->start_read_message();
+      self->start_read_message();
     };
 
     boost::asio::async_read(socket, buffer, boost::asio::transfer_exactly(sizeof(meta_)), handler);
@@ -45,9 +47,10 @@ class ServerSession {
       buffer_.resize(len);
     }
 
+    auto self = shared_from_this();
     auto buffer = boost::asio::buffer(buffer_.data(), len);
-    auto handler = [this, len](const boost::system::error_code& error, std::size_t bytes) {
-      assert(len == ntohl(this->meta_.len));
+    auto handler = [self, len](const boost::system::error_code& error, std::size_t bytes) {
+      assert(len == ntohl(self->meta_.len));
       if (error || bytes == 0) {
         LOG_DEBUG("read error %s", error.message().c_str());
         return;
@@ -57,7 +60,7 @@ class ServerSession {
         LOG_DEBUG("invalid data len %lu, %u", bytes, len);
         return;
       }
-      this->decode_message(len);
+      self->decode_message(len);
     };
     boost::asio::async_read(socket, buffer, boost::asio::transfer_exactly(len), handler);
   }
@@ -173,8 +176,7 @@ void ServerSession::on_receive_stream_message(proto::MessagePtr msg) {
 std::shared_ptr<IoServer> IoServer::create(void* io_service,
                                            const std::string& host,
                                            RaftServer* raft) {
-  boost::asio::io_service* service = (boost::asio::io_service*) io_service;
-  std::shared_ptr<AsioServer> server(new AsioServer(*service, host, raft));
+  std::shared_ptr<AsioServer> server(new AsioServer(*(boost::asio::io_service*) io_service, host, raft));
   return server;
 }
 

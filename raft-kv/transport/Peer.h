@@ -1,5 +1,5 @@
 #pragma once
-#include <boost/asio.hpp>
+#include <memory>
 #include <raft-kv/raft/proto.h>
 
 namespace kv {

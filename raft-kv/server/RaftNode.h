@@ -18,19 +18,19 @@ class RaftNode : public RaftServer {
 
   explicit RaftNode(uint64_t id, const std::string& cluster, uint16_t port);
 
-  virtual ~RaftNode();
+  ~RaftNode() final;
 
   void stop();
 
   void propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusCallback& callback);
 
-  virtual void process(proto::MessagePtr msg, const StatusCallback& callback);
+  void process(proto::MessagePtr msg, const StatusCallback& callback) final;
 
-  virtual void is_id_removed(uint64_t id, const std::function<void(bool)>& callback);
+  void is_id_removed(uint64_t id, const std::function<void(bool)>& callback) final;
 
-  virtual void report_unreachable(uint64_t id);
+  void report_unreachable(uint64_t id) final;
 
-  virtual void report_snapshot(uint64_t id, SnapshotStatus status);
+  void report_snapshot(uint64_t id, SnapshotStatus status) final;
 
   bool publish_entries(const std::vector<proto::EntryPtr>& entries);
   void entries_to_apply(const std::vector<proto::EntryPtr>& entries, std::vector<proto::EntryPtr>& ents);

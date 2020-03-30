@@ -191,10 +191,9 @@ void RaftNode::schedule() {
   redis_server_->start(promise);
   future.wait();
   pthread_t id = future.get();
-  LOG_DEBUG("http server start [%lu]", id);
+  LOG_DEBUG("server start [%lu]", id);
 
   pthread_id_ = pthread_self();
-  LOG_DEBUG("kdv server start [%lu]", pthread_id_);
 
   start_timer();
   pthread_id_ = pthread_self();
