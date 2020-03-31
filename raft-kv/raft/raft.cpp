@@ -633,7 +633,6 @@ Status Raft::step_leader(proto::MessagePtr msg) {
             // the next round of appends (but there may not be a next
             // round for a while, exposing an inconsistent RaftStatus).
             pr->become_probe();
-            pr->become_replicate();
           } else if (pr->state == ProgressStateReplicate) {
             pr->inflights->free_to(msg->index);
           }
