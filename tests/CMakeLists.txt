@@ -38,10 +38,6 @@ add_executable(test_raft test_raft.cpp network.hpp)
 target_link_libraries(test_raft ${LIBS})
 gtest_add_tests(TARGET test_raft)
 
-add_executable(test_raft2 test_raft2.cpp network.hpp)
-target_link_libraries(test_raft2 ${LIBS})
-gtest_add_tests(TARGET test_raft2)
-
 add_executable(test_rawnode test_rawnode.cpp)
 target_link_libraries(test_rawnode ${LIBS})
 gtest_add_tests(TARGET test_rawnode)
@@ -49,3 +45,7 @@ gtest_add_tests(TARGET test_rawnode)
 add_executable(string_match string_match.cpp)
 target_link_libraries(string_match ${LIBS})
 gtest_add_tests(TARGET string_match)
+
+add_executable(raft_snap_test raft_snap_test.cpp network.hpp)
+target_link_libraries(raft_snap_test ${LIBS})
+gtest_add_tests(TARGET raft_snap_test)

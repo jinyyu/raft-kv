@@ -129,6 +129,7 @@ void RaftLog::restore(proto::SnapshotPtr snapshot) {
 Status RaftLog::snapshot(proto::SnapshotPtr& snap) const {
   if (unstable_->snapshot_) {
     snap = unstable_->snapshot_;
+    return Status::ok();
   }
 
   proto::SnapshotPtr s;
