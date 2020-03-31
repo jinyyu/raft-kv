@@ -226,9 +226,6 @@ class Raft {
   std::function<void()> tick_;
   std::function<Status(proto::MessagePtr)> step_;
   RandomDevice random_device_;
-
-  //for test
-  friend struct Network;
 };
 typedef std::shared_ptr<Raft> RaftPtr;
 

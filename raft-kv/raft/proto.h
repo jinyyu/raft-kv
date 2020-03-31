@@ -41,12 +41,12 @@ const EntryType EntryConfChange = 1;
 const char* entry_type_to_string(EntryType type);
 
 struct Entry {
-  explicit Entry()
+  Entry()
       : type(EntryNormal),
         term(0),
         index(0) {}
 
-  Entry(Entry&& entry)
+  explicit Entry(Entry&& entry)
       : type(entry.type),
         term(entry.term),
         index(entry.index),
@@ -96,7 +96,7 @@ struct ConfState {
 typedef std::shared_ptr<ConfState> ConfStatePtr;
 
 struct SnapshotMetadata {
-  explicit SnapshotMetadata()
+  SnapshotMetadata()
       : index(0),
         term(0) {
   }
@@ -112,10 +112,10 @@ struct SnapshotMetadata {
 };
 
 struct Snapshot {
-  explicit Snapshot() {
-  }
+  Snapshot() = default;
 
-  explicit Snapshot(std::vector<uint8_t> data) {
+  explicit Snapshot(const std::vector<uint8_t>& data)
+      : data(data) {
   }
 
   bool equal(const Snapshot& snap) const;
@@ -130,7 +130,7 @@ struct Snapshot {
 typedef std::shared_ptr<Snapshot> SnapshotPtr;
 
 struct Message {
-  explicit Message()
+  Message()
       : type(MsgHup),
         to(0),
         from(0),
@@ -172,7 +172,7 @@ struct Message {
 typedef std::shared_ptr<Message> MessagePtr;
 
 struct HardState {
-  explicit HardState()
+  HardState()
       : term(0),
         vote(0),
         commit(0) {

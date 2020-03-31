@@ -93,7 +93,7 @@ class MemoryStorage : public Storage {
 
   // ApplySnapshot overwrites the contents of this Storage object with
   // those of the given snapshot.
-  Status apply_snapshot(proto::SnapshotPtr snapshot);
+  Status apply_snapshot(const proto::Snapshot& snapshot);
  public:
   Status last_index_impl(uint64_t& index);
   Status first_index_impl(uint64_t& index);

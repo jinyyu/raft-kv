@@ -38,7 +38,9 @@ class RaftNode : public RaftServer {
 
  private:
   void start_timer();
-  void check_raft_ready();
+  void pull_ready_events();
+  void save_snap(const proto::Snapshot& snap);
+  void publish_snapshot(const proto::Snapshot& snap);
   void schedule();
 
   uint16_t port_;

@@ -484,14 +484,14 @@ TEST(storage, apply) {
   snapshot->metadata.index = 4;
   snapshot->metadata.term = 4;
   snapshot->metadata.conf_state = cs;
-  auto status = m.apply_snapshot(std::move(snapshot));
+  auto status = m.apply_snapshot(*snapshot);
   ASSERT_TRUE(status.is_ok());
 
   snapshot = std::make_shared<proto::Snapshot>();
   snapshot->metadata.index = 3;
   snapshot->metadata.term = 3;
   snapshot->metadata.conf_state = cs;
-  status = m.apply_snapshot(std::move(snapshot));
+  status = m.apply_snapshot(*snapshot);
   ASSERT_FALSE(status.is_ok());
 }
 

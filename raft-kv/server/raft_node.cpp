@@ -70,11 +70,11 @@ void RaftNode::start_timer() {
 
     this->start_timer();
     this->node_->tick();
-    this->check_raft_ready();
+    this->pull_ready_events();
   });
 }
 
-void RaftNode::check_raft_ready() {
+void RaftNode::pull_ready_events() {
   assert(pthread_id_ == pthread_self());
   while (node_->has_ready()) {
     auto rd = node_->ready();
@@ -83,8 +83,14 @@ void RaftNode::check_raft_ready() {
       return;
     }
 
+
+    //TODO
+    //rc.wal.Save(rd.HardState, rd.Entries)
+
     if (!rd->snapshot.is_empty()) {
-      //LOG_WARN("no impl yet");
+      save_snap(rd->snapshot);
+      storage_->apply_snapshot(rd->snapshot);
+      publish_snapshot(rd->snapshot);
     }
 
     if (!rd->entries.empty()) {
@@ -105,6 +111,15 @@ void RaftNode::check_raft_ready() {
     node_->advance(rd);
   }
 }
+
+void RaftNode::save_snap(const proto::Snapshot& snap) {
+  LOG_WARN("no impl");
+}
+
+void RaftNode::publish_snapshot(const proto::Snapshot& snap) {
+  LOG_WARN("no impl");
+}
+
 
 bool RaftNode::publish_entries(const std::vector<proto::EntryPtr>& entries) {
   for (const proto::EntryPtr& entry : entries) {
@@ -204,7 +219,7 @@ void RaftNode::propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusC
   io_service_.post([this, data, callback]() {
     Status status = node_->propose(std::move(*data));
     callback(status);
-    check_raft_ready();
+    pull_ready_events();
   });
 }
 
@@ -212,7 +227,7 @@ void RaftNode::process(proto::MessagePtr msg, const StatusCallback& callback) {
   io_service_.post([this, msg, callback]() {
     Status status = this->node_->step(msg);
     callback(status);
-    check_raft_ready();
+    pull_ready_events();
   });
 }
 

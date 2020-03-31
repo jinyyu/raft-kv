@@ -364,7 +364,7 @@ TEST(test_rawnode, RawNodeRestartFromSnapshot) {
 
   MemoryStoragePtr storage(new MemoryStorage());
   storage->set_hard_state(st);
-  storage->apply_snapshot(snap);
+  storage->apply_snapshot(*snap);
   storage->append(entries);
 
   auto c = newTestConfig(1, std::vector<uint64_t>(), 10, 1, storage);

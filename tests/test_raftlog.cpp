@@ -195,7 +195,7 @@ TEST(raftlog, term) {
   proto::SnapshotPtr snapshot(new proto::Snapshot());
   snapshot->metadata.index = offset;
   snapshot->metadata.term = 1;
-  storage->apply_snapshot(snapshot);
+  storage->apply_snapshot(*snapshot);
 
   RaftLog log(storage, std::numeric_limits<uint64_t>::max());
 
@@ -665,7 +665,7 @@ TEST(raftlog, HasNextEnts) {
   for (size_t i = 0; i < tests.size(); ++i) {
     LOG_INFO("testing %lu", i);
     MemoryStoragePtr storage(new MemoryStorage());
-    storage->apply_snapshot(snapshot);
+    storage->apply_snapshot(*snapshot);
 
     RaftLog l(storage, RaftLog::unlimited());
 
@@ -734,7 +734,7 @@ TEST(raftlog, NextEnts) {
   for (size_t i = 0; i < tests.size(); ++i) {
     LOG_INFO("testing NextEnts %lu", i);
     MemoryStoragePtr storage(new MemoryStorage());
-    storage->apply_snapshot(snapshot);
+    storage->apply_snapshot(*snapshot);
 
     RaftLog l(storage, RaftLog::unlimited());
 
@@ -940,7 +940,7 @@ TEST(raftlog, stabletosnap) {
     proto::SnapshotPtr snapshot(new proto::Snapshot());
     snapshot->metadata.term = snapt;
     snapshot->metadata.index = snapi;
-    storage->apply_snapshot(snapshot);
+    storage->apply_snapshot(*snapshot);
 
     RaftLog l(storage, std::numeric_limits<uint64_t>::max());
 

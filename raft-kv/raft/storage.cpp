@@ -169,19 +169,17 @@ Status MemoryStorage::create_snapshot(uint64_t index,
 
 }
 
-Status MemoryStorage::apply_snapshot(proto::SnapshotPtr snapshot) {
-  assert(snapshot);
-
+Status MemoryStorage::apply_snapshot(const proto::Snapshot& snapshot) {
   std::lock_guard<std::mutex> guard(mutex_);
 
   uint64_t index = snapshot_->metadata.index;
-  uint64_t snap_index = snapshot->metadata.index;
+  uint64_t snap_index = snapshot.metadata.index;
 
   if (index >= snap_index) {
     return Status::invalid_argument("requested index is older than the existing snapshot");
   }
 
-  snapshot_ = std::move(snapshot);
+  snapshot_ = std::make_shared<proto::Snapshot>(snapshot);
 
   entries_.resize(1);
   proto::EntryPtr entry(new proto::Entry());
