@@ -1,6 +1,6 @@
 #pragma once
-#include <raft-kv/raft/Storage.h>
-#include <raft-kv/raft/Unstable.h>
+#include <raft-kv/raft/storage.h>
+#include <raft-kv/raft/unstable.h>
 
 namespace kv {
 

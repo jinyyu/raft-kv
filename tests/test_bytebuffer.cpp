@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <raft-kv/common/ByteBuffer.h>
+#include <raft-kv/common/bytebuffer.h>
 
 using namespace kv;
 

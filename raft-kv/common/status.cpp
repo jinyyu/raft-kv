@@ -2,7 +2,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <iostream>
-#include <raft-kv/common/Status.h>
+#include <raft-kv/common/status.h>
 
 namespace kv {
 

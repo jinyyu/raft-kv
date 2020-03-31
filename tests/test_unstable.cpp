@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <raft-kv/raft/Unstable.h>
+#include <raft-kv/raft/unstable.h>
 
 using namespace kv;
 

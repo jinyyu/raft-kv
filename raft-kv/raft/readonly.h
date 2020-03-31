@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <raft-kv/raft/proto.h>
-#include <raft-kv/raft/Config.h>
+#include <raft-kv/raft/config.h>
 
 namespace kv {
 

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <raft-kv/raft/RaftLog.h>
+#include <raft-kv/raft/raft_log.h>
 #include <raft-kv/common/log.h>
 
 using namespace kv;

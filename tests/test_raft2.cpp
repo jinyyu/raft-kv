@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <raft-kv/raft/Raft.h>
+#include <raft-kv/raft/raft.h>
 #include <raft-kv/common/log.h>
 #include <raft-kv/raft/util.h>
 #include "network.hpp"

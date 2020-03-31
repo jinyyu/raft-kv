@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 #include <mutex>
-#include <raft-kv/common/Status.h>
+#include <raft-kv/common/status.h>
 #include <raft-kv/raft/proto.h>
 
 namespace kv {

@@ -1,4 +1,4 @@
-#include <raft-kv/common/RandomDevice.h>
+#include <raft-kv/common/random_device.h>
 
 namespace kv {
 uint32_t RandomDevice::gen() {

@@ -1,21 +1,21 @@
 #pragma once
 #include <stdint.h>
 #include <vector>
-#include <raft-kv/raft/Storage.h>
+#include <raft-kv/raft/storage.h>
 
 namespace kv {
 
 enum ReadOnlyOption {
   // ReadOnlySafe guarantees the linearizability of the read only request by
   // communicating with the quorum. It is the default and suggested option.
-      ReadOnlySafe = 0,
+  ReadOnlySafe = 0,
 
   // ReadOnlyLeaseBased ensures linearizability of the read only request by
   // relying on the leader lease. It can be affected by clock drift.
   // If the clock drift is unbounded, leader might keep the lease longer than it
   // should (clock can move backward/pause without any bound). ReadIndex is not safe
   // in that case.
-      ReadOnlyLeaseBased = 1,
+  ReadOnlyLeaseBased = 1,
 };
 
 // Config contains the parameters to start a raft.
@@ -30,7 +30,7 @@ struct Config {
         max_uncommitted_entries_size(0),
         max_inflight_msgs(0),
         check_quorum(false),
-        pre_vote(0),
+        pre_vote(false),
         read_only_option(ReadOnlySafe),
         disable_proposal_forwarding(false) {}
 

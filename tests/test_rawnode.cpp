@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <raft-kv/raft/Node.h>
+#include <raft-kv/raft/node.h>
 #include <raft-kv/raft/util.h>
 #include "network.hpp"
 
@@ -280,8 +280,7 @@ TEST(test_rawnode, RawNodeStart) {
   RawNode rawNode(c, peer);
 
   auto rd = rawNode.ready();
-  if (!rd->equal(*wants[0]))
-  {
+  if (!rd->equal(*wants[0])) {
     ASSERT_TRUE(rd->equal(*wants[0]));
   }
 

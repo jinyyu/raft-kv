@@ -1,8 +1,8 @@
 #include <msgpack.hpp>
-#include <raft-kv/server/RedisStore.h>
-#include <raft-kv/server/RaftNode.h>
+#include <raft-kv/server/redis_store.h>
+#include <raft-kv/server/raft_node.h>
 #include <raft-kv/common/log.h>
-#include <raft-kv/server/RedisSession.h>
+#include <raft-kv/server/redis_session.h>
 
 namespace kv {
 

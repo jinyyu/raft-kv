@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <raft-kv/raft/Progress.h>
+#include <raft-kv/raft/progress.h>
 
 using namespace kv;
 

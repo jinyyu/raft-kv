@@ -1,7 +1,7 @@
 #include <boost/algorithm/string.hpp>
-#include <raft-kv/raft/Raft.h>
+#include <raft-kv/raft/raft.h>
 #include <raft-kv/common/log.h>
-#include <raft-kv/common/Slice.h>
+#include <raft-kv/common/slice.h>
 #include <raft-kv/raft/util.h>
 
 namespace kv {

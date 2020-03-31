@@ -1,4 +1,4 @@
-#include <raft-kv/raft/Progress.h>
+#include <raft-kv/raft/progress.h>
 #include <raft-kv/common/log.h>
 
 namespace kv {

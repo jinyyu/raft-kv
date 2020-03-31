@@ -1,4 +1,4 @@
-#include <raft-kv/raft/Storage.h>
+#include <raft-kv/raft/storage.h>
 #include <raft-kv/common/log.h>
 #include <raft-kv/raft/util.h>
 

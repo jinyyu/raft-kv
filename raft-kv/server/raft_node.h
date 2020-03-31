@@ -3,9 +3,9 @@
 #include <stdint.h>
 #include <memory>
 #include <vector>
-#include <raft-kv/transport/Transport.h>
-#include <raft-kv/raft/Node.h>
-#include <raft-kv/server/RedisStore.h>
+#include <raft-kv/transport/transport.h>
+#include <raft-kv/raft/node.h>
+#include <raft-kv/server/redis_store.h>
 #include <raft-kv/wal/WAL.h>
 
 namespace kv {

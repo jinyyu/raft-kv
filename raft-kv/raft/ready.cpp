@@ -1,5 +1,5 @@
-#include <raft-kv/raft/Ready.h>
-#include <raft-kv/raft/Raft.h>
+#include <raft-kv/raft/ready.h>
+#include <raft-kv/raft/raft.h>
 
 namespace kv {
 

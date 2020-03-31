@@ -1,4 +1,4 @@
-#include <raft-kv/raft/ReadOnly.h>
+#include <raft-kv/raft/readonly.h>
 #include <raft-kv/common/log.h>
 
 namespace kv {

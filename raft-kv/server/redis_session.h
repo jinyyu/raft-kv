@@ -2,7 +2,7 @@
 #include <memory>
 #include <boost/asio.hpp>
 #include <hiredis/hiredis.h>
-#include <raft-kv/common/ByteBuffer.h>
+#include <raft-kv/common/bytebuffer.h>
 
 namespace kv {
 

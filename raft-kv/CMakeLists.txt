@@ -1,34 +1,34 @@
 
 set(SRC
     common/log.h
-    common/Slice.h
-    common/Status.cpp
-    common/ByteBuffer.cpp
-    common/RandomDevice.cpp
+    common/slice.h
+    common/status.cpp
+    common/bytebuffer.cpp
+    common/random_device.cpp
     raft/proto.cpp
-    raft/Config.cpp
-    raft/Raft.cpp
-    raft/Storage.cpp
-    raft/Node.cpp
-    raft/RaftLog.cpp
-    raft/Unstable.cpp
-    raft/Progress.cpp
-    raft/ReadOnly.cpp
-    raft/RaftStatus.cpp
-    raft/Ready.cpp
+    raft/config.cpp
+    raft/raft.cpp
+    raft/storage.cpp
+    raft/node.cpp
+    raft/raft_log.cpp
+    raft/unstable.cpp
+    raft/progress.cpp
+    raft/readonly.cpp
+    raft/raft_status.cpp
+    raft/ready.cpp
     raft/util.cpp
     transport/proto.h
-    transport/Transport.h
-    transport/Transport.cpp
-    transport/Peer.h
-    transport/RaftServer.cpp
-    transport/Peer.cpp
+    transport/transport.h
+    transport/transport.cpp
+    transport/peer.h
+    transport/raft_server.cpp
+    transport/peer.cpp
     wal/WAL.cpp
     wal/proto.cpp
     wal/util.cpp
-    server/RaftNode.cpp
-    server/RedisSession.cpp
-    server/RedisStore.cpp)
+    server/raft_node.cpp
+    server/redis_session.cpp
+    server/redis_store.cpp)
 add_library(raft-kv++ ${SRC})
 target_link_libraries(raft-kv++ ${LIBS})
 

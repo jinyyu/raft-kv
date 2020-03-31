@@ -2,8 +2,8 @@
 #include <raft-kv/common/log.h>
 #include <raft-kv/raft/proto.h>
 #include <boost/functional/hash.hpp>
-#include <raft-kv/raft/Raft.h>
-#include <raft-kv/common/RandomDevice.h>
+#include <raft-kv/raft/raft.h>
+#include <raft-kv/common/random_device.h>
 
 using namespace kv;
 

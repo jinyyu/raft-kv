@@ -1,8 +1,8 @@
 #pragma once
-#include <raft-kv/raft/Raft.h>
+#include <raft-kv/raft/raft.h>
 #include <raft-kv/raft/proto.h>
-#include <raft-kv/raft/Config.h>
-#include <raft-kv/raft/RaftStatus.h>
+#include <raft-kv/raft/config.h>
+#include <raft-kv/raft/raft_status.h>
 
 namespace kv {
 

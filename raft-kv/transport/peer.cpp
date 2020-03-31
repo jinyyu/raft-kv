@@ -1,7 +1,7 @@
 #include <boost/algorithm/string.hpp>
-#include <raft-kv/transport/Peer.h>
+#include <raft-kv/transport/peer.h>
 #include <raft-kv/common/log.h>
-#include <raft-kv/common/ByteBuffer.h>
+#include <raft-kv/common/bytebuffer.h>
 #include <raft-kv/transport/proto.h>
 #include <boost/asio.hpp>
 

@@ -1,7 +1,7 @@
-#include <raft-kv/server/RedisSession.h>
+#include <raft-kv/server/redis_session.h>
 #include <raft-kv/common/log.h>
 #include <unordered_map>
-#include <raft-kv/server/RedisStore.h>
+#include <raft-kv/server/redis_store.h>
 #include <glib.h>
 
 namespace kv {

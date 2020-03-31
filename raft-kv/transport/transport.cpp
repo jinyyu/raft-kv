@@ -1,6 +1,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
-#include <raft-kv/transport/Transport.h>
+#include <raft-kv/transport/transport.h>
 #include <raft-kv/common/log.h>
 
 namespace kv {
@@ -21,7 +21,7 @@ class TransportImpl : public Transport {
   }
 
   void start(const std::string& host) final {
-    server_ = IoServer::create((void*)&io_service_, host, raft_);
+    server_ = IoServer::create((void*) &io_service_, host, raft_);
     server_->start();
 
     io_thread_ = std::thread([this]() {
@@ -39,7 +39,7 @@ class TransportImpl : public Transport {
       return;
     }
 
-    PeerPtr p = Peer::creat(id, peer, (void*)&io_service_);
+    PeerPtr p = Peer::creat(id, peer, (void*) &io_service_);
     p->start();
     peers_[id] = p;
   }

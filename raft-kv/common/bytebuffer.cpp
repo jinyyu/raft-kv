@@ -1,6 +1,6 @@
 
 #include <string.h>
-#include <raft-kv/common/ByteBuffer.h>
+#include <raft-kv/common/bytebuffer.h>
 
 namespace kv {
 static uint32_t MIN_BUFFERING = 4096;

@@ -2,7 +2,7 @@
 #include <glib.h>
 #include <stdint.h>
 #include <raft-kv/common/log.h>
-#include <raft-kv/server/RaftNode.h>
+#include <raft-kv/server/raft_node.h>
 
 static uint64_t g_id = 0;
 static const char* g_cluster = NULL;

@@ -2,7 +2,7 @@
 #include <vector>
 #include <stdint.h>
 #include <string.h>
-#include <raft-kv/common/Slice.h>
+#include <raft-kv/common/slice.h>
 
 namespace kv {
 

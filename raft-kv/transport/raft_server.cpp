@@ -1,8 +1,8 @@
 #include <boost/algorithm/string.hpp>
-#include <raft-kv/transport/RaftServer.h>
+#include <raft-kv/transport/raft_server.h>
 #include <raft-kv/common/log.h>
 #include <raft-kv/transport/proto.h>
-#include <raft-kv/transport/Transport.h>
+#include <raft-kv/transport/transport.h>
 #include <boost/asio.hpp>
 
 namespace kv {

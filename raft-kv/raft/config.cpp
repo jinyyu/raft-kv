@@ -1,4 +1,4 @@
-#include <raft-kv/raft/Config.h>
+#include <raft-kv/raft/config.h>
 
 namespace kv {
 

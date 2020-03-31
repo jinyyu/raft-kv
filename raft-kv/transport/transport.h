@@ -3,12 +3,12 @@
 #include <thread>
 #include <mutex>
 #include <unordered_map>
-#include <raft-kv/transport/Peer.h>
-#include <raft-kv/transport/RaftServer.h>
-#include <raft-kv/transport/Transport.h>
-#include <raft-kv/common/Status.h>
+#include <raft-kv/transport/peer.h>
+#include <raft-kv/transport/raft_server.h>
+#include <raft-kv/transport/transport.h>
+#include <raft-kv/common/status.h>
 #include <raft-kv/raft/proto.h>
-#include <raft-kv/raft/Node.h>
+#include <raft-kv/raft/node.h>
 
 namespace kv {
 

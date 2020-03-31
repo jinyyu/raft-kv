@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <thread>
 #include <future>
-#include <raft-kv/common/Status.h>
+#include <raft-kv/common/status.h>
 #include <raft-kv/raft/proto.h>
 #include <msgpack.hpp>
 

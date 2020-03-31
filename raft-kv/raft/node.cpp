@@ -1,4 +1,4 @@
-#include <raft-kv/raft/Node.h>
+#include <raft-kv/raft/node.h>
 #include <raft-kv/common/log.h>
 
 namespace kv {

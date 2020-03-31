@@ -1,12 +1,12 @@
 #pragma once
 #include <functional>
 #include <stdint.h>
-#include <raft-kv/raft/RaftLog.h>
-#include <raft-kv/raft/Progress.h>
+#include <raft-kv/raft/raft_log.h>
+#include <raft-kv/raft/progress.h>
 #include <raft-kv/raft/proto.h>
-#include <raft-kv/raft/ReadOnly.h>
-#include <raft-kv/raft/Ready.h>
-#include <raft-kv/common/RandomDevice.h>
+#include <raft-kv/raft/readonly.h>
+#include <raft-kv/raft/ready.h>
+#include <raft-kv/common/random_device.h>
 
 namespace kv {
 

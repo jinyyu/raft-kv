@@ -1,6 +1,6 @@
 #include <boost/algorithm/string.hpp>
 #include <future>
-#include <raft-kv/server/RaftNode.h>
+#include <raft-kv/server/raft_node.h>
 #include <raft-kv/common/log.h>
 
 namespace kv {

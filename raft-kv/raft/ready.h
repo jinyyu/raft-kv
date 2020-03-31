@@ -1,6 +1,6 @@
 #pragma once
 #include <raft-kv/raft/proto.h>
-#include <raft-kv/raft/ReadOnly.h>
+#include <raft-kv/raft/readonly.h>
 
 namespace kv {
 
