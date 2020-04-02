@@ -1,5 +1,6 @@
 #include <raft-kv/raft/util.h>
 #include <raft-kv/common/log.h>
+#include <boost/crc.hpp>
 
 namespace kv {
 
@@ -35,6 +36,12 @@ proto::MessageType vote_resp_msg_type(proto::MessageType type) {
 bool is_local_msg(proto::MessageType type) {
   return type == proto::MsgHup || type == proto::MsgBeat || type == proto::MsgUnreachable ||
       type == proto::MsgSnapStatus || type == proto::MsgCheckQuorum;
+}
+
+uint32_t compute_crc32(const char* data, size_t len) {
+  boost::crc_32_type crc32;
+  crc32.process_bytes(data, len);
+  return crc32();
 }
 
 }

@@ -10,4 +10,6 @@ proto::MessageType vote_resp_msg_type(proto::MessageType type);
 
 bool is_local_msg(proto::MessageType type);
 
+uint32_t compute_crc32(const char* data, size_t len);
+
 }

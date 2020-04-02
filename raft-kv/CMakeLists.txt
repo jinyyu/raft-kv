@@ -28,7 +28,8 @@ set(SRC
     wal/util.cpp
     server/raft_node.cpp
     server/redis_session.cpp
-    server/redis_store.cpp)
+    server/redis_store.cpp
+    snap/snapshoter.cpp)
 add_library(raft-kv++ ${SRC})
 target_link_libraries(raft-kv++ ${LIBS})
 

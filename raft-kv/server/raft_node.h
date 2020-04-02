@@ -7,6 +7,7 @@
 #include <raft-kv/raft/node.h>
 #include <raft-kv/server/redis_store.h>
 #include <raft-kv/wal/WAL.h>
+#include <raft-kv/snap/snapshoter.h>
 
 namespace kv {
 
@@ -41,6 +42,12 @@ class RaftNode : public RaftServer {
   void pull_ready_events();
   void save_snap(const proto::Snapshot& snap);
   void publish_snapshot(const proto::Snapshot& snap);
+
+  // recover from snapshot and WAL
+  void recovery();
+
+  // replay_WAL replays WAL entries into the raft instance.
+  void replay_WAL();
   void schedule();
 
   uint16_t port_;
@@ -49,7 +56,6 @@ class RaftNode : public RaftServer {
   boost::asio::deadline_timer timer_;
   uint64_t id_;
   std::vector<std::string> peers_;
-  std::string wal_dir_;
   uint64_t last_index_;
   proto::ConfStatePtr conf_state_;
   uint64_t snapshot_index_;
@@ -59,6 +65,7 @@ class RaftNode : public RaftServer {
   TransporterPtr transport_;
   MemoryStoragePtr storage_;
   std::shared_ptr<RedisStore> redis_server_;
+  std::unique_ptr<Snapshoter> snapshoter_;
 };
 typedef std::shared_ptr<RaftNode> RaftNodePtr;
 
