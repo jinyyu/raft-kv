@@ -50,8 +50,8 @@ RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
     boost::filesystem::create_directories(snap_dir);
   }
 
-  std::unique_ptr<Snapshoter> snap(new Snapshoter(snap_dir.string()));
-  snapshoter_ = std::move(snap);
+  std::unique_ptr<Snapshotter> snap(new Snapshotter(snap_dir.string()));
+  snapshotter_ = std::move(snap);
 
   std::vector<PeerContext> peers;
   for (size_t i = 0; i < peers_.size(); ++i) {
@@ -136,7 +136,7 @@ Index: snap.Metadata.Index,
 
   Status status;
 
-  status = snapshoter_->save_snap(snap);
+  status = snapshotter_->save_snap(snap);
   if (!status.is_ok()) {
     LOG_FATAL("save snapshot error %s", status.to_string().c_str());
   }
@@ -150,18 +150,16 @@ void RaftNode::publish_snapshot(const proto::Snapshot& snap) {
   LOG_WARN("no impl");
 }
 
-void RaftNode::recovery() {
+void RaftNode::recover() {
   proto::Snapshot snapshot;
-  Status status = snapshoter_->load(snapshot);
+  Status status = snapshotter_->load(snapshot);
   if (!status.is_ok()) {
     if (status.is_not_found()) {
       LOG_INFO("snapshot not found for node %lu", id_);
     } else {
       LOG_FATAL("error loading snapshot %s", status.to_string().c_str());
     }
-
   }
-
   replay_WAL();
 }
 
@@ -318,7 +316,7 @@ void RaftNode::main(uint64_t id, const std::string& cluster, uint16_t port) {
     g_node->transport_->add_peer(peer, g_node->peers_[i]);
   }
 
-  g_node->recovery();
+  g_node->recover();
   g_node->schedule();
 }
 

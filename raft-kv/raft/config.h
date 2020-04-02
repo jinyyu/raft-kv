@@ -72,7 +72,7 @@ struct Config {
   uint64_t applied;
 
   // max_size_per_msg limits the max byte size of each append message. Smaller
-  // value lowers the raft recovery cost(initial probing and message lost
+  // value lowers the raft recover cost(initial probing and message lost
   // during normal operation). On the other side, it might affect the
   // throughput during normal replication. Note: math.MaxUint64 for unlimited,
   // 0 for at most one entry per message.

@@ -903,7 +903,7 @@ TEST(raft, CannotCommitWithoutNewTermEntry) {
 
   ASSERT_TRUE(sm->raft_log_->committed_ == 1);
 
-  // network recovery
+  // network recover
   tt.recover();
   // avoid committing ChangeTerm proposal
   tt.ignore(proto::MsgApp);
@@ -984,7 +984,7 @@ TEST(raft, CommitWithoutNewTermEntry) {
   RaftPtr sm = tt.peers[1];
 
   ASSERT_TRUE(sm->raft_log_->committed_ == 1);
-  // network recovery
+  // network recover
   tt.recover();
 
   // elect 2 as the new leader with term 2

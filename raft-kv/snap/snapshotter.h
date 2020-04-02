@@ -6,14 +6,13 @@
 
 namespace kv {
 
-class Snapshoter {
+class Snapshotter {
  public:
-  explicit Snapshoter(const std::string& dir)
+  explicit Snapshotter(const std::string& dir)
       : dir_(dir) {
-  };
-
-  ~Snapshoter() {
   }
+
+  ~Snapshotter() = default;
 
   Status load(proto::Snapshot& snapshot);
 

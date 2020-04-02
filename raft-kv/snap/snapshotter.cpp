@@ -1,4 +1,4 @@
-#include <raft-kv/snap/snapshoter.h>
+#include <raft-kv/snap/snapshotter.h>
 #include <boost/filesystem.hpp>
 #include <raft-kv/common/log.h>
 #include <msgpack.hpp>
@@ -12,7 +12,7 @@ struct SnapshotRecord {
   char data[0];
 };
 
-Status Snapshoter::load(proto::Snapshot& snapshot) {
+Status Snapshotter::load(proto::Snapshot& snapshot) {
   std::vector<std::string> names;
   get_snap_names(names);
 
@@ -26,11 +26,15 @@ Status Snapshoter::load(proto::Snapshot& snapshot) {
   return Status::not_found("snap not found");
 }
 
-Status Snapshoter::save_snap(const proto::Snapshot& snapshot) {
+Status Snapshotter::save_snap(const proto::Snapshot& snapshot) {
+  Status status;
   msgpack::sbuffer sbuf;
   msgpack::pack(sbuf, snapshot);
+
   SnapshotRecord* record = (SnapshotRecord*) malloc(sbuf.size() + sizeof(SnapshotRecord));
   record->data_len = sbuf.size();
+  record->crc32 = compute_crc32(sbuf.data(), sbuf.size());
+  memcpy(record->data, sbuf.data(), sbuf.size());
 
   char save_path[128];
   snprintf(save_path,
@@ -40,19 +44,23 @@ Status Snapshoter::save_snap(const proto::Snapshot& snapshot) {
            snapshot.metadata.term,
            snapshot.metadata.index);
 
-  record->crc32 = compute_crc32(record->data, record->data_len);
   FILE* fp = fopen(save_path, "w");
   if (!fp) {
     free(record);
     return Status::io_error(strerror(errno));
   }
-  fwrite(&record, 1, sizeof(SnapshotRecord) + record->data_len, fp);
+
+  size_t bytes = sizeof(SnapshotRecord) + record->data_len;
+  if (fwrite((void*) record, 1, bytes, fp) != bytes) {
+    status = Status::io_error(strerror(errno));
+  }
   free(record);
   fclose(fp);
-  return Status::ok();
+
+  return status;
 }
 
-void Snapshoter::get_snap_names(std::vector<std::string>& names) {
+void Snapshotter::get_snap_names(std::vector<std::string>& names) {
   using namespace boost;
 
   filesystem::directory_iterator end;
@@ -67,7 +75,7 @@ void Snapshoter::get_snap_names(std::vector<std::string>& names) {
   std::sort(names.begin(), names.end(), std::greater<std::string>());
 }
 
-Status Snapshoter::load_snap(const std::string& filename, proto::Snapshot& snapshot) {
+Status Snapshotter::load_snap(const std::string& filename, proto::Snapshot& snapshot) {
   using namespace boost;
   SnapshotRecord snap_hdr;
   std::vector<char> data;
@@ -77,6 +85,7 @@ Status Snapshoter::load_snap(const std::string& filename, proto::Snapshot& snaps
   if (!fp) {
     goto invalid_snap;
   }
+
   if (fread(&snap_hdr, 1, sizeof(SnapshotRecord), fp) != sizeof(SnapshotRecord)) {
     goto invalid_snap;
   }
