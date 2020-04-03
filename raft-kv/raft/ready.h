@@ -12,7 +12,7 @@ enum RaftState {
 };
 
 // soft_state provides state that is useful for logging and debugging.
-// The state is volatile and does not need to be persisted to the WAL.
+// The state is volatile and does not need to be persisted to the wal.
 struct SoftState {
   explicit SoftState(uint64_t lead, RaftState state)
       : lead(lead), state(state) {

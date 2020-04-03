@@ -14,13 +14,29 @@ RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
       last_index_(0),
       conf_state_(new proto::ConfState()),
       snapshot_index_(0),
-      applied_index_(0) {
+      applied_index_(0),
+      storage_(new MemoryStorage()) {
   boost::split(peers_, cluster, boost::is_any_of(","));
   if (peers_.empty()) {
     LOG_FATAL("invalid args %s", cluster.c_str());
   }
 
-  storage_ = std::make_shared<MemoryStorage>();
+  std::string work_dir = "node_" + std::to_string(id);
+  snap_dir_ = work_dir + "/snap";
+  wal_dir_ = work_dir + "/wal";
+
+  if (!boost::filesystem::exists(snap_dir_)) {
+    boost::filesystem::create_directories(snap_dir_);
+  }
+
+  snapshotter_.reset(new Snapshotter(snap_dir_));
+
+  bool wal_exists = boost::filesystem::exists(wal_dir_);
+  if (!wal_exists) {
+    boost::filesystem::create_directories(wal_dir_);
+  }
+
+  replay_WAL();
 
   Config c;
   c.id = id;
@@ -43,21 +59,15 @@ RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
     LOG_FATAL("invalid configure %s", status.to_string().c_str());
   }
 
-  char work_dir[32];
-  snprintf(work_dir, sizeof(work_dir), "node_%lu", id);
-  boost::filesystem::path snap_dir = boost::filesystem::path(work_dir) / "snap";
-  if (!boost::filesystem::exists(snap_dir)) {
-    boost::filesystem::create_directories(snap_dir);
+  if (wal_exists) {
+    node_.reset(Node::restart_node(c));
+  } else {
+    std::vector<PeerContext> peers;
+    for (size_t i = 0; i < peers_.size(); ++i) {
+      peers.push_back(PeerContext{.id = i + 1});
+    }
+    node_.reset(new RawNode(c, peers));
   }
-
-  std::unique_ptr<Snapshotter> snap(new Snapshotter(snap_dir.string()));
-  snapshotter_ = std::move(snap);
-
-  std::vector<PeerContext> peers;
-  for (size_t i = 0; i < peers_.size(); ++i) {
-    peers.push_back(PeerContext{.id = i + 1});
-  }
-  node_ = std::make_shared<RawNode>(c, std::move(peers));
 }
 
 RaftNode::~RaftNode() {
@@ -150,7 +160,7 @@ void RaftNode::publish_snapshot(const proto::Snapshot& snap) {
   LOG_WARN("no impl");
 }
 
-void RaftNode::recover() {
+void RaftNode::replay_WAL() {
   proto::Snapshot snapshot;
   Status status = snapshotter_->load(snapshot);
   if (!status.is_ok()) {
@@ -160,11 +170,6 @@ void RaftNode::recover() {
       LOG_FATAL("error loading snapshot %s", status.to_string().c_str());
     }
   }
-  replay_WAL();
-}
-
-void RaftNode::replay_WAL() {
-
 }
 
 bool RaftNode::publish_entries(const std::vector<proto::EntryPtr>& entries) {
@@ -316,7 +321,6 @@ void RaftNode::main(uint64_t id, const std::string& cluster, uint16_t port) {
     g_node->transport_->add_peer(peer, g_node->peers_[i]);
   }
 
-  g_node->recover();
   g_node->schedule();
 }
 

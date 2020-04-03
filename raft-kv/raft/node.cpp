@@ -3,6 +3,14 @@
 
 namespace kv {
 
+Node* Node::start_node(const Config& conf, const std::vector<PeerContext>& peers) {
+  return new RawNode(conf, peers);
+}
+
+Node* Node::restart_node(const Config& conf) {
+  return new RawNode(conf);
+}
+
 RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers) {
   raft_ = std::make_shared<Raft>(conf);
 
@@ -53,12 +61,12 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers) {
   } else {
     prev_hard_state_ = raft_->hard_state();
   }
-
 }
 
-RawNode::~RawNode() {
-
+RawNode::RawNode(const Config& conf) {
+  raft_ = std::make_shared<Raft>(conf);
 }
+
 
 void RawNode::tick() {
   raft_->tick();

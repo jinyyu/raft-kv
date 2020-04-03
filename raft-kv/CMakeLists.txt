@@ -17,19 +17,17 @@ set(SRC
     raft/raft_status.cpp
     raft/ready.cpp
     raft/util.cpp
+    server/raft_node.cpp
+    server/redis_session.cpp
+    server/redis_store.cpp
+    snap/snapshotter.cpp
     transport/proto.h
     transport/transport.h
     transport/transport.cpp
     transport/peer.h
     transport/raft_server.cpp
     transport/peer.cpp
-    wal/WAL.cpp
-    wal/proto.cpp
-    wal/util.cpp
-    server/raft_node.cpp
-    server/redis_session.cpp
-    server/redis_store.cpp
-    snap/snapshotter.cpp)
+    wal/wal.cpp)
 add_library(raft-kv++ ${SRC})
 target_link_libraries(raft-kv++ ${LIBS})
 

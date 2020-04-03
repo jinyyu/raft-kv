@@ -387,8 +387,10 @@ Status Raft::step(proto::MessagePtr msg) {
       if (state_ != RaftState::Leader) {
         std::vector<proto::EntryPtr> entries;
         Status status =
-            raft_log_
-                ->slice(raft_log_->applied_ + 1, raft_log_->committed_ + 1, RaftLog::unlimited(), entries);
+            raft_log_->slice(raft_log_->applied_ + 1,
+                             raft_log_->committed_ + 1,
+                             RaftLog::unlimited(),
+                             entries);
         if (!status.is_ok()) {
           LOG_FATAL("unexpected error getting unapplied entries (%s)", status.to_string().c_str());
         }
@@ -1149,7 +1151,7 @@ void Raft::tick() {
   }
 }
 
-SoftStatePtr Raft::soft_state() const {
+SoftStatePtr Raft:: soft_state() const {
   return std::make_shared<SoftState>(lead_, state_);
 }
 

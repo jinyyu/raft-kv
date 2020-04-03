@@ -23,15 +23,19 @@ class Node {
   // tick increments the internal logical clock for the Node by a single tick. Election
   // timeouts and heartbeat timeouts are in units of ticks.
   virtual void tick() = 0;
+
   // campaign causes the Node to transition to candidate state and start campaigning to become leader.
   virtual Status campaign() = 0;
+
   // propose proposes that data be appended to the log. Note that proposals can be lost without
   // notice, therefore it is user's job to ensure proposal retries.
   virtual Status propose(std::vector<uint8_t> data) = 0;
+
   // propose_conf_change proposes config change.
   // At most one ConfChange can be in the process of going through consensus.
   // Application needs to call apply_conf_change when applying EntryConfChange type entry.
   virtual Status propose_conf_change(const proto::ConfChange& cc) = 0;
+
   // step advances the state machine using the given message. ctx.Err() will be returned, if any.
   virtual Status step(proto::MessagePtr msg) = 0;
 
@@ -52,6 +56,7 @@ class Node {
   // a long time to apply the snapshot data. To continue receiving ready without blocking raft
   // progress, it can call advance before finishing applying the last ready.
   virtual void advance(ReadyPtr ready) = 0;
+
   // apply_conf_change applies config change to the local node.
   // Returns an opaque ConfState protobuf which must be recorded
   // in snapshots. Will never return nil; it returns a pointer only
@@ -69,8 +74,10 @@ class Node {
 
   // raft_status returns the current status of the raft state machine.
   virtual RaftStatusPtr raft_status() = 0;
+
   // report_unreachable reports the given node is not reachable for the last send.
   virtual void report_unreachable(uint64_t id) = 0;
+
   // report_snapshot reports the status of the sent snapshot. The id is the raft ID of the follower
   // who is meant to receive the snapshot, and the status is SnapshotFinish or SnapshotFailure.
   // Calling report_snapshot with SnapshotFinish is a no-op. But, any failure in applying a
@@ -82,8 +89,19 @@ class Node {
   // failure in snapshot sending is caught and reported back to the leader; so it can resume raft
   // log probing in the follower.
   virtual void report_snapshot(uint64_t id, SnapshotStatus status) = 0;
+
   // stop performs any necessary termination of the Node.
   virtual void stop() = 0;
+
+  // start_node returns a new Node given configuration and a list of raft peers.
+  // It appends a ConfChangeAddNode entry for each given peer to the initial log.
+  static Node* start_node(const Config& conf, const std::vector<PeerContext>& peers);
+
+  // restart_node is similar to start_node but does not take a list of peers.
+  // The current membership of the cluster will be restored from the Storage.
+  // If the caller has an existing state machine, pass in the last log index that
+  // has been applied to it; otherwise use zero.
+  static Node* restart_node(const Config& conf);
 };
 
 // RawNode is a thread-unsafe Node.
@@ -92,29 +110,29 @@ class Node {
 class RawNode : public Node {
  public:
   explicit RawNode(const Config& conf, const std::vector<PeerContext>& peers);
+  explicit RawNode(const Config& conf);
 
-  ~RawNode();
+  ~RawNode() = default;
 
-  virtual void tick();
-  virtual Status campaign();
-  virtual Status propose(std::vector<uint8_t> data);
-  virtual Status propose_conf_change(const proto::ConfChange& cc);
-  virtual Status step(proto::MessagePtr msg);
-  virtual ReadyPtr ready();
-  virtual bool has_ready();
-  virtual void advance(ReadyPtr rd);
-  virtual proto::ConfStatePtr apply_conf_change(const proto::ConfChange& cc);
-  virtual void transfer_leadership(uint64_t lead, ino64_t transferee);
-  virtual Status read_index(std::vector<uint8_t> rctx);
-  virtual RaftStatusPtr raft_status();
-  virtual void report_unreachable(uint64_t id);
-  virtual void report_snapshot(uint64_t id, SnapshotStatus status);
-  virtual void stop();
+  void tick() final;
+  Status campaign() final;
+  Status propose(std::vector<uint8_t> data) final;
+  Status propose_conf_change(const proto::ConfChange& cc) final;
+  Status step(proto::MessagePtr msg) final;
+  ReadyPtr ready() final;
+  bool has_ready() final;
+  void advance(ReadyPtr rd) final;
+  proto::ConfStatePtr apply_conf_change(const proto::ConfChange& cc) final;
+  void transfer_leadership(uint64_t lead, ino64_t transferee) final;
+  Status read_index(std::vector<uint8_t> rctx) final;
+  RaftStatusPtr raft_status() final;
+  void report_unreachable(uint64_t id) final;
+  void report_snapshot(uint64_t id, SnapshotStatus status) final;
+  void stop() final;
  public:
   RaftPtr raft_;
   SoftStatePtr prev_soft_state_;
   proto::HardState prev_hard_state_;
 };
-typedef std::shared_ptr<RawNode> RawNodePtr;
 
 }
