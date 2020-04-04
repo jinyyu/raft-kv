@@ -102,9 +102,7 @@ void RaftNode::pull_ready_events() {
       return;
     }
 
-
-    //TODO
-    //rc.wal.Save(rd.HardState, rd.Entries)
+    wal_->save(rd->hard_state, rd->entries);
 
     if (!rd->snapshot.is_empty()) {
       Status status = save_snap(rd->snapshot);
@@ -138,17 +136,16 @@ Status RaftNode::save_snap(const proto::Snapshot& snap) {
   // must save the snapshot index to the WAL before saving the
   // snapshot to maintain the invariant that we only Open the
   // wal at previously-saved snapshot indexes.
-  /*
-walSnap := walpb.Snapshot{
-Index: snap.Metadata.Index,
-      Term:  snap.Metadata.Term,
-  }
-  if err := rc.wal.SaveSnapshot(walSnap); err != nil {
-      return err
-  }
-   */
-
   Status status;
+
+  WAL_Snapshot wal_snapshot;
+  wal_snapshot.index = snap.metadata.index;
+  wal_snapshot.term = snap.metadata.term;
+
+  status = wal_->save_snapshot(wal_snapshot);
+  if (!status.is_ok()) {
+    return status;
+  }
 
   status = snapshotter_->save_snap(snap);
   if (!status.is_ok()) {
@@ -197,8 +194,20 @@ void RaftNode::publish_snapshot(const proto::Snapshot& snap) {
 
 }
 
-void RaftNode::open_WAL() {
+void RaftNode::open_WAL(const proto::Snapshot& snap) {
+  if (!boost::filesystem::exists(wal_dir_)) {
+    boost::filesystem::create_directories(wal_dir_);
+    wal_ = WAL::create(wal_dir_);
+    wal_ = nullptr;
+  }
 
+  WAL_Snapshot walsnap;
+  walsnap.index = snap.metadata.index;
+  walsnap.term = snap.metadata.term;
+
+  LOG_INFO("loading WAL at term %lu and index %lu", walsnap.term, walsnap.index);
+
+  wal_ = WAL::open(wal_dir_, walsnap);
 }
 
 void RaftNode::replay_WAL() {
@@ -216,13 +225,12 @@ void RaftNode::replay_WAL() {
     storage_->apply_snapshot(snapshot);
   }
 
-  open_WAL();
+  open_WAL(snapshot);
   assert(wal_ != nullptr);
 
-  std::vector<uint8_t> metadata;
   proto::HardState hs;
   std::vector<proto::EntryPtr> ents;
-  status = wal_->read_all(metadata, hs, ents);
+  status = wal_->read_all(hs, ents);
   if (!status.is_ok()) {
     LOG_FATAL("failed to read WAL %s", status.to_string().c_str());
   }

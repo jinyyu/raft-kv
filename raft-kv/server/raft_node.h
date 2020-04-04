@@ -44,7 +44,7 @@ class RaftNode : public RaftServer {
   // replay_WAL replays WAL entries into the raft instance.
   void replay_WAL();
   // open_WAL opens a WAL ready for reading.
-  void open_WAL();
+  void open_WAL(const proto::Snapshot& snap);
 
   void schedule();
 
@@ -70,7 +70,7 @@ class RaftNode : public RaftServer {
   std::unique_ptr<Snapshotter> snapshotter_;
 
   std::string wal_dir_;
-  std::unique_ptr<WAL> wal_;
+  WAL_ptr wal_;
 };
 typedef std::shared_ptr<RaftNode> RaftNodePtr;
 
