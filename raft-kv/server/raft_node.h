@@ -11,8 +11,6 @@
 
 namespace kv {
 
-typedef std::function<void(const Status&)> StatusCallback;
-
 class RaftNode : public RaftServer {
  public:
   static void main(uint64_t id, const std::string& cluster, uint16_t port);
@@ -40,11 +38,14 @@ class RaftNode : public RaftServer {
  private:
   void start_timer();
   void pull_ready_events();
-  void save_snap(const proto::Snapshot& snap);
+  Status save_snap(const proto::Snapshot& snap);
   void publish_snapshot(const proto::Snapshot& snap);
 
   // replay_WAL replays WAL entries into the raft instance.
   void replay_WAL();
+  // open_WAL opens a WAL ready for reading.
+  void open_WAL();
+
   void schedule();
 
   uint16_t port_;
@@ -62,8 +63,12 @@ class RaftNode : public RaftServer {
   std::unique_ptr<Node> node_;
   TransporterPtr transport_;
   std::shared_ptr<RedisStore> redis_server_;
+
+  std::vector<uint8_t> snap_data_;
   std::string snap_dir_;
+  uint64_t snap_count_;
   std::unique_ptr<Snapshotter> snapshotter_;
+
   std::string wal_dir_;
   std::unique_ptr<WAL> wal_;
 };

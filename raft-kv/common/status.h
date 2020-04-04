@@ -3,7 +3,7 @@
 
 namespace kv {
 
-class Status {
+class  Status {
  public:
   // Create a success status.
   Status()

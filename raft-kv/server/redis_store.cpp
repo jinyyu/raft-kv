@@ -127,9 +127,21 @@ int string_match_len(const char* pattern, int patternLen,
   return 0;
 }
 
-RedisStore::RedisStore(RaftNode* server, uint16_t port)
+RedisStore::RedisStore(RaftNode* server, std::vector<uint8_t> snap, uint16_t port)
     : server_(server),
       acceptor_(io_service_) {
+
+  if (!snap.empty()) {
+    std::unordered_map<std::string, std::string> kv;
+    msgpack::object_handle oh = msgpack::unpack((const char*) snap.data(), snap.size());
+    try {
+      oh.get().convert(kv);
+    } catch (std::exception& e) {
+      LOG_WARN("invalid snapshot");
+    }
+    std::swap(kv, key_values_);
+  }
+
   auto address = boost::asio::ip::address::from_string("0.0.0.0");
   auto endpoint = boost::asio::ip::tcp::endpoint(address, port);
 
@@ -148,15 +160,14 @@ RedisStore::~RedisStore() {
 void RedisStore::start(std::promise<pthread_t>& promise) {
   start_accept();
 
-  auto self = shared_from_this();
-  worker_ = std::thread([self, &promise]() {
+  worker_ = std::thread([this, &promise]() {
     promise.set_value(pthread_self());
-    self->io_service_.run();
+    this->io_service_.run();
   });
 }
 
 void RedisStore::start_accept() {
-  RedisSessionPtr session(new RedisSession(shared_from_this(), io_service_));
+  RedisSessionPtr session(new RedisSession(this, io_service_));
 
   acceptor_.async_accept(session->socket_, [this, session](const boost::system::error_code& error) {
     if (error) {
@@ -168,7 +179,7 @@ void RedisStore::start_accept() {
   });
 }
 
-void RedisStore::set(std::string key, std::string value, const std::function<void(const Status&)>& callback) {
+void RedisStore::set(std::string key, std::string value, const StatusCallback& callback) {
   RaftCommit commit;
   commit.type = RaftCommit::kCommitSet;
   commit.strs.push_back(std::move(key));
@@ -177,15 +188,14 @@ void RedisStore::set(std::string key, std::string value, const std::function<voi
   msgpack::pack(sbuf, commit);
   std::shared_ptr<std::vector<uint8_t>> data(new std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size()));
 
-  auto on_propose = [this, callback](const Status& status) {
+  server_->propose(std::move(data), [this, callback](const Status& status) {
     io_service_.post([callback, status]() {
       callback(status);
     });
-  };
-  server_->propose(std::move(data), std::move(on_propose));
+  });
 }
 
-void RedisStore::del(std::vector<std::string> keys, const std::function<void(const Status&)>& callback) {
+void RedisStore::del(std::vector<std::string> keys, const StatusCallback& callback) {
   RaftCommit commit;
   commit.type = RaftCommit::kCommitDel;
   commit.strs = std::move(keys);
@@ -193,13 +203,35 @@ void RedisStore::del(std::vector<std::string> keys, const std::function<void(con
   msgpack::pack(sbuf, commit);
   std::shared_ptr<std::vector<uint8_t>> data(new std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size()));
 
-  auto on_propose = [this, callback](const Status& status) {
+  server_->propose(std::move(data), [this, callback](const Status& status) {
     io_service_.post([callback, status]() {
       callback(status);
     });
-  };
-  server_->propose(std::move(data), std::move(on_propose));
+  });
+}
 
+void RedisStore::get_snapshot(const GetSnapshotCallback& callback) {
+  io_service_.post([this, callback] {
+    msgpack::sbuffer sbuf;
+    msgpack::pack(sbuf, this->key_values_);
+    SnapshotDataPtr data(new std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size()));
+    callback(data);
+  });
+}
+
+void RedisStore::recover_from_snapshot(SnapshotDataPtr snap, const StatusCallback& callback) {
+  io_service_.post([this, snap, callback] {
+    std::unordered_map<std::string, std::string> kv;
+    msgpack::object_handle oh = msgpack::unpack((const char*) snap->data(), snap->size());
+    try {
+      oh.get().convert(kv);
+    } catch (std::exception& e) {
+      callback(Status::io_error("invalid snapshot"));
+      return;
+    }
+    std::swap(kv, key_values_);
+    callback(Status::ok());
+  });
 }
 
 void RedisStore::keys(const char* pattern, int len, std::vector<std::string>& keys) {

@@ -6,6 +6,9 @@
 
 namespace kv {
 
+static uint64_t defaultSnapCount = 10;
+static uint64_t snapshotCatchUpEntriesN = 20;
+
 RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),
       pthread_id_(0),
@@ -15,7 +18,8 @@ RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
       conf_state_(new proto::ConfState()),
       snapshot_index_(0),
       applied_index_(0),
-      storage_(new MemoryStorage()) {
+      storage_(new MemoryStorage()),
+      snap_count_(defaultSnapCount) {
   boost::split(peers_, cluster, boost::is_any_of(","));
   if (peers_.empty()) {
     LOG_FATAL("invalid args %s", cluster.c_str());
@@ -32,9 +36,6 @@ RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
   snapshotter_.reset(new Snapshotter(snap_dir_));
 
   bool wal_exists = boost::filesystem::exists(wal_dir_);
-  if (!wal_exists) {
-    boost::filesystem::create_directories(wal_dir_);
-  }
 
   replay_WAL();
 
@@ -66,7 +67,7 @@ RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
     for (size_t i = 0; i < peers_.size(); ++i) {
       peers.push_back(PeerContext{.id = i + 1});
     }
-    node_.reset(new RawNode(c, peers));
+    node_.reset(Node::start_node(c, peers));
   }
 }
 
@@ -106,7 +107,10 @@ void RaftNode::pull_ready_events() {
     //rc.wal.Save(rd.HardState, rd.Entries)
 
     if (!rd->snapshot.is_empty()) {
-      save_snap(rd->snapshot);
+      Status status = save_snap(rd->snapshot);
+      if (!status.is_ok()) {
+        LOG_FATAL("save snapshot error %s", status.to_string().c_str());
+      }
       storage_->apply_snapshot(rd->snapshot);
       publish_snapshot(rd->snapshot);
     }
@@ -130,7 +134,7 @@ void RaftNode::pull_ready_events() {
   }
 }
 
-void RaftNode::save_snap(const proto::Snapshot& snap) {
+Status RaftNode::save_snap(const proto::Snapshot& snap) {
   // must save the snapshot index to the WAL before saving the
   // snapshot to maintain the invariant that we only Open the
   // wal at previously-saved snapshot indexes.
@@ -150,6 +154,7 @@ Index: snap.Metadata.Index,
   if (!status.is_ok()) {
     LOG_FATAL("save snapshot error %s", status.to_string().c_str());
   }
+  return status;
 
   /*/
   return rc.wal.ReleaseLockTo(snap.Metadata.Index)
@@ -157,10 +162,48 @@ Index: snap.Metadata.Index,
 }
 
 void RaftNode::publish_snapshot(const proto::Snapshot& snap) {
-  LOG_WARN("no impl");
+  if (snap.is_empty()) {
+    return;
+  }
+
+  LOG_DEBUG("publishing snapshot at index %lu", snapshot_index_);
+
+  if (snap.metadata.index <= applied_index_) {
+    LOG_FATAL("snapshot index [%lu] should > progress.appliedIndex [%lu] + 1", snap.metadata.index, applied_index_);
+  }
+
+  //trigger to load snapshot
+  proto::SnapshotPtr snapshot(new proto::Snapshot());
+  snapshot->metadata = snap.metadata;
+  SnapshotDataPtr data(new std::vector<uint8_t>(snap.data));
+
+  redis_server_->recover_from_snapshot(data, [snapshot, this](const Status& status) {
+    //由redis线程回调
+    if (!status.is_ok()) {
+      LOG_FATAL("recover from snapshot error %s", status.to_string().c_str());
+    }
+
+    io_service_.post([this, snapshot] {
+      // 转到io线程执行
+
+      *(this->conf_state_) = snapshot->metadata.conf_state;
+      snapshot_index_ = snapshot->metadata.index;
+      applied_index_ = snapshot->metadata.index;
+      LOG_DEBUG("finished publishing snapshot at index %lu", snapshot_index_);
+
+    });
+
+  });
+
+}
+
+void RaftNode::open_WAL() {
+
 }
 
 void RaftNode::replay_WAL() {
+  LOG_DEBUG("replaying WAL of member %lu", id_);
+
   proto::Snapshot snapshot;
   Status status = snapshotter_->load(snapshot);
   if (!status.is_ok()) {
@@ -169,6 +212,31 @@ void RaftNode::replay_WAL() {
     } else {
       LOG_FATAL("error loading snapshot %s", status.to_string().c_str());
     }
+  } else {
+    storage_->apply_snapshot(snapshot);
+  }
+
+  open_WAL();
+  assert(wal_ != nullptr);
+
+  std::vector<uint8_t> metadata;
+  proto::HardState hs;
+  std::vector<proto::EntryPtr> ents;
+  status = wal_->read_all(metadata, hs, ents);
+  if (!status.is_ok()) {
+    LOG_FATAL("failed to read WAL %s", status.to_string().c_str());
+  }
+
+  storage_->set_hard_state(hs);
+
+  // append to storage so raft starts at the right place in log
+  storage_->append(ents);
+
+  // send nil once lastIndex is published so client knows commit channel is current
+  if (!ents.empty()) {
+    last_index_ = ents.back()->index;
+  } else {
+    snap_data_ = std::move(snapshot.data);
   }
 }
 
@@ -191,7 +259,7 @@ bool RaftNode::publish_entries(const std::vector<proto::EntryPtr>& entries) {
           oh.get().convert(cc);
         }
         catch (std::exception& e) {
-          LOG_ERROR("confert error %s", e.what());
+          LOG_ERROR("invalid EntryConfChange msg %s", e.what());
           continue;
         }
         conf_state_ = node_->apply_conf_change(cc);
@@ -247,11 +315,59 @@ void RaftNode::entries_to_apply(const std::vector<proto::EntryPtr>& entries, std
 }
 
 void RaftNode::maybe_trigger_snapshot() {
-  LOG_WARN("not impl yet");
+  if (applied_index_ - snapshot_index_ <= snap_count_) {
+    return;
+  }
+
+  LOG_DEBUG("start snapshot [applied index: %lu | last snapshot index: %lu]", applied_index_, snapshot_index_);
+
+  auto get_cb = [this](const SnapshotDataPtr& data) {
+    //由redis线程回调
+
+    io_service_.post([this, data] {
+      // 转到io线程执行
+
+      proto::SnapshotPtr snap;
+      Status status = storage_->create_snapshot(applied_index_, conf_state_, *data, snap);
+      if (!status.is_ok()) {
+        LOG_FATAL("create snapshot error %s", status.to_string().c_str());
+      }
+
+      status = save_snap(*snap);
+      if (!status.is_ok()) {
+        LOG_FATAL("save snapshot error %s", status.to_string().c_str());
+      }
+
+      uint64_t compactIndex = 1;
+      if (applied_index_ > snapshotCatchUpEntriesN) {
+        compactIndex = applied_index_ - snapshotCatchUpEntriesN;
+      }
+      status = storage_->compact(compactIndex);
+      if (!status.is_ok()) {
+        LOG_FATAL("compact error %s", status.to_string().c_str());
+      }
+      LOG_INFO("compacted log at index %lu", compactIndex);
+      snapshot_index_ = applied_index_;
+    });
+
+  };
+  redis_server_->get_snapshot(std::move(get_cb));
 }
 
 void RaftNode::schedule() {
-  redis_server_ = std::make_shared<RedisStore>(this, port_);
+  pthread_id_ = pthread_self();
+
+  proto::SnapshotPtr snap;
+  Status status = storage_->snapshot(snap);
+  if (!status.is_ok()) {
+    LOG_FATAL("get snapshot failed %s", status.to_string().c_str());
+  }
+
+  *conf_state_ = snap->metadata.conf_state;
+  snapshot_index_ = snap->metadata.index;
+  applied_index_ = snap->metadata.index;
+
+  redis_server_ = std::make_shared<RedisStore>(this, std::move(snap_data_), port_);
   std::promise<pthread_t> promise;
   std::future<pthread_t> future = promise.get_future();
   redis_server_->start(promise);
@@ -259,27 +375,36 @@ void RaftNode::schedule() {
   pthread_t id = future.get();
   LOG_DEBUG("server start [%lu]", id);
 
-  pthread_id_ = pthread_self();
-
   start_timer();
-  pthread_id_ = pthread_self();
   io_service_.run();
 }
 
 void RaftNode::propose(std::shared_ptr<std::vector<uint8_t>> data, const StatusCallback& callback) {
-  io_service_.post([this, data, callback]() {
+  if (pthread_id_ != pthread_self()) {
+    io_service_.post([this, data, callback]() {
+      Status status = node_->propose(std::move(*data));
+      callback(status);
+      pull_ready_events();
+    });
+  } else {
     Status status = node_->propose(std::move(*data));
     callback(status);
     pull_ready_events();
-  });
+  }
 }
 
 void RaftNode::process(proto::MessagePtr msg, const StatusCallback& callback) {
-  io_service_.post([this, msg, callback]() {
+  if (pthread_id_ != pthread_self()) {
+    io_service_.post([this, msg, callback]() {
+      Status status = this->node_->step(msg);
+      callback(status);
+      pull_ready_events();
+    });
+  } else {
     Status status = this->node_->step(msg);
     callback(status);
     pull_ready_events();
-  });
+  }
 }
 
 void RaftNode::is_id_removed(uint64_t id, const std::function<void(bool)>& callback) {

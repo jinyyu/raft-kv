@@ -64,7 +64,22 @@ RawNode::RawNode(const Config& conf, const std::vector<PeerContext>& peers) {
 }
 
 RawNode::RawNode(const Config& conf) {
+
+  uint64_t last_index = 0;
+  Status status = conf.storage->last_index(last_index);
+  if (!status.is_ok()) {
+    LOG_FATAL("%s", status.to_string().c_str());
+  }
+
   raft_ = std::make_shared<Raft>(conf);
+
+  // Set the initial hard and soft states after performing all initialization.
+  prev_soft_state_ = raft_->soft_state();
+  if (last_index == 0) {
+    prev_hard_state_ = proto::HardState();
+  } else {
+    prev_hard_state_ = raft_->hard_state();
+  }
 }
 
 
@@ -134,10 +149,7 @@ bool RawNode::has_ready() {
     return true;
   }
 
-  if (!raft_->read_states_.empty()) {
-    return true;
-  }
-  return false;
+  return !raft_->read_states_.empty();
 }
 
 void RawNode::advance(ReadyPtr rd) {

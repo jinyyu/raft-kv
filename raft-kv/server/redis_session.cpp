@@ -53,9 +53,9 @@ static void build_redis_string_array_reply(const std::vector<std::string>& strs,
   }
 }
 
-RedisSession::RedisSession(std::weak_ptr<RedisStore> server, boost::asio::io_service& io_service)
+RedisSession::RedisSession(RedisStore* server, boost::asio::io_service& io_service)
     : quit_(false),
-      server_(std::move(server)),
+      server_(server),
       socket_(io_service),
       read_buffer_(RECEIVE_BUFFER_SIZE),
       reader_(redisReaderCreate()) {
@@ -215,7 +215,7 @@ void RedisSession::get_command(std::shared_ptr<RedisSession> self, struct redisR
 
   std::string value;
   std::string key(reply->element[1]->str, reply->element[1]->len);
-  bool get = self->server_.lock()->get(key, value);
+  bool get = self->server_->get(key, value);
   if (!get) {
     self->send_reply(shared::null, strlen(shared::null));
   } else {
@@ -244,7 +244,7 @@ void RedisSession::set_command(std::shared_ptr<RedisSession> self, struct redisR
   }
   std::string key(reply->element[1]->str, reply->element[1]->len);
   std::string value(reply->element[2]->str, reply->element[2]->len);
-  self->server_.lock()->set(std::move(key), std::move(value), [self](const Status& status) {
+  self->server_->set(std::move(key), std::move(value), [self](const Status& status) {
     if (status.is_ok()) {
       self->send_reply(shared::ok, strlen(shared::ok));
     } else {
@@ -277,7 +277,7 @@ void RedisSession::del_command(std::shared_ptr<RedisSession> self, struct redisR
     keys.emplace_back(element->str, element->len);
   }
 
-  self->server_.lock()->del(std::move(keys), [self](const Status& status) {
+  self->server_->del(std::move(keys), [self](const Status& status) {
     if (status.is_ok()) {
       self->send_reply(shared::ok, strlen(shared::ok));
     } else {
@@ -307,11 +307,10 @@ void RedisSession::keys_command(std::shared_ptr<RedisSession> self, struct redis
   }
 
   std::vector<std::string> keys;
-  self->server_.lock()->keys(element->str, element->len, keys);
+  self->server_->keys(element->str, element->len, keys);
   std::string str;
   build_redis_string_array_reply(keys, str);
   self->send_reply(str.data(), str.size());
-  return;
 }
 
 }

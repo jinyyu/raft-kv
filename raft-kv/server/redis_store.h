@@ -22,10 +22,14 @@ struct RaftCommit {
   MSGPACK_DEFINE (type, strs);
 };
 
+typedef std::function<void(const Status&)> StatusCallback;
+typedef std::shared_ptr<std::vector<uint8_t>> SnapshotDataPtr;
+typedef std::function<void(SnapshotDataPtr)> GetSnapshotCallback;
+
 class RaftNode;
-class RedisStore : public std::enable_shared_from_this<RedisStore> {
+class RedisStore {
  public:
-  explicit RedisStore(RaftNode* server, uint16_t port);
+  explicit RedisStore(RaftNode* server, std::vector<uint8_t> snap, uint16_t port);
 
   ~RedisStore();
 
@@ -48,9 +52,13 @@ class RedisStore : public std::enable_shared_from_this<RedisStore> {
     }
   }
 
-  void set(std::string key, std::string value, const std::function<void(const Status&)>& callback);
+  void set(std::string key, std::string value, const StatusCallback& callback);
 
-  void del(std::vector<std::string> keys, const std::function<void(const Status&)>& callback);
+  void del(std::vector<std::string> keys, const StatusCallback& callback);
+
+  void get_snapshot(const GetSnapshotCallback& callback);
+
+  void recover_from_snapshot(SnapshotDataPtr snap, const StatusCallback& callback);
 
   void keys(const char* pattern, int len, std::vector<std::string>& keys);
 
