@@ -204,7 +204,6 @@ void RaftNode::open_WAL(const proto::Snapshot& snap) {
   WAL_Snapshot walsnap;
   walsnap.index = snap.metadata.index;
   walsnap.term = snap.metadata.term;
-
   LOG_INFO("loading WAL at term %lu and index %lu", walsnap.term, walsnap.index);
 
   wal_ = WAL::open(wal_dir_, walsnap);

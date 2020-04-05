@@ -53,3 +53,7 @@ gtest_add_tests(TARGET raft_snap_test)
 add_executable(test_snapshotter test_snapshotter.cpp)
 target_link_libraries(test_snapshotter ${LIBS})
 gtest_add_tests(TARGET test_snapshotter)
+
+add_executable(test_wal test_wal.cpp)
+target_link_libraries(test_wal ${LIBS})
+gtest_add_tests(TARGET test_wal)
