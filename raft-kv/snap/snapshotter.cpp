@@ -3,6 +3,7 @@
 #include <raft-kv/common/log.h>
 #include <msgpack.hpp>
 #include <raft-kv/raft/util.h>
+#include <inttypes.h>
 
 namespace kv {
 
@@ -26,6 +27,12 @@ Status Snapshotter::load(proto::Snapshot& snapshot) {
   return Status::not_found("snap not found");
 }
 
+std::string Snapshotter::snap_name(uint64_t term, uint64_t index) {
+  char buffer[64];
+  snprintf(buffer, sizeof(buffer), "%016" PRIx64 "-%016" PRIx64 ".snap", term, index);
+  return buffer;
+}
+
 Status Snapshotter::save_snap(const proto::Snapshot& snapshot) {
   Status status;
   msgpack::sbuffer sbuf;
@@ -39,10 +46,9 @@ Status Snapshotter::save_snap(const proto::Snapshot& snapshot) {
   char save_path[128];
   snprintf(save_path,
            sizeof(save_path),
-           "%s/0x%016lu-%016lu.snap",
+           "%s/%s",
            dir_.c_str(),
-           snapshot.metadata.term,
-           snapshot.metadata.index);
+           snap_name(snapshot.metadata.term, snapshot.metadata.index).c_str());
 
   FILE* fp = fopen(save_path, "w");
   if (!fp) {

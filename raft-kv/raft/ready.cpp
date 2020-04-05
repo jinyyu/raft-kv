@@ -1,18 +1,8 @@
 #include <raft-kv/raft/ready.h>
 #include <raft-kv/raft/raft.h>
+#include <raft-kv/raft/util.h>
 
 namespace kv {
-
-// must_sync returns true if the hard state and count of Raft entries indicate
-// that a synchronous write to persistent storage is required.
-static bool is_must_sync(const proto::HardState& st, const proto::HardState& prevst, size_t entsnum) {
-  // Persistent state on all servers:
-  // (Updated on stable storage before responding to RPCs)
-  // currentTerm
-  // votedFor
-  // log entries[]
-  return entsnum != 0 || st.vote != prevst.vote || st.vote != prevst.vote;
-}
 
 Ready::Ready(std::shared_ptr<Raft> raft, SoftStatePtr pre_soft_state, const proto::HardState& pre_hard_state)
     : entries(raft->raft_log_->unstable_entries()) {

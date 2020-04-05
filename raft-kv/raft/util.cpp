@@ -44,5 +44,17 @@ uint32_t compute_crc32(const char* data, size_t len) {
   return crc32();
 }
 
+// must_sync returns true if the hard state and count of Raft entries indicate
+// that a synchronous write to persistent storage is required.
+bool is_must_sync(const proto::HardState& st, const proto::HardState& prevst, size_t entsnum) {
+  // Persistent state on all servers:
+  // (Updated on stable storage before responding to RPCs)
+  // currentTerm
+  // votedFor
+  // log entries[]
+  return entsnum != 0 || st.vote != prevst.vote || st.term != prevst.term;
+}
+
+
 }
 

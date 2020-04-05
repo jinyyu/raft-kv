@@ -153,9 +153,7 @@ Status RaftNode::save_snap(const proto::Snapshot& snap) {
   }
   return status;
 
-  /*/
-  return rc.wal.ReleaseLockTo(snap.Metadata.Index)
-   */
+  return wal_->release_to(snap.metadata.index);
 }
 
 void RaftNode::publish_snapshot(const proto::Snapshot& snap) {
@@ -197,8 +195,7 @@ void RaftNode::publish_snapshot(const proto::Snapshot& snap) {
 void RaftNode::open_WAL(const proto::Snapshot& snap) {
   if (!boost::filesystem::exists(wal_dir_)) {
     boost::filesystem::create_directories(wal_dir_);
-    wal_ = WAL::create(wal_dir_);
-    wal_ = nullptr;
+    WAL::create(wal_dir_);
   }
 
   WAL_Snapshot walsnap;

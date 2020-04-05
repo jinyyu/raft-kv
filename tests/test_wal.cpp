@@ -83,8 +83,6 @@ TEST(wal, SearchIndex) {
     bool ok = WAL::search_index(test.names, test.index, &i);
     ASSERT_EQ(ok, test.wok);
     ASSERT_EQ(i, test.widx);
-
-
   }
 }
 

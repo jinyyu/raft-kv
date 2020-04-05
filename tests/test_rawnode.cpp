@@ -52,7 +52,6 @@ TEST(test_rawnode, RawNodeProposeAndConfChange) {
   rawNode.advance(rd);
 
   auto d = rawNode.ready();
-  ASSERT_TRUE(!d->must_sync);
   ASSERT_TRUE(d->hard_state.is_empty_state());
   ASSERT_TRUE(d->entries.empty());
 
@@ -324,6 +323,7 @@ TEST(test_rawnode, RawNodeRestart) {
 
   ReadyPtr want(new Ready());
   want->committed_entries.push_back(entries[0]);
+  want->must_sync = true;
 
   MemoryStoragePtr storage(new MemoryStorage());
   storage->set_hard_state(st);
@@ -361,6 +361,7 @@ TEST(test_rawnode, RawNodeRestartFromSnapshot) {
 
   ReadyPtr want(new Ready());
   want->committed_entries = entries;
+  want->must_sync = true;
 
   MemoryStoragePtr storage(new MemoryStorage());
   storage->set_hard_state(st);

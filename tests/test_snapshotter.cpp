@@ -51,7 +51,7 @@ TEST(snap, Failback) {
   boost::filesystem::create_directories(dir);
 
   char tmp[256];
-  snprintf(tmp, sizeof(tmp), "%s/0x%016d-%016d.snap", dir.c_str(), 0xFFFF, 0xFFFF);
+  snprintf(tmp, sizeof(tmp), "%s/%s", dir.c_str(), Snapshotter::snap_name(0xFFFF, 0xFFFF).c_str());
   FILE* fp = fopen(tmp, "w");
   fwrite("somedata", 1, 5, fp);
   fclose(fp);

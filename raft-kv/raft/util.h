@@ -12,4 +12,6 @@ bool is_local_msg(proto::MessageType type);
 
 uint32_t compute_crc32(const char* data, size_t len);
 
+bool is_must_sync(const proto::HardState& st, const proto::HardState& prevst, size_t entsnum);
+
 }

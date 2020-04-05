@@ -18,6 +18,8 @@ class Snapshotter {
 
   Status save_snap(const proto::Snapshot& snapshot);
 
+  static std::string snap_name(uint64_t term, uint64_t index);
+
  private:
   void get_snap_names(std::vector<std::string>& names);
 
