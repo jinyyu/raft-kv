@@ -6,8 +6,8 @@
 
 namespace kv {
 
-static uint64_t defaultSnapCount = 10;
-static uint64_t snapshotCatchUpEntriesN = 20;
+static uint64_t defaultSnapCount = 50000;
+static uint64_t snapshotCatchUpEntriesN = 50000;
 
 RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),
@@ -172,22 +172,17 @@ void RaftNode::publish_snapshot(const proto::Snapshot& snap) {
   snapshot->metadata = snap.metadata;
   SnapshotDataPtr data(new std::vector<uint8_t>(snap.data));
 
+  *(this->conf_state_) = snapshot->metadata.conf_state;
+  snapshot_index_ = snapshot->metadata.index;
+  applied_index_ = snapshot->metadata.index;
+
   redis_server_->recover_from_snapshot(data, [snapshot, this](const Status& status) {
     //由redis线程回调
     if (!status.is_ok()) {
       LOG_FATAL("recover from snapshot error %s", status.to_string().c_str());
     }
 
-    io_service_.post([this, snapshot] {
-      // 转到io线程执行
-
-      *(this->conf_state_) = snapshot->metadata.conf_state;
-      snapshot_index_ = snapshot->metadata.index;
-      applied_index_ = snapshot->metadata.index;
-      LOG_DEBUG("finished publishing snapshot at index %lu", snapshot_index_);
-
-    });
-
+    LOG_DEBUG("finished publishing snapshot at index %lu", snapshot_index_);
   });
 
 }
@@ -323,39 +318,41 @@ void RaftNode::maybe_trigger_snapshot() {
     return;
   }
 
-  LOG_DEBUG("start snapshot [applied index: %lu | last snapshot index: %lu]", applied_index_, snapshot_index_);
+  LOG_DEBUG("start snapshot [applied index: %lu | last snapshot index: %lu], snapshot count[%lu]",
+            applied_index_,
+            snapshot_index_,
+            snap_count_);
 
-  auto get_cb = [this](const SnapshotDataPtr& data) {
-    //由redis线程回调
+  std::promise<SnapshotDataPtr> promise;
+  std::future<SnapshotDataPtr> future = promise.get_future();
+  redis_server_->get_snapshot(std::move([&promise](const SnapshotDataPtr& data) {
+    promise.set_value(data);
+  }));
 
-    io_service_.post([this, data] {
-      // 转到io线程执行
+  future.wait();
+  SnapshotDataPtr snapshot_data = future.get();
 
-      proto::SnapshotPtr snap;
-      Status status = storage_->create_snapshot(applied_index_, conf_state_, *data, snap);
-      if (!status.is_ok()) {
-        LOG_FATAL("create snapshot error %s", status.to_string().c_str());
-      }
+  proto::SnapshotPtr snap;
+  Status status = storage_->create_snapshot(applied_index_, conf_state_, *snapshot_data, snap);
+  if (!status.is_ok()) {
+    LOG_FATAL("create snapshot error %s", status.to_string().c_str());
+  }
 
-      status = save_snap(*snap);
-      if (!status.is_ok()) {
-        LOG_FATAL("save snapshot error %s", status.to_string().c_str());
-      }
+  status = save_snap(*snap);
+  if (!status.is_ok()) {
+    LOG_FATAL("save snapshot error %s", status.to_string().c_str());
+  }
 
-      uint64_t compactIndex = 1;
-      if (applied_index_ > snapshotCatchUpEntriesN) {
-        compactIndex = applied_index_ - snapshotCatchUpEntriesN;
-      }
-      status = storage_->compact(compactIndex);
-      if (!status.is_ok()) {
-        LOG_FATAL("compact error %s", status.to_string().c_str());
-      }
-      LOG_INFO("compacted log at index %lu", compactIndex);
-      snapshot_index_ = applied_index_;
-    });
-
-  };
-  redis_server_->get_snapshot(std::move(get_cb));
+  uint64_t compactIndex = 1;
+  if (applied_index_ > snapshotCatchUpEntriesN) {
+    compactIndex = applied_index_ - snapshotCatchUpEntriesN;
+  }
+  status = storage_->compact(compactIndex);
+  if (!status.is_ok()) {
+    LOG_FATAL("compact error %s", status.to_string().c_str());
+  }
+  LOG_INFO("compacted log at index %lu", compactIndex);
+  snapshot_index_ = applied_index_;
 }
 
 void RaftNode::schedule() {

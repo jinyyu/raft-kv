@@ -103,11 +103,6 @@ class PeerImpl : public Peer {
   };
 
   void send(proto::MessagePtr msg) final {
-    if (msg->type == proto::MsgSnap) {
-      LOG_DEBUG("send snap not impl yet");
-      return;
-    }
-
     msgpack::sbuffer sbuf;
     msgpack::pack(sbuf, *msg);
 
