@@ -6,8 +6,8 @@
 
 namespace kv {
 
-static uint64_t defaultSnapCount = 50000;
-static uint64_t snapshotCatchUpEntriesN = 50000;
+static uint64_t defaultSnapCount = 100000;
+static uint64_t snapshotCatchUpEntriesN = 100000;
 
 RaftNode::RaftNode(uint64_t id, const std::string& cluster, uint16_t port)
     : port_(port),

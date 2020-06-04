@@ -12,14 +12,23 @@ namespace kv {
 int string_match_len(const char* pattern, int patternLen,
                      const char* string, int stringLen, int nocase);
 
-struct RaftCommit {
+struct RedisCommitData {
   static const uint8_t kCommitSet = 0;
   static const uint8_t kCommitDel = 1;
-  RaftCommit() {}
 
   uint8_t type;
   std::vector<std::string> strs;
   MSGPACK_DEFINE (type, strs);
+};
+
+struct RaftCommit {
+
+  RaftCommit() {}
+
+  uint32_t node_id;
+  uint32_t commit_id;
+  RedisCommitData redis_data;
+  MSGPACK_DEFINE (node_id, commit_id, redis_data);
 };
 
 typedef std::function<void(const Status&)> StatusCallback;
@@ -72,6 +81,8 @@ class RedisStore {
   boost::asio::ip::tcp::acceptor acceptor_;
   std::thread worker_;
   std::unordered_map<std::string, std::string> key_values_;
+  uint32_t next_request_id_;
+  std::unordered_map<uint32_t, StatusCallback> pending_requests_;
 };
 
 }

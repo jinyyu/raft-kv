@@ -129,7 +129,8 @@ int string_match_len(const char* pattern, int patternLen,
 
 RedisStore::RedisStore(RaftNode* server, std::vector<uint8_t> snap, uint16_t port)
     : server_(server),
-      acceptor_(io_service_) {
+      acceptor_(io_service_),
+      next_request_id_(0) {
 
   if (!snap.empty()) {
     std::unordered_map<std::string, std::string> kv;
@@ -180,32 +181,58 @@ void RedisStore::start_accept() {
 }
 
 void RedisStore::set(std::string key, std::string value, const StatusCallback& callback) {
+  uint32_t commit_id = next_request_id_++;
+
   RaftCommit commit;
-  commit.type = RaftCommit::kCommitSet;
-  commit.strs.push_back(std::move(key));
-  commit.strs.push_back(std::move(value));
+  commit.node_id = static_cast<uint32_t>(server_->node_id());
+  commit.commit_id = commit_id;
+  commit.redis_data.type = RedisCommitData::kCommitSet;
+  commit.redis_data.strs.push_back(std::move(key));
+  commit.redis_data.strs.push_back(std::move(value));
+
   msgpack::sbuffer sbuf;
   msgpack::pack(sbuf, commit);
   std::shared_ptr<std::vector<uint8_t>> data(new std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size()));
 
-  server_->propose(std::move(data), [this, callback](const Status& status) {
-    io_service_.post([callback, status]() {
-      callback(status);
+  pending_requests_[commit_id] = callback;
+
+  server_->propose(std::move(data), [this, commit_id](const Status& status) {
+    io_service_.post([this, status, commit_id]() {
+      if (status.is_ok()) {
+        return;
+      }
+
+      auto it = pending_requests_.find(commit_id);
+      if (it != pending_requests_.end()) {
+        it->second(status);
+        pending_requests_.erase(it);
+      }
     });
   });
 }
 
 void RedisStore::del(std::vector<std::string> keys, const StatusCallback& callback) {
+  uint32_t commit_id = next_request_id_++;
+
   RaftCommit commit;
-  commit.type = RaftCommit::kCommitDel;
-  commit.strs = std::move(keys);
+  commit.node_id = static_cast<uint32_t>(server_->node_id());
+  commit.commit_id = commit_id;
+  commit.redis_data.type = RedisCommitData::kCommitDel;
+  commit.redis_data.strs = std::move(keys);
   msgpack::sbuffer sbuf;
   msgpack::pack(sbuf, commit);
   std::shared_ptr<std::vector<uint8_t>> data(new std::vector<uint8_t>(sbuf.data(), sbuf.data() + sbuf.size()));
 
-  server_->propose(std::move(data), [this, callback](const Status& status) {
-    io_service_.post([callback, status]() {
-      callback(status);
+  pending_requests_[commit_id] = callback;
+
+  server_->propose(std::move(data), [this, commit_id](const Status& status) {
+    io_service_.post([commit_id, status, this]() {
+
+      auto it = pending_requests_.find(commit_id);
+      if (it != pending_requests_.end()) {
+        it->second(status);
+        pending_requests_.erase(it);
+      }
     });
   });
 }
@@ -254,21 +281,30 @@ void RedisStore::read_commit(proto::EntryPtr entry) {
       LOG_ERROR("bad entry %s", e.what());
       return;
     }
+    RedisCommitData& data = commit.redis_data;
 
-    switch (commit.type) {
-      case RaftCommit::kCommitSet: {
-        assert(commit.strs.size() == 2);
-        this->key_values_[std::move(commit.strs[0])] = std::move(commit.strs[1]);
+    switch (data.type) {
+      case RedisCommitData::kCommitSet: {
+        assert(data.strs.size() == 2);
+        this->key_values_[std::move(data.strs[0])] = std::move(data.strs[1]);
         break;
       }
-      case RaftCommit::kCommitDel: {
-        for (const std::string& key : commit.strs) {
+      case RedisCommitData::kCommitDel: {
+        for (const std::string& key : data.strs) {
           this->key_values_.erase(key);
         }
         break;
       }
       default: {
-        LOG_ERROR("not supported type %d", commit.type);
+        LOG_ERROR("not supported type %d", data.type);
+      }
+    }
+
+    if (commit.node_id == server_->node_id()) {
+      auto it = pending_requests_.find(commit.commit_id);
+      if (it != pending_requests_.end()) {
+        it->second(Status::ok());
+        pending_requests_.erase(it);
       }
     }
   };

@@ -31,6 +31,8 @@ class RaftNode : public RaftServer {
 
   void report_snapshot(uint64_t id, SnapshotStatus status) final;
 
+  uint64_t node_id() const final { return id_; }
+
   bool publish_entries(const std::vector<proto::EntryPtr>& entries);
   void entries_to_apply(const std::vector<proto::EntryPtr>& entries, std::vector<proto::EntryPtr>& ents);
   void maybe_trigger_snapshot();
